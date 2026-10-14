@@ -131,14 +131,14 @@ export async function initializeSellerListings(db:Db,me:Profile){
  if(!pending.length)return;
  const ids=pending.map(row=>row.id),ownedRows=and(eq(listings.sellerId,me.id),inArray(listings.id,ids));
  const safeSnapshot=sql`COALESCE(
-  (SELECT json_array(json_object('id', ${sql.raw('listings.book_id')}, 'bookId', ${sql.raw('listings.book_id')},
-    'title', json_extract(copy.value, '$.title'), 'issue', json_extract(copy.value, '$.issue'),
-    'grade', json_extract(copy.value, '$.grade'), 'catalogId', json_extract(copy.value, '$.catalogId'),
-    'photoId', json_extract(copy.value, '$.photoId'), 'externalCatalog', json_extract(copy.value, '$.externalCatalog')))
+  (SELECT jsonb_build_array(jsonb_build_object('id', ${sql.raw('listings.book_id')}, 'bookId', ${sql.raw('listings.book_id')},
+    'title', copy.value::jsonb->>'title', 'issue', copy.value::jsonb->>'issue',
+    'grade', copy.value::jsonb->>'grade', 'catalogId', copy.value::jsonb->'catalogId',
+    'photoId', copy.value::jsonb->>'photoId', 'externalCatalog', copy.value::jsonb->'externalCatalog'))::text
    FROM collections c, json_each(c.data, '$.books') copy
    WHERE c.user_id = ${me.userId} AND json_extract(copy.value, '$.id') = ${sql.raw('listings.book_id')} LIMIT 1),
-  json_array(json_object('id', ${sql.raw('listings.book_id')}, 'bookId', ${sql.raw('listings.book_id')},
-    'title', ${sql.raw('listings.title')}, 'issue', '', 'grade', ${sql.raw('listings.grade')}, 'catalogId', ${sql.raw('listings.issue_id')})))`;
+  jsonb_build_array(jsonb_build_object('id', ${sql.raw('listings.book_id')}, 'bookId', ${sql.raw('listings.book_id')},
+    'title', ${sql.raw('listings.title')}, 'issue', '', 'grade', ${sql.raw('listings.grade')}, 'catalogId', ${sql.raw('listings.issue_id')}))::text)`;
  await db.batch([
   db.update(listings).set({items:safeSnapshot,itemCount:1}).where(and(ownedRows,eq(listings.status,'active'),eq(listings.items,'[]'),eq(listings.saleType,'fixed'),eq(listings.kind,'single'))),
   db.insert(listingInventory).select(db.select({sellerId:listings.sellerId,bookId:listings.bookId,listingId:listings.id}).from(listings).where(and(ownedRows,eq(listings.status,'active'))).orderBy(asc(listings.createdAt),asc(listings.id))).onConflictDoNothing(),
@@ -173,8 +173,8 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
   WHERE p.id = ${me.id} AND p.user_id = ${me.userId} AND p.visible = 1 AND p.moderated = 0 AND p.deletion_started_at IS NULL
    AND c.revision = ${source.revision} AND NOT EXISTS
     (SELECT 1 FROM account_restrictions r WHERE r.user_id = p.user_id AND r.scope = 'account'))
-  AND NOT EXISTS (SELECT 1 FROM json_each(${externalSnapshot}) selected LEFT JOIN catalog_issues canonical ON canonical.id = json_extract(selected.value,'$.id')
-   WHERE canonical.id IS NULL OR canonical.metron_id IS NOT json_extract(selected.value,'$.metronId') OR canonical.gcd_id IS NOT json_extract(selected.value,'$.gcdId') OR canonical.title != json_extract(selected.value,'$.title') OR canonical.number != json_extract(selected.value,'$.number'))
+  AND NOT EXISTS (SELECT 1 FROM json_each(${externalSnapshot}) selected LEFT JOIN catalog_issues canonical ON canonical.id = json_extract(selected.value,'$.id')::bigint
+   WHERE canonical.id IS NULL OR canonical.metron_id IS DISTINCT FROM json_extract(selected.value,'$.metronId')::bigint OR canonical.gcd_id IS DISTINCT FROM json_extract(selected.value,'$.gcdId')::bigint OR canonical.title != json_extract(selected.value,'$.title') OR canonical.number != json_extract(selected.value,'$.number'))
   AND json_array_length(${selectedJSON}) BETWEEN 1 AND 1000
   AND (${value.kind} != 'single' OR json_array_length(${selectedJSON}) = 1)
   AND (SELECT count(DISTINCT item.value) FROM json_each(${selectedJSON}) item) = ${selected.length}
@@ -196,7 +196,7 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
    db.update(listings).set({status:'ended'}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'active'),lte(listings.endAt,stamp))),
    db.delete(listingInventory).where(and(eq(listingInventory.sellerId,me.id),inArray(listingInventory.listingId,db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'ended'),lte(listings.endAt,stamp)))))),
    db.insert(listings).values({id:listingId,sellerId:me.id,bookId:first.id,issueId:value.kind==='single'?first.externalCatalog?listingDirectoryId(first):linkedCatalogIssue(first)?.id??null:null,title:value.title||(value.kind==='single'?first.title+' '+first.issue:vault.profile+"'s "+items.length+'-comic collection'),grade:value.kind==='single'?first.grade:'Mixed conditions · see each copy',description:value.description,price:value.price,shipping:value.shipping,photos:JSON.stringify(value.photos),cert:value.cert,status:'active',createdAt:stamp,kind:value.kind,saleType:value.saleType,items:JSON.stringify(items),itemCount:items.length,endAt:value.saleType==='auction'?new Date(Date.parse(stamp)+value.durationHours*3600000).toISOString():'',bidIncrement:value.bidIncrement,vaultRevision:source.revision,usaAttestedAt:value.usaAttest===true?stamp:'',fulfillment:value.fulfillment,pickupCity:value.pickupCity,pickupState:value.pickupState}),
-   db.insert(listingInventory).select(db.select({sellerId:sql<string>`${me.id}`.as('seller_id'),bookId:sql<string>`json_extract(item.value, '$.bookId')`.as('book_id'),listingId:sql<string>`${listingId}`.as('listing_id')}).from(sql`json_each(${JSON.stringify(items)}) item`).where(sql`1`)),
+   db.insert(listingInventory).select(db.select({sellerId:sql<string>`${me.id}`.as('seller_id'),bookId:sql<string>`json_extract(item.value, '$.bookId')`.as('book_id'),listingId:sql<string>`${listingId}`.as('listing_id')}).from(sql`json_each(${JSON.stringify(items)}) item`).where(sql`true`)),
    checked.finish
   ]);
  }catch(error){if(marketplaceGuardFailed(error)||/listing_inventory/.test(databaseMessage(error)))throw new ApiRequestError('A selected copy is already listed or your collection changed. Refresh before publishing.',409);throw error}
@@ -221,7 +221,7 @@ export async function placeBid(db:Db,me:Profile,raw:Record<string,unknown>){
  const stamp=new Date().toISOString(),bidId=crypto.randomUUID();
  const checked=guard(db,sql`EXISTS (SELECT 1 FROM listings l JOIN profiles seller ON seller.id = l.seller_id
   JOIN profiles bidder ON bidder.id = ${me.id} WHERE l.id = ${row.id} AND l.sale_type = 'auction'
-   AND l.status = 'active' AND julianday(l.end_at) IS NOT NULL AND l.end_at > ${stamp}
+   AND l.status = 'active' AND parse_iso_timestamp(l.end_at) IS NOT NULL AND l.end_at > ${stamp}
    AND l.auction_version = ${row.auctionVersion} AND ${value.amount} >= COALESCE(l.current_bid + l.bid_increment,l.price)
    AND l.seller_id != bidder.id AND bidder.user_id = ${me.userId}
    AND seller.visible = 1 AND seller.moderated = 0 AND bidder.visible = 1 AND bidder.moderated = 0
@@ -250,7 +250,7 @@ export async function retractBid(db:Db,me:Profile,raw:Record<string,unknown>){
  const stamp=new Date().toISOString();
  const checked=guard(db,sql`EXISTS (SELECT 1 FROM auction_bids own JOIN listings l ON l.id = own.listing_id
   WHERE own.id = ${bid.id} AND own.bidder_id = ${me.id} AND own.listing_id = ${row.id}
-   AND own.status IN ('leading','outbid') AND l.status = 'active' AND julianday(l.end_at) IS NOT NULL
+   AND own.status IN ('leading','outbid') AND l.status = 'active' AND parse_iso_timestamp(l.end_at) IS NOT NULL
    AND l.end_at > ${stamp} AND l.auction_version = ${row.auctionVersion}
    AND own.id = (SELECT latest.id FROM auction_bids latest WHERE latest.listing_id = own.listing_id
     AND latest.bidder_id = own.bidder_id AND latest.status IN ('leading','outbid') ORDER BY latest.sequence DESC LIMIT 1))`);
@@ -352,7 +352,7 @@ export async function proposeListingTrade(db:Db,me:Profile,raw:Record<string,unk
   db.insert(tradeProposals).select(db.select({id:sql<string>`${value.requestId}`.as('id'),threadId:threads.id,listingId:sql<string>`${listing.id}`.as('listing_id'),buyerId:sql<string>`${me.id}`.as('buyer_id'),sellerId:sql<string>`${seller.id}`.as('seller_id'),status:sql<string>`'pending'`.as('status'),version:sql<number>`0`.as('version'),requestBody:sql<string>`${requestBody}`.as('request_body'),buyerItems:sql<string>`${buyerItems}`.as('buyer_items'),sellerItems:sql<string>`${sellerItems}`.as('seller_items'),listingSnapshot:sql<string>`${listingSnapshot}`.as('listing_snapshot'),createdAt:sql<string>`${stamp}`.as('created_at'),updatedAt:sql<string>`${stamp}`.as('updated_at'),decidedAt:sql<null>`NULL`.as('decided_at'),decidedBy:sql<null>`NULL`.as('decided_by')}).from(threads).where(eq(threads.pair,pair))).onConflictDoNothing().returning({id:tradeProposals.id}),
   db.insert(messages).select(db.select({id:sql<string>`${value.requestId}`.as('id'),threadId:threads.id,profileId:sql<string>`${me.id}`.as('profile_id'),body:sql<string>`${body}`.as('body'),createdAt:sql<string>`${stamp}`.as('created_at')}).from(threads).where(eq(threads.pair,pair))).onConflictDoNothing(),
   checked.finish
- ]);inserted=results[2].length>0}catch(error){if(marketplaceGuardFailed(error))throw new ApiRequestError('The listing, available copies or messaging permissions changed. Refresh before sending a trade proposal.',409);throw error}
+ ]);inserted=Array.isArray(results[2])&&results[2].length>0}catch(error){if(marketplaceGuardFailed(error))throw new ApiRequestError('The listing, available copies or messaging permissions changed. Refresh before sending a trade proposal.',409);throw error}
  const [thread]=await db.select().from(threads).where(eq(threads.pair,pair));
  return {saved:true,proposalId:value.requestId,threadId:thread.id,duplicate:!inserted,note:'Trade terms saved for the seller. Acceptance records an agreement only; no completed trade, protection, payment or transfer is created.'};
 }
@@ -371,7 +371,7 @@ export async function decideTradeTerms(db:Db,me:Profile,raw:Record<string,unknow
    AND buyer.rules_version = ${previewRulesVersion} AND seller.rules_version = ${previewRulesVersion} AND buyer.rules_accepted_at != '' AND seller.rules_accepted_at != ''
    AND NOT EXISTS (SELECT 1 FROM account_restrictions r WHERE r.scope = 'account' AND r.user_id IN (buyer.user_id,seller.user_id))
    AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.from_id = buyer.id AND b.to_id = seller.id) OR (b.from_id = seller.id AND b.to_id = buyer.id))
-   AND NOT EXISTS (SELECT 1 FROM listing_inventory reserved WHERE reserved.seller_id = buyer.id AND reserved.book_id IN (SELECT copy.value FROM json_each(${selected}) copy) AND (EXISTS (SELECT 1 FROM listings held WHERE held.id = reserved.listing_id AND held.status = 'active') OR EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = reserved.listing_id AND o.status NOT IN ('cancelled','checkout_expired')))))`:accept?sql`0`:sql`1`;
+   AND NOT EXISTS (SELECT 1 FROM listing_inventory reserved WHERE reserved.seller_id = buyer.id AND reserved.book_id IN (SELECT copy.value FROM json_each(${selected}) copy) AND (EXISTS (SELECT 1 FROM listings held WHERE held.id = reserved.listing_id AND held.status = 'active') OR EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = reserved.listing_id AND o.status NOT IN ('cancelled','checkout_expired')))))`:accept?sql`false`:sql`true`;
  const stamp=new Date().toISOString(),status=value.decision==='accept'?'accepted':value.decision==='decline'?'declined':'cancelled',checked=guard(db,sql`EXISTS (SELECT 1 FROM trade_proposals pending JOIN threads t ON t.id = pending.thread_id JOIN profiles actor ON actor.id = ${me.id}
   WHERE pending.id = ${row.id} AND pending.status = 'pending' AND pending.version = ${value.expectedVersion} AND pending.listing_id = ${row.listingId} AND pending.request_body = ${row.requestBody} AND pending.created_at = ${row.createdAt} AND pending.buyer_id = ${row.buyerId} AND pending.seller_id = ${row.sellerId} AND pending.thread_id = ${row.threadId} AND pending.buyer_items = ${row.buyerItems} AND pending.seller_items = ${row.sellerItems} AND pending.listing_snapshot = ${row.listingSnapshot}
    AND actor.user_id = ${me.userId} AND actor.deletion_started_at IS NULL AND ((t.a = pending.buyer_id AND t.b = pending.seller_id) OR (t.b = pending.buyer_id AND t.a = pending.seller_id))) AND ${permission}`);
@@ -390,7 +390,7 @@ export async function checkMarketplaceDeletion(db:Db,me:Profile){
 export function anonymizeMarketplaceHistory(db:Db,me:Profile){
  const removed='deleted:'+crypto.randomUUID(),stamp=new Date().toISOString();
  const sellerSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.buyer_user_id = ${me.userId} OR o.seller_user_id = ${me.userId}) AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = ${me.id} AND l.sale_type = 'auction' AND l.bid_count > 0 AND l.status IN ('active','ended'))`);
- const bidderSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM auction_bids b JOIN listings l ON l.id = b.listing_id WHERE b.bidder_id = ${me.id} AND b.status IN ('leading','outbid') AND l.status = 'active' AND julianday(l.end_at) IS NOT NULL AND l.end_at > ${stamp})`);
+ const bidderSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM auction_bids b JOIN listings l ON l.id = b.listing_id WHERE b.bidder_id = ${me.id} AND b.status IN ('leading','outbid') AND l.status = 'active' AND parse_iso_timestamp(l.end_at) IS NOT NULL AND l.end_at > ${stamp})`);
  return {checks:[sellerSafe.start,bidderSafe.start],before:[
   db.update(profiles).set({deletionStartedAt:stamp,visible:0,dmOpen:0}).where(eq(profiles.id,me.id)),
   db.update(auctionBids).set({bidderId:removed,requestId:sql`${auctionBids.id}`}).where(eq(auctionBids.bidderId,me.id)),

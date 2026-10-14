@@ -48,3 +48,6 @@ next-env.d.ts
 # Python catalog orchestration checks
 __pycache__/
 *.pyc
+
+*.tsbuildinfo
+/certificates/

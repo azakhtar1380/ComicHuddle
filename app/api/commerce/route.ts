@@ -1,4 +1,4 @@
-import {env} from 'cloudflare:workers';
+import {env} from '../../../lib/runtime-env';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../lib/api-security';
@@ -9,11 +9,11 @@ import {type StripeSandboxEnv} from '../../../lib/stripe-sandbox';
 const environment=()=>env as unknown as StripeSandboxEnv;
 export async function GET(req:Request){try{
  const url=new URL(req.url);if(url.searchParams.get('kind')==='setup')return privateJson(commerceSetup(environment()));
- const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in with ChatGPT to see your orders.'},401);
+ const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in to ComicHuddle to see your orders.'},401);
  return privateJson(await commerceOverview(getDb(),user.userId,environment(),url.searchParams.get('order')||undefined));
 }catch(error){return commerceError(error)}}
 export async function POST(req:Request){try{
- const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in with ChatGPT to continue.'},401);
+ const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in to ComicHuddle to continue.'},401);
  if(req.headers.get('origin')!==new URL(req.url).origin)return privateJson({error:'Request origin rejected.'},403);
  const raw=await readObject(req,25000),action=typeof raw.action==='string'?raw.action:'unknown';
  const budgets:Record<string,number>={checkout:10,seller_onboard:5,submit_tracking:10,request_refund:5,owner_refund:10,owner_reconcile:10,owner_sweep:3};

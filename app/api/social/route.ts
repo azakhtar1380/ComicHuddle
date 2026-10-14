@@ -10,7 +10,7 @@ import {starterGroups,groupChannels,previewRulesVersion,communityPostKinds,type 
 import {ApiRequestError,enforceWriteLimits,isRestricted,privateJson,chunks,blockedPeerIds} from '../../../lib/api-security';
 import {bookIssue} from '../../../lib/trades';
 import {ownerAccountId} from '../../../lib/owner';
-import {env} from 'cloudflare:workers';
+import {env} from '../../../lib/runtime-env';
 import {blocked,beginThread} from '../../../lib/conversations';
 import {careIntakeForViewer} from '../../../lib/pressing';
 import {commerceAccountData} from '../../../lib/commerce';
@@ -28,9 +28,9 @@ async function seedGroups(db:Db){await db.insert(groups).values(starterGroups.ma
 async function joined(db:Db,p:string,g:string){return (await db.select().from(memberships).where(and(eq(memberships.profileId,p),eq(memberships.groupId,g)))).length>0}
 // A hidden showcase may participate privately inside joined groups. Public
 // discovery visibility is not a substitute for actual group membership.
-function communityPerson(profileId:SQLWrapper,viewer?:P){return sql`EXISTS (SELECT 1 FROM profiles cp WHERE cp.id = ${profileId} AND cp.moderated = 0 AND cp.deletion_started_at IS NULL AND NOT EXISTS (SELECT 1 FROM account_restrictions cr WHERE cr.user_id = cp.user_id AND cr.scope = 'account')) AND ${viewer?sql`NOT EXISTS (SELECT 1 FROM blocks cb WHERE (cb.from_id = ${viewer.id} AND cb.to_id = ${profileId}) OR (cb.from_id = ${profileId} AND cb.to_id = ${viewer.id}))`:sql`1`}`}
+function communityPerson(profileId:SQLWrapper,viewer?:P){return sql`EXISTS (SELECT 1 FROM profiles cp WHERE cp.id = ${profileId} AND cp.moderated = 0 AND cp.deletion_started_at IS NULL AND NOT EXISTS (SELECT 1 FROM account_restrictions cr WHERE cr.user_id = cp.user_id AND cr.scope = 'account')) AND ${viewer?sql`NOT EXISTS (SELECT 1 FROM blocks cb WHERE (cb.from_id = ${viewer.id} AND cb.to_id = ${profileId}) OR (cb.from_id = ${profileId} AND cb.to_id = ${viewer.id}))`:sql`true`}`}
 function communityGroupVisible(viewer?:P){return sql`(${groups.ownerId} IS NULL OR ${communityPerson(groups.ownerId,viewer)})`}
-function communityJoined(viewer:P|undefined,group:SQLWrapper=groups.id){return viewer?sql`EXISTS (SELECT 1 FROM memberships cm WHERE cm.profile_id = ${viewer.id} AND cm.group_id = ${group})`:sql`0`}
+function communityJoined(viewer:P|undefined,group:SQLWrapper=groups.id){return viewer?sql`EXISTS (SELECT 1 FROM memberships cm WHERE cm.profile_id = ${viewer.id} AND cm.group_id = ${group})`:sql`false`}
 function communityActor(profile:P){return sql`EXISTS (SELECT 1 FROM profiles ca WHERE ca.id = ${profile.id} AND ca.user_id = ${profile.userId} AND ca.moderated = 0 AND ca.deletion_started_at IS NULL AND ca.rules_version = ${previewRulesVersion} AND ca.rules_accepted_at != '' AND NOT EXISTS (SELECT 1 FROM account_restrictions ar WHERE ar.user_id = ca.user_id AND ar.scope = 'account'))`}
 function communityActivity(viewer?:P){return sql<string>`MAX(${groupPosts.createdAt},COALESCE((SELECT MAX(gr.created_at) FROM group_post_replies gr WHERE gr.post_id = ${groupPosts.id} AND ${communityPerson(sql`gr.profile_id`,viewer)}),${groupPosts.createdAt}))`}
 function communityPostCounts(viewer?:P){return {
@@ -42,7 +42,7 @@ function communityPostCounts(viewer?:P){return {
 function communitySelection(db:Db,viewer?:P){return db.select({post:groupPosts,group:groups,author:profiles,...communityPostCounts(viewer)}).from(groupPosts).innerJoin(groups,eq(groups.id,groupPosts.groupId)).innerJoin(profiles,eq(profiles.id,groupPosts.profileId))}
 type CommunityRow=Awaited<ReturnType<ReturnType<typeof communitySelection>['execute']>>[number];
 function communityPostDto(row:CommunityRow,viewer?:P):CommunityPost{return {id:row.post.id,groupId:row.group.id,group:{id:row.group.id,name:row.group.name,color:row.group.color},channel:row.post.channel,kind:communityPostKinds.includes(row.post.kind as typeof communityPostKinds[number])?row.post.kind as typeof communityPostKinds[number]:'discussion',title:row.post.title,body:row.post.body,photoId:row.post.photoId,createdAt:row.post.createdAt,lastActiveAt:row.lastActiveAt,author:{id:row.author.id,name:row.author.name,handle:row.author.handle,color:row.author.color},canDelete:row.post.profileId===viewer?.id||row.group.ownerId===viewer?.id,liked:!!row.liked,likeCount:Number(row.likeCount),replyCount:Number(row.replyCount)}}
-function communitySearch(q:string,columns:SQLWrapper[]){const needle='%'+q.replace(/[\\%_]/g,'\\$&')+'%';return q?sql`(${sql.join(columns.map(column=>sql`${column} LIKE ${needle} ESCAPE '\\'`),sql` OR `)})`:sql`1`}
+function communitySearch(q:string,columns:SQLWrapper[]){const needle='%'+q.replace(/[\\%_]/g,'\\$&')+'%';return q?sql`(${sql.join(columns.map(column=>sql`${column} LIKE ${needle} ESCAPE '\\'`),sql` OR `)})`:sql`true`}
 type CommunityCursor={at:string;id:string;scope:string};
 function encodeCommunityCursor(value:CommunityCursor){return Array.from(new TextEncoder().encode(JSON.stringify(value)),byte=>byte.toString(16).padStart(2,'0')).join('')}
 function decodeCommunityCursor(value:string|null,scope:string):CommunityCursor|null{
@@ -82,7 +82,7 @@ async function communityThread(db:Db,viewer:P|undefined,url:URL):Promise<Communi
  const replies=rows.slice(0,30).map(({reply,author})=>({id:reply.id,postId:reply.postId,body:reply.body,createdAt:reply.createdAt,author:{id:author.id,name:author.name,handle:author.handle,color:author.color},canDelete:reply.profileId===viewer.id||row.group.ownerId===viewer.id})),last=replies.at(-1),hasMore=rows.length>30;
  return {post:communityPostDto(row,viewer),replies,hasMore,nextCursor:hasMore&&last?encodeCommunityCursor({at:last.createdAt,id:last.id,scope}):null};
 }
-function communityWriteGuard(db:Db,viewer:P,groupId:string,extra:SQL=sql`1`){return conditionalGuard(db,sql`${communityActor(viewer)} AND EXISTS (SELECT 1 FROM memberships m JOIN groups g ON g.id = m.group_id WHERE m.profile_id = ${viewer.id} AND m.group_id = ${groupId} AND (g.owner_id IS NULL OR ${communityPerson(sql`g.owner_id`,viewer)})) AND ${extra}`)}
+function communityWriteGuard(db:Db,viewer:P,groupId:string,extra:SQL=sql`true`){return conditionalGuard(db,sql`${communityActor(viewer)} AND EXISTS (SELECT 1 FROM memberships m JOIN groups g ON g.id = m.group_id WHERE m.profile_id = ${viewer.id} AND m.group_id = ${groupId} AND (g.owner_id IS NULL OR ${communityPerson(sql`g.owner_id`,viewer)})) AND ${extra}`)}
 async function communityBatch(db:Db,statements:Parameters<Db['batch']>[0]){try{return await db.batch(statements)}catch(error){if(operationGuardFailed(error))throw new ApiRequestError('This group, membership or conversation changed. Refresh before trying again.',409);throw error}}
 function removeCommunityPosts(db:Db,where:SQL){const ids=db.select({id:groupPosts.id}).from(groupPosts).where(where);return [db.delete(reports).where(and(eq(reports.targetType,'post_reply'),inArray(reports.targetId,db.select({id:groupPostReplies.id}).from(groupPostReplies).where(inArray(groupPostReplies.postId,ids))))),db.delete(reports).where(and(eq(reports.targetType,'post'),inArray(reports.targetId,ids))),db.delete(groupPostReplies).where(inArray(groupPostReplies.postId,ids)),db.delete(groupPostReactions).where(inArray(groupPostReactions.postId,ids)),db.delete(groupPosts).where(where)] as const}
 async function canReport(db:Db,me:P,type:string,targetId:string):Promise<boolean>{
@@ -241,7 +241,7 @@ if(a.action==='post'){
  const v=z.object({action:z.literal('post'),groupId:id,channel:z.enum(['general','showcase','trading']),body:text(1500),kind:z.enum(communityPostKinds).default('discussion'),title:z.string().trim().max(120).default(''),photoId:z.string().uuid().nullable().optional()}).strict().parse(a);
  if(!await joined(db,p.id,v.groupId))return json({error:'Join this group before posting.'},403);
  if(v.photoId){const [asset]=await db.select().from(media).where(and(eq(media.id,v.photoId),eq(media.userId,u.userId)));if(!asset)return json({error:'Attach only a photo uploaded to your own account.'},403)}
- const postId=crypto.randomUUID(),guard=communityWriteGuard(db,p,v.groupId,v.photoId?sql`EXISTS (SELECT 1 FROM media photo WHERE photo.id = ${v.photoId} AND photo.user_id = ${u.userId})`:sql`1`);
+ const postId=crypto.randomUUID(),guard=communityWriteGuard(db,p,v.groupId,v.photoId?sql`EXISTS (SELECT 1 FROM media photo WHERE photo.id = ${v.photoId} AND photo.user_id = ${u.userId})`:sql`true`);
  await communityBatch(db,[guard.start,db.insert(groupPosts).values({id:postId,groupId:v.groupId,channel:v.channel,profileId:p.id,body:v.body,kind:v.kind,title:v.title,photoId:v.photoId||null,createdAt:now()}),guard.finish]);return json({saved:true,postId});
 }
 if(a.action==='post_reply'||a.action==='post_react'){

@@ -70,7 +70,7 @@ export async function commerceAccountData(db:Db,userId:string){
  return {sandbox:true,complete:true,orders:orders.map(row=>commerceOrderDto(row,userId)),events:events.map(row=>({orderId:row.orderId,...eventDto(row)}))};
 }
 export async function commerceOwnedOrder(db:Db,userId:string,orderId:string,allowOperator=false){
- const [row]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.id,orderId),allowOperator&&userId===ownerAccountId?sql`1`:or(eq(commerceOrders.buyerUserId,userId),eq(commerceOrders.sellerUserId,userId))));
+ const [row]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.id,orderId),allowOperator&&userId===ownerAccountId?sql`true`:or(eq(commerceOrders.buyerUserId,userId),eq(commerceOrders.sellerUserId,userId))));
  if(!row)throw new ApiRequestError('Order not found.',404);return row;
 }
 export async function commerceOverview(db:Db,userId:string,environment:StripeSandboxEnv,orderId?:string){
@@ -91,7 +91,7 @@ function transition(state:State,event:CommerceEvent,stamp=now()):State{
  const result=applyCommerceEvent(state,event,stamp);if(!result.accepted)throw new ApiRequestError('Order protection rejected this change: '+result.error,409);return result.state as State;
 }
 function eventBase(row:Row,eventId:string,source:CommerceEvent['source'],stamp=now()){return {eventId,orderId:row.id,buyerId:row.buyerId,sellerId:row.sellerId,source,occurredAt:stamp,verified:true as const}}
-async function persist(db:Db,row:Row,state:State,type:string,body:ObjectRecord={},providerEventId:string|null=null,patch:Partial<typeof commerceOrders.$inferInsert>={},condition:SQL=sql`1`){
+async function persist(db:Db,row:Row,state:State,type:string,body:ObjectRecord={},providerEventId:string|null=null,patch:Partial<typeof commerceOrders.$inferInsert>={},condition:SQL=sql`true`){
  const check=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM commerce_orders o WHERE o.id = ${row.id} AND o.version = ${row.version} AND o.sandbox = 1) AND ${condition}`),stamp=now();
  try{await db.batch([check.start,db.update(commerceOrders).set({...patch,state:JSON.stringify(state),status:state.status,version:row.version+1,updatedAt:stamp}).where(eq(commerceOrders.id,row.id)),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId:row.id,providerEventId,type,body:JSON.stringify(body),createdAt:stamp}),check.finish])}
  catch(error){if(operationGuardFailed(error))throw new ApiRequestError('Order changed. Refresh before trying again.',409);throw error}

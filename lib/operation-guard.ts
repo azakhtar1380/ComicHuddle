@@ -3,7 +3,7 @@ import {getDb} from '../db';
 import {operationGuard} from '../db/schema';
 
 type Db=ReturnType<typeof getDb>;
-// Insert first and delete last in the same D1 batch. An invalid condition must
+// Insert first and delete last in the same PostgreSQL transaction. An invalid condition must
 // write valid=0 so the CHECK aborts, rather than silently selecting zero rows.
 export function conditionalGuard(db:Db,valid:SQL){
  const id=crypto.randomUUID();return {

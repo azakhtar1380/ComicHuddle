@@ -1,4 +1,4 @@
-import {and,asc,desc,eq,inArray,isNotNull,like,sql} from 'drizzle-orm';
+import {ilike,and,asc,desc,eq,inArray,isNotNull,like,sql} from 'drizzle-orm';
 import {getDb} from '../db';
 import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync} from '../db/schema';
 import {catalog,type Issue} from './catalog';
@@ -56,7 +56,7 @@ export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q
   const series=[...byTitle.values()].sort((a,b)=>a.title.localeCompare(b.title));
   return {series:series.slice(filter.offset,filter.offset+filter.limit),total:series.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<series.length};
  }
- const where=and(eq(catalogIssues.publisher,filter.publisher),filter.q?like(catalogIssues.title,'%'+filter.q+'%'):undefined);
+ const where=and(eq(catalogIssues.publisher,filter.publisher),filter.q?ilike(catalogIssues.title,'%'+filter.q+'%'):undefined);
  const [total]=await db.select({n:sql<number>`count(distinct ${catalogIssues.title})`}).from(catalogIssues).where(where);
  const series=await db.select({title:catalogIssues.title,publisher:catalogIssues.publisher,count:sql<number>`count(*)`,firstYear:sql<number>`min(${catalogIssues.year})`,lastYear:sql<number>`max(${catalogIssues.year})`}).from(catalogIssues).where(where).groupBy(catalogIssues.title,catalogIssues.publisher).orderBy(asc(catalogIssues.title)).limit(filter.limit).offset(filter.offset);
  return {series,total:Number(total?.n||0),limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<Number(total?.n||0)};

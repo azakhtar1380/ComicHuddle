@@ -37,7 +37,7 @@ async function jobDto(db:Db,row:JobRow,me:P,known?:{providers:Map<string,Provide
  return {...row,...careIntakeForViewer(row,me.id),books:JSON.parse(row.books),services:JSON.parse(row.services),sendToCgc:!!row.sendToCgc,method:row.method as CareJob['method'],providerName:provider?.name||'Former provider',requesterName:people.find(p=>p.id===row.requesterId)?.name||'Collector',providerHandle:people.find(p=>p.id===row.providerProfileId)?.handle||'',isProvider:me.id===row.providerProfileId};
 }
 function eventStatement(db:Db,jobId:string,actorId:string,status:string,note:string,photos:string[]=[],stamp=now()){return db.insert(careEvents).values({id:crypto.randomUUID(),jobId,actorId,status,note,photos:JSON.stringify(photos),createdAt:stamp})}
-async function commitCareEvent(db:Db,job:JobRow,actor:P,update:Partial<JobRow>,status:string,note:string,photos:string[]=[],validation:SQL=sql`1`){
+async function commitCareEvent(db:Db,job:JobRow,actor:P,update:Partial<JobRow>,status:string,note:string,photos:string[]=[],validation:SQL=sql`true`){
  const checked=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM care_jobs current
   JOIN profiles requester ON requester.id = current.requester_id JOIN profiles provider ON provider.id = current.provider_profile_id
   WHERE current.id = ${job.id} AND current.status = ${job.status} AND current.quote_revision = ${job.quoteRevision}
@@ -138,7 +138,7 @@ export async function POST(req:Request){try{
      (restriction.user_id = owner.user_id AND restriction.scope IN ('account','provider'))
      OR (restriction.user_id = collector.user_id AND restriction.scope = 'account'))
     AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.from_id = owner.id AND b.to_id = collector.id) OR (b.from_id = collector.id AND b.to_id = owner.id)))`);
-  try{const saved=await db.batch([checked.start,db.insert(threads).values({id:crypto.randomUUID(),pair,a:left,b:right,context:'Press Room · '+provider.name,createdAt:stamp}).onConflictDoNothing(),db.insert(careJobs).values({id:jobId,providerId:provider.id,providerProfileId:provider.profileId,requesterId:p.id,threadId:sql`(SELECT id FROM threads WHERE pair = ${pair})`,books:JSON.stringify(books.map(b=>{const {price,...copy}=b!;return {...copy,declaredValue:v.declaredValues[b!.id]??Math.round(price*100)}})),services:JSON.stringify(v.services),notes:v.notes,sendToCgc:Number(v.sendToCgc),status:'requested',method:v.method,fee:null,returnShipping:null,cgcEstimate:null,quoteNotes:'',quoteDays:null,quoteRevision:0,termsSnapshot:'',shippingAddress:'',shippingNotes:'',returnAddress:'',incomingCarrier:'',incomingTracking:'',outgoingCarrier:'',outgoingTracking:'',submissionRef:'',createdAt:stamp,updatedAt:stamp}).returning({threadId:careJobs.threadId}),eventStatement(db,jobId,p.id,'requested','Quote requested. Pressing / dry cleaning only; any restoration requires a separate agreement.',[],stamp),checked.finish]);return json({saved:true,jobId,threadId:saved[2][0].threadId})}
+  try{const saved=await db.batch([checked.start,db.insert(threads).values({id:crypto.randomUUID(),pair,a:left,b:right,context:'Press Room · '+provider.name,createdAt:stamp}).onConflictDoNothing(),db.insert(careJobs).values({id:jobId,providerId:provider.id,providerProfileId:provider.profileId,requesterId:p.id,threadId:sql`(SELECT id FROM threads WHERE pair = ${pair})`,books:JSON.stringify(books.map(b=>{const {price,...copy}=b!;return {...copy,declaredValue:v.declaredValues[b!.id]??Math.round(price*100)}})),services:JSON.stringify(v.services),notes:v.notes,sendToCgc:Number(v.sendToCgc),status:'requested',method:v.method,fee:null,returnShipping:null,cgcEstimate:null,quoteNotes:'',quoteDays:null,quoteRevision:0,termsSnapshot:'',shippingAddress:'',shippingNotes:'',returnAddress:'',incomingCarrier:'',incomingTracking:'',outgoingCarrier:'',outgoingTracking:'',submissionRef:'',createdAt:stamp,updatedAt:stamp}).returning({threadId:careJobs.threadId}),eventStatement(db,jobId,p.id,'requested','Quote requested. Pressing / dry cleaning only; any restoration requires a separate agreement.',[],stamp),checked.finish]);if(!Array.isArray(saved[2])||!saved[2][0])throw Error('Care request was not saved.');return json({saved:true,jobId,threadId:saved[2][0].threadId})}
   catch(error){if(operationGuardFailed(error))throw new ApiRequestError('The provider or your collection changed. Reload before requesting care.',409);throw error}
  }
  const v=z.object({jobId:id}).parse(a),j=await ownJob(db,v.jobId,p);if(!j)return json({error:'Request not found.'},404);
@@ -160,7 +160,7 @@ export async function POST(req:Request){try{
   if(q.revision!==j.quoteRevision)return json({error:'The quote changed. Review the latest revision.'},409);
   if(j.method==='mail'&&!q.returnAddress)return json({error:'Enter a private return shipping address.'},400);
   const [provider]=await db.select().from(careProviders).where(eq(careProviders.id,j.providerId));if(j.sendToCgc&&(!q.cgcConsent||provider?.submissionMode!=='dealer'))return json({error:'Verify dealer eligibility and authorize the CGC submission.'},400);
-  const eligibility=j.sendToCgc?sql`EXISTS (SELECT 1 FROM care_providers studio WHERE studio.id = ${j.providerId} AND studio.submission_mode = 'dealer')`:sql`1`;
+  const eligibility=j.sendToCgc?sql`EXISTS (SELECT 1 FROM care_providers studio WHERE studio.id = ${j.providerId} AND studio.submission_mode = 'dealer')`:sql`true`;
   await commitCareEvent(db,j,p,{status:'approved',returnAddress:q.returnAddress},'approved','Collector accepted quote revision '+q.revision+' and the stated scope, risks and provider terms.'+(j.sendToCgc?' Third-party CGC submission authorized.':''),[],eligibility);return json({saved:true});
  }
  if(a.action==='stage'){
@@ -172,7 +172,7 @@ export async function POST(req:Request){try{
   if(!await ownedPhotos(db,u.userId,q.photos))return json({error:'Use your own uploaded condition photos.'},403);
   if(q.status==='at_grading'){const [provider]=await db.select().from(careProviders).where(eq(careProviders.id,j.providerId));if(provider?.submissionMode!=='dealer'||!q.submissionRef)return json({error:'Dealer eligibility and a CGC submission reference are required.'},400)}
   const update:Partial<JobRow>={status:q.status,updatedAt:now()};if(q.status==='in_transit'){update.incomingCarrier=q.carrier;update.incomingTracking=q.tracking}if(q.status==='returning'){update.outgoingCarrier=q.carrier;update.outgoingTracking=q.tracking}if(q.status==='at_grading')update.submissionRef=q.submissionRef;
-  const eligibility=q.status==='at_grading'?sql`EXISTS (SELECT 1 FROM care_providers studio WHERE studio.id = ${j.providerId} AND studio.submission_mode = 'dealer')`:sql`1`;
+  const eligibility=q.status==='at_grading'?sql`EXISTS (SELECT 1 FROM care_providers studio WHERE studio.id = ${j.providerId} AND studio.submission_mode = 'dealer')`:sql`true`;
   await commitCareEvent(db,j,p,update,q.status,q.note||'Stage updated by '+(isProvider?'provider':'collector')+'.',q.photos,eligibility);return json({saved:true});
  }
  return json({error:'Unknown action.'},400);

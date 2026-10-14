@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci --include=dev",
+  "buildCommand": "npm run build",
+  "regions": ["cle1"],
+  "functions": { "app/api/**/route.ts": { "maxDuration": 60 } },
+  "crons": [{ "path": "/api/cron/new-releases", "schedule": "0 9 * * 1" }]
+}

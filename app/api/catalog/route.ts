@@ -11,7 +11,7 @@ function integer(value:string|null,fallback:number,min:number,max:number){
  if(!/^\d+$/.test(value))return undefined;
  const number=Number(value);return Number.isSafeInteger(number)&&number>=min&&number<=max?number:undefined;
 }
-export async function GET(req?:Request){
+export async function GET(req:Request){
  try{
  const params=req?new URL(req.url).searchParams:new URLSearchParams();
   const allowed=['q','id','ids','limit','offset','publisher','series','era','kind','sort','browse'];
