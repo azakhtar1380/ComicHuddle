@@ -14,6 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "test:readiness": "node checks/run-readiness.mjs",
     "db:migrate": "tsx scripts/migrate-postgres.ts",
+    "db:seed": "tsx scripts/seed-real-data.ts",
+    "test:catalog-seed": "node --import tsx --test checks/gcd-postgres-seed.test.ts",
     "test:postgres": "node --import tsx --test checks/postgres-migration.test.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -1,0 +1,235 @@
+{
+  "schemaVersion": "gcd-rds-seed/v1",
+  "provider": "GCD",
+  "scope": "selected_series_main_story_overviews",
+  "catalogComplete": false,
+  "license": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "expectedRecords": 993,
+  "datasetSha256": "69481fa179eabdf4b0872b389ee7c327cdd165df18d6e67971ed057d9cd525a2",
+  "sources": [
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/",
+      "seriesId": 1570,
+      "page": 1,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:44:47.838197+00:00",
+      "responseSha256": "290bf5292c2b2e2b283a856c1459fb98a06bab021169ed742b635356bc03a3a3"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=2",
+      "seriesId": 1570,
+      "page": 2,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:50:27.858599+00:00",
+      "responseSha256": "3891a241b61fb84acf3948bb149540d07ccb4ee7ffe6b3f5432b760238686ca2"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=3",
+      "seriesId": 1570,
+      "page": 3,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:50:35.612614+00:00",
+      "responseSha256": "557845e3c38e9801c17238e7c914f38499088875a69c1d70570a4cdec7f67526"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=4",
+      "seriesId": 1570,
+      "page": 4,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:50:41.381384+00:00",
+      "responseSha256": "0e00312d7cd0e7989161fdfdccb6aea1ff034f84c18574e89427ed952f4893c2"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=5",
+      "seriesId": 1570,
+      "page": 5,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:50:55.589034+00:00",
+      "responseSha256": "85be39cb8409535f24546637d92687f1950cc948b3d6be3380133d01eea241ca"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=6",
+      "seriesId": 1570,
+      "page": 6,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:03.409753+00:00",
+      "responseSha256": "9201905da2f11f62e76ec10410adbc0876dda9f44881baefab863217874ab8f6"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=7",
+      "seriesId": 1570,
+      "page": 7,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:08.602249+00:00",
+      "responseSha256": "7c129acf4d35c3d408c5eac76d8e4e901fad52a68d76625ff9f23efecfebe1e5"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=8",
+      "seriesId": 1570,
+      "page": 8,
+      "providerCount": 443,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:13.887909+00:00",
+      "responseSha256": "45bf9364441b62507a14df31ad70a6038cd1a727cd0f0fe697da6cc06b80fb21"
+    },
+    {
+      "url": "https://www.comics.org/api/series/1570/overview/?page=9",
+      "seriesId": 1570,
+      "page": 9,
+      "providerCount": 443,
+      "rows": 43,
+      "fetchedAt": "2026-10-14T15:51:18.706549+00:00",
+      "responseSha256": "bb12a30e2a6ea366de5d2a2dba1cb762d0e9103ccc46f18175e9b00d5ef2e437"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/",
+      "seriesId": 141,
+      "page": 1,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:24.086659+00:00",
+      "responseSha256": "bf1244336937dbfaa3c21525a0dab2b528b1e4968b1d812dd3532a89dffd2d0d"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=2",
+      "seriesId": 141,
+      "page": 2,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:29.033673+00:00",
+      "responseSha256": "dd9e003301993d65e8a8ba8a6cfc5f4ce5de87d5f0e8b432576039972dad6247"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=3",
+      "seriesId": 141,
+      "page": 3,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:33.592908+00:00",
+      "responseSha256": "29de4c3536139c311725bab3e3d35c82baebba9d9546b222c38b9dfe2711b1f2"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=4",
+      "seriesId": 141,
+      "page": 4,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:38.230835+00:00",
+      "responseSha256": "c862524bcdc524882a39a05500f977342580b9bd9f2e7e532193c663b33d0719"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=5",
+      "seriesId": 141,
+      "page": 5,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:42.894516+00:00",
+      "responseSha256": "63498fabe286c376be03753414be259cbcfc33b9e5f25782ea5a833ff2785b2f"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=6",
+      "seriesId": 141,
+      "page": 6,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:47.247794+00:00",
+      "responseSha256": "584231390d659e71bb8fc7b2f8e489989d83b9b11bd75d943eb6a067e95195b8"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=7",
+      "seriesId": 141,
+      "page": 7,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:52.696953+00:00",
+      "responseSha256": "8477a7104dc29c2c313b44074ab87a32068d890c60d3decb5f32927ae2617084"
+    },
+    {
+      "url": "https://www.comics.org/api/series/141/overview/?page=8",
+      "seriesId": 141,
+      "page": 8,
+      "providerCount": 715,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:51:59.853728+00:00",
+      "responseSha256": "f02031db86ae3e7c0ea728819b5435728e11eb2e1cc00c111ed49411ea41a2ee"
+    },
+    {
+      "url": "https://www.comics.org/api/series/4611/overview/",
+      "seriesId": 4611,
+      "page": 1,
+      "providerCount": 381,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:52:07.808023+00:00",
+      "responseSha256": "91f611b0bc4c7c9fd1e9685b7bd4137268aeb47d0ba8fbdb5d2b0dfdb3e1db45"
+    },
+    {
+      "url": "https://www.comics.org/api/series/4611/overview/?page=2",
+      "seriesId": 4611,
+      "page": 2,
+      "providerCount": 381,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:52:14.816399+00:00",
+      "responseSha256": "b812a3e247b20c48201ff0be757d3d8a5895da38bb597597ba2374d90588da75"
+    },
+    {
+      "url": "https://www.comics.org/api/series/4611/overview/?page=3",
+      "seriesId": 4611,
+      "page": 3,
+      "providerCount": 381,
+      "rows": 50,
+      "fetchedAt": "2026-10-14T15:52:21.225498+00:00",
+      "responseSha256": "30881769459d4225ca20d8eb4a2eddb79df9d5abf0cdb77591e32667ad8264a7"
+    }
+  ],
+  "series": [
+    {
+      "gcdSeriesId": 1570,
+      "title": "The Amazing Spider-Man",
+      "publisher": "Marvel",
+      "yearBegan": 1963,
+      "activeIssuesIncludingVariants": 967,
+      "expectedBaseIssues": 443,
+      "capturedBaseIssues": 443,
+      "baseIssuesComplete": true,
+      "nextPage": null,
+      "variantsIncluded": false
+    },
+    {
+      "gcdSeriesId": 141,
+      "title": "Batman",
+      "publisher": "DC",
+      "yearBegan": 1940,
+      "activeIssuesIncludingVariants": 1367,
+      "expectedBaseIssues": 715,
+      "capturedBaseIssues": 400,
+      "baseIssuesComplete": false,
+      "nextPage": "https://www.comics.org/api/series/141/overview/?page=9",
+      "variantsIncluded": false
+    },
+    {
+      "gcdSeriesId": 4611,
+      "title": "Spawn",
+      "publisher": "Image",
+      "yearBegan": 1992,
+      "activeIssuesIncludingVariants": 748,
+      "expectedBaseIssues": 381,
+      "capturedBaseIssues": 150,
+      "baseIssuesComplete": false,
+      "nextPage": "https://www.comics.org/api/series/4611/overview/?page=4",
+      "variantsIncluded": false
+    }
+  ],
+  "newRequestsThisRun": 19,
+  "remainingCheckpoint": null,
+  "artworkImported": false,
+  "valuationImported": false,
+  "attribution": "Grand Comics Database. Bibliographic fields selected and formatted by ComicHuddle. CC BY-SA 4.0.",
+  "fieldCoverage": "Base issues and longest comic story; full issue fields and variants are incomplete."
+}
