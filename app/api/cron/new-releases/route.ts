@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { getDb } from '../../../../db';
 import { gcdSyncStep, getGcdSyncStatus } from '../../../../lib/gcd-sync';
+import {refreshNativeCatalogState} from '../../../../lib/native-catalog-state';
 import { ApiRequestError } from '../../../../lib/api-security';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,8 @@ export async function GET(request: Request) {
   try {
     let status = await getGcdSyncStatus(db);
     if (new URL(request.url).searchParams.get('status') === '1') return json({ status: 'configured', schedule: 'weekly', source: 'GCD', checkpoint: status });
-    if (new URL(request.url).searchParams.get('resume') === '1' && status.daily.stage !== 'importing') return json({ status: 'idle', reason: 'No weekly release checkpoint needs continuation.' });
+    const coverage=await refreshNativeCatalogState();
+    if (new URL(request.url).searchParams.get('resume') === '1' && status.daily.stage !== 'importing') return json({ status: 'idle', reason: 'No weekly release checkpoint needs continuation.',coverage });
     // Explicitly authorized weekly release scope only; never run historical
     // backfill or re-enable the stopped private Site/Metron tasks.
     const deadline = Date.now() + 270_000;
@@ -27,7 +29,7 @@ export async function GET(request: Request) {
       if (status.daily.stage === 'complete') break;
     }
     return json({ status: status.pausedByOwner ? 'paused' : status.retryAfter ? 'quota_wait' : status.daily.stage === 'complete' ? 'completed' : 'checkpoint_saved',
-      steps, checkpoint: status }, 200, status.retryAfter);
+      steps, coverage, checkpoint: status }, 200, status.retryAfter);
   } catch (error) {
     const status = await getGcdSyncStatus(db);
     if (error instanceof ApiRequestError && [429,409].includes(error.status)) return json({ status: 'checkpoint_saved', checkpoint: status }, 200, status.retryAfter);

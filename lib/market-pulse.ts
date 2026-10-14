@@ -4,6 +4,8 @@ import type {MarketTick} from '../architecture/platform-v2/ui/types';
 
 /** Compare only the same issue, printing, label and grade against a seven-day observation. */
 export async function marketPulse(db:CatalogDb):Promise<MarketTick[]>{
+ const present=await db.execute(sql`SELECT 1 FROM gcd.fmv_records WHERE valid_until>now() LIMIT 1`);
+ if(!present.rows.length)return [];
  const result=await db.execute(sql`SELECT f.issue_id,d.title,d.number,f.mode,f.grade,f.fmv_price,f.last_updated,f.source_name,
   CASE WHEN h.fmv_price>0 THEN round((f.fmv_price-h.fmv_price)*10000/h.fmv_price)::integer ELSE NULL END AS delta_bps
  FROM gcd.fmv_records f JOIN gcd.comichuddle_directory d ON d.id=f.issue_id

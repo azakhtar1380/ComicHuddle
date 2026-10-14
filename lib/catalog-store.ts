@@ -10,6 +10,11 @@ export type CatalogDb=ReturnType<typeof getDb>;
 export type CatalogFilters={q:string;limit:number;offset:number;publisher?:string;series?:string;era?:string;kind?:string;sort?:string;after?:number};
 export async function readableCatalog(_db:CatalogDb){return directoryIssues;}
 async function loadCatalogOverview(db:CatalogDb){
+ const cached=await db.execute(sql`SELECT metadata FROM gcd.comichuddle_catalog_read_state WHERE id='directory'`);
+ if(cached.rows[0]?.metadata)return cached.rows[0].metadata as Awaited<ReturnType<typeof uncachedCatalogOverview>>;
+ return uncachedCatalogOverview(db);
+}
+async function uncachedCatalogOverview(db:CatalogDb){
  const readCatalog=await readableCatalog(db);
  const native=await db.execute(sql`SELECT GREATEST(0,reltuples)::bigint AS raw_count FROM pg_class WHERE oid='gcd.gcd_issue'::regclass`);const nativeIssueCountEstimate=Number(native.rows[0]?.raw_count||0);
  const [counts]=await db.select({total:sql<number>`count(*)`.as('total_count'),imported:sql<number>`coalesce(sum(case when ${readCatalog.metronId} is not null then 1 else 0 end),0)`.as('metron_count'),gcd:sql<number>`coalesce(sum(case when ${readCatalog.gcdId} is not null then 1 else 0 end),0)`.as('gcd_count'),index:sql<number>`coalesce(sum(case when ${readCatalog.rawMetadata} like '%"metadataScope":"selected_series_issue_indexes"%' then 1 else 0 end),0)`.as('index_count'),lastGcd:sql<string|null>`max(case when ${readCatalog.gcdId} is not null then ${readCatalog.fetchedAt} else null end)`}).from(readCatalog);
@@ -31,12 +36,20 @@ function directoryIssueData(data:string):Issue{
  if(b){const limits:Record<string,number>={issueTitle:1000,editing:2000,keywords:2000};const next={...b};for(const key of ['publicationDate','keyDate','onSaleDate','pageCount','isbn','barcode','issueTitle','volume','indiciaPublisher','brandEmblem','rating','indiciaFrequency','indiciaPrinter','keywords','editing'] as const)next[key]=plainCatalogText(b[key],limits[key]||400);next.originalCoverPrice={kind:'ORIGINAL_COVER_PRICE',text:plainCatalogText(b.originalCoverPrice?.text,400)};issue.bibliography=next;}
  return issue;
 }
-export async function catalogIssue(db:CatalogDb,id:number):Promise<Issue|undefined>{
- const readCatalog=await readableCatalog(db);
- const [row]=await db.select({data:readCatalog.data}).from(readCatalog).where(eq(readCatalog.id,id));
- const issue=row?directoryIssueData(row.data!):catalog.find(issue=>issue.id===id);
- return issue?(await withCatalogCovers(db,[issue]))[0]:undefined;
+export async function catalogIssuesById(db:CatalogDb,ids:number[]):Promise<Issue[]>{
+ if(!ids.length)return [];
+ const nativeIds=ids.filter(id=>id>=4000000000).map(id=>id-4000000000);
+ const [native,legacy]=await Promise.all([
+  nativeIds.length?db.execute(sql`SELECT id,data FROM gcd.comichuddle_native_directory WHERE gcd_id IN (${sql.join(nativeIds.map(id=>sql`${id}`),sql`,`)})`):Promise.resolve({rows:[]}),
+  db.select({id:legacyDirectoryIssues.id,data:legacyDirectoryIssues.data}).from(legacyDirectoryIssues).where(inArray(legacyDirectoryIssues.id,ids)),
+ ]);
+ const byId=new Map<number,Issue>();
+ for(const row of legacy)byId.set(Number(row.id),directoryIssueData(row.data!));
+ for(const row of native.rows)byId.set(Number(row.id),directoryIssueData(String(row.data)));
+ const issues=ids.flatMap(id=>{const issue=byId.get(id)||catalog.find(issue=>issue.id===id);return issue?[issue]:[]});
+ return withCatalogCovers(db,issues);
 }
+export async function catalogIssue(db:CatalogDb,id:number):Promise<Issue|undefined>{return (await catalogIssuesById(db,[id]))[0];}
 export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const readCatalog=await readableCatalog(db);
  const meta=await catalogOverview(db);
@@ -52,21 +65,31 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
   if(filter.series)terms.push(eq(readCatalog.title,filter.series));
  if(filter.era)terms.push(eq(readCatalog.era,filter.era));
  if(filter.kind)terms.push(eq(readCatalog.kind,filter.kind));
- const where=terms.length?and(...terms):undefined;
- const [count]=await db.select({n:sql<number>`count(*)`}).from(readCatalog).where(where);
- const coverRank=readCatalog.coverRank;
- const order=filter.sort==='title'?[asc(readCatalog.title),asc(readCatalog.id)]:filter.sort==='oldest'?[asc(readCatalog.year),asc(readCatalog.id)]:filter.sort==='newest'?[desc(readCatalog.year),asc(readCatalog.id)]:[asc(readCatalog.id)];
- if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
- const rowWhere=filter.after!==undefined?and(where,sql`${readCatalog.id}>${filter.after}`):where;
- // Page cheap identities first: never build/sort millions of JSON issue payloads.
- const selected=await db.select({id:readCatalog.id}).from(readCatalog).where(rowWhere).orderBy(...order).limit(filter.limit).offset(filter.after===undefined?filter.offset:0);
- const found=selected.length?await db.select({id:readCatalog.id,data:readCatalog.data}).from(readCatalog).where(inArray(readCatalog.id,selected.map(row=>row.id))):[];
- const byId=new Map(found.map(row=>[row.id,row]));
- const rows=selected.flatMap(row=>{const record=byId.get(row.id);return record?[record]:[]});
- const total=Number(count?.n||0);
- const issues=await withCatalogCovers(db,rows.map(row=>directoryIssueData(row.data!)));
- return {...meta,issues:issues.map(issue=>catalogSearchDto(issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
+ const nativeTerms=(alias:string)=>{
+  const ref=(column:string)=>sql.raw(alias+'.'+column);
+  const result=[...numbers.map(n=>sql`lower(${ref('number')})=${n}`),...words.map(w=>sql`${ref('search_text')} LIKE ${'%'+w+'%'}`)];
+  if(filter.publisher)result.push(sql`${ref('publisher')}=${filter.publisher}`);
+  if(filter.series)result.push(sql`${ref('title')}=${filter.series}`);
+  if(filter.era)result.push(sql`${ref('era')}=${filter.era}`);
+  if(filter.kind)result.push(sql`${ref('kind')}=${filter.kind}`);
+  return result.length?sql.join(result,sql` AND `):sql`true`;
+ };
+ const state=await db.execute(sql`SELECT retained_ids FROM gcd.comichuddle_catalog_read_state WHERE id='directory'`);
+ const retained=Array.isArray(state.rows[0]?.retained_ids)?state.rows[0].retained_ids.map(Number).filter(Number.isSafeInteger):[];
+ const retainedGcd=retained.filter(id=>id>=4000000000).map(id=>id-4000000000);
+ const excluded=retainedGcd.length?sql`AND n.gcd_id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`:sql``;
+ const extra=retained.length?sql`SELECT e.id,e.title,e.year FROM gcd.comichuddle_legacy_directory e WHERE e.id IN (${sql.join(retained.map(id=>sql`${id}`),sql`,`)}) AND ${nativeTerms('e')}`:sql`SELECT 0::bigint AS id,''::text AS title,0 AS year WHERE false`;
+ const base=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded} UNION ALL ${extra}`;
+ const filtered=!!(filter.q||filter.publisher||filter.series||filter.era||filter.kind);
+ const countTask=filtered?db.execute(sql`SELECT count(*)::bigint AS n FROM (${base}) matches`):Promise.resolve({rows:[{n:meta.issueCount}]});
+ const order=filter.sort==='title'?sql`title,id`:filter.sort==='oldest'?sql`year,id`:filter.sort==='newest'?sql`year DESC,id`:sql`id`;
+ const cursor=filter.after===undefined?sql``:sql`WHERE id>${filter.after}`;
+ const [count,selection]=await Promise.all([countTask,db.execute(sql`SELECT id FROM (${base}) matches ${cursor} ORDER BY ${order} LIMIT ${filter.limit+1} OFFSET ${filter.after===undefined?filter.offset:0}`)]);
+ const selected=selection.rows.slice(0,filter.limit).map(row=>Number(row.id));
+ const issues=await catalogIssuesById(db,selected);
+ return {...meta,issues:issues.flatMap(issue=>issue?[catalogSearchDto(issue)]:[]),total:Number(count.rows[0]?.n||0),limit:filter.limit,offset:filter.offset,hasMore:selection.rows.length>filter.limit};
 }
+
 // A bounded publisher > series tree. Never download the entire catalog to a browser.
 export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q:string;limit:number;offset:number}){
  const readCatalog=await readableCatalog(db);
