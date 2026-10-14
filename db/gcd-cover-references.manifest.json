@@ -1,0 +1,373 @@
+{
+  "schemaVersion": "gcd-cover-references/v1",
+  "scope": "selected_series_base_issue_thumbnails",
+  "expectedReferences": 2089,
+  "sources": [
+    {
+      "file": "series-141-overview-1.json",
+      "url": "https://www.comics.org/api/series/141/overview/",
+      "seriesId": 141,
+      "sha256": "bf1244336937dbfaa3c21525a0dab2b528b1e4968b1d812dd3532a89dffd2d0d",
+      "fetchedAt": "2026-10-14T15:51:24.086659+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-10.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=10",
+      "seriesId": 141,
+      "sha256": "cbc294195fc5612b6f5d31a779700509d6663c7a694efc765a3be657599f028d",
+      "fetchedAt": "2026-10-14T17:25:43.992981+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-11.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=11",
+      "seriesId": 141,
+      "sha256": "d6655ddddd3898f723e6ce44aa2c70ca87b32004c447b155839487aa4ea68a75",
+      "fetchedAt": "2026-10-14T17:28:40.608685+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-12.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=12",
+      "seriesId": 141,
+      "sha256": "590c6d5b676e0c1cd060ac6962aa599aeaadc99732efe13c20f3d9ed5fc70efb",
+      "fetchedAt": "2026-10-14T17:28:51.101153+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-13.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=13",
+      "seriesId": 141,
+      "sha256": "d900f0d68528a85dfd912ce8afb7db25e08ad433004c72a0435e60b1b2176ecb",
+      "fetchedAt": "2026-10-14T17:28:59.568813+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-14.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=14",
+      "seriesId": 141,
+      "sha256": "057f3880e12f348990a8c5553235e1fa185c411e034aecadc31c6d977b221b65",
+      "fetchedAt": "2026-10-14T17:29:08.172478+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-2.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=2",
+      "seriesId": 141,
+      "sha256": "dd9e003301993d65e8a8ba8a6cfc5f4ce5de87d5f0e8b432576039972dad6247",
+      "fetchedAt": "2026-10-14T15:51:29.033673+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-3.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=3",
+      "seriesId": 141,
+      "sha256": "29de4c3536139c311725bab3e3d35c82baebba9d9546b222c38b9dfe2711b1f2",
+      "fetchedAt": "2026-10-14T15:51:33.592908+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-4.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=4",
+      "seriesId": 141,
+      "sha256": "c862524bcdc524882a39a05500f977342580b9bd9f2e7e532193c663b33d0719",
+      "fetchedAt": "2026-10-14T15:51:38.230835+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-5.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=5",
+      "seriesId": 141,
+      "sha256": "63498fabe286c376be03753414be259cbcfc33b9e5f25782ea5a833ff2785b2f",
+      "fetchedAt": "2026-10-14T15:51:42.894516+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-6.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=6",
+      "seriesId": 141,
+      "sha256": "584231390d659e71bb8fc7b2f8e489989d83b9b11bd75d943eb6a067e95195b8",
+      "fetchedAt": "2026-10-14T15:51:47.247794+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-7.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=7",
+      "seriesId": 141,
+      "sha256": "8477a7104dc29c2c313b44074ab87a32068d890c60d3decb5f32927ae2617084",
+      "fetchedAt": "2026-10-14T15:51:52.696953+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-8.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=8",
+      "seriesId": 141,
+      "sha256": "f02031db86ae3e7c0ea728819b5435728e11eb2e1cc00c111ed49411ea41a2ee",
+      "fetchedAt": "2026-10-14T15:51:59.853728+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-141-overview-9.json",
+      "url": "https://www.comics.org/api/series/141/overview/?page=9",
+      "seriesId": 141,
+      "sha256": "9e1bae1e50d0bcfa0c24cd824937b57dd3436aa1c28878662d219ebcde106cfd",
+      "fetchedAt": "2026-10-14T17:24:27.121742+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1482-overview-1.json",
+      "url": "https://www.comics.org/api/series/1482/overview/",
+      "seriesId": 1482,
+      "sha256": "4c8c618ca08fc28799daba3d2715dce060368986d1063af0184f004d4feb730f",
+      "fetchedAt": "2026-10-14T17:24:44.487135+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1482-overview-2.json",
+      "url": "https://www.comics.org/api/series/1482/overview/?page=2",
+      "seriesId": 1482,
+      "sha256": "883686f7e7d86424d7728cfeafc9625d158779b1148976c28a6de01056125ee4",
+      "fetchedAt": "2026-10-14T17:25:22.961089+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1482-overview-3.json",
+      "url": "https://www.comics.org/api/series/1482/overview/?page=3",
+      "seriesId": 1482,
+      "sha256": "e626707cb2b6bc86c3d957bdff4c280f58d70c500881a26a80696833c794ce23",
+      "fetchedAt": "2026-10-14T17:26:06.140765+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-1.json",
+      "url": "https://www.comics.org/api/series/1570/overview/",
+      "seriesId": 1570,
+      "sha256": "290bf5292c2b2e2b283a856c1459fb98a06bab021169ed742b635356bc03a3a3",
+      "fetchedAt": "2026-10-14T15:44:47.838197+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-2.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=2",
+      "seriesId": 1570,
+      "sha256": "3891a241b61fb84acf3948bb149540d07ccb4ee7ffe6b3f5432b760238686ca2",
+      "fetchedAt": "2026-10-14T15:50:27.858599+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-3.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=3",
+      "seriesId": 1570,
+      "sha256": "557845e3c38e9801c17238e7c914f38499088875a69c1d70570a4cdec7f67526",
+      "fetchedAt": "2026-10-14T15:50:35.612614+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-4.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=4",
+      "seriesId": 1570,
+      "sha256": "0e00312d7cd0e7989161fdfdccb6aea1ff034f84c18574e89427ed952f4893c2",
+      "fetchedAt": "2026-10-14T15:50:41.381384+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-5.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=5",
+      "seriesId": 1570,
+      "sha256": "85be39cb8409535f24546637d92687f1950cc948b3d6be3380133d01eea241ca",
+      "fetchedAt": "2026-10-14T15:50:55.589034+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-6.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=6",
+      "seriesId": 1570,
+      "sha256": "9201905da2f11f62e76ec10410adbc0876dda9f44881baefab863217874ab8f6",
+      "fetchedAt": "2026-10-14T15:51:03.409753+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-7.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=7",
+      "seriesId": 1570,
+      "sha256": "7c129acf4d35c3d408c5eac76d8e4e901fad52a68d76625ff9f23efecfebe1e5",
+      "fetchedAt": "2026-10-14T15:51:08.602249+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-8.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=8",
+      "seriesId": 1570,
+      "sha256": "45bf9364441b62507a14df31ad70a6038cd1a727cd0f0fe697da6cc06b80fb21",
+      "fetchedAt": "2026-10-14T15:51:13.887909+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1570-overview-9.json",
+      "url": "https://www.comics.org/api/series/1570/overview/?page=9",
+      "seriesId": 1570,
+      "sha256": "bb12a30e2a6ea366de5d2a2dba1cb762d0e9103ccc46f18175e9b00d5ef2e437",
+      "fetchedAt": "2026-10-14T15:51:18.706549+00:00",
+      "rows": 43
+    },
+    {
+      "file": "series-1571-overview-1.json",
+      "url": "https://www.comics.org/api/series/1571/overview/",
+      "seriesId": 1571,
+      "sha256": "40815258c130809c0e19c85a7bb55db35308df4a3cf794bf393949aebb803825",
+      "fetchedAt": "2026-10-14T17:24:55.169528+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1571-overview-2.json",
+      "url": "https://www.comics.org/api/series/1571/overview/?page=2",
+      "seriesId": 1571,
+      "sha256": "e787cb3165dcf53d75816d2530595b41a13c42a4dc55f3e98d236b4cf73b9508",
+      "fetchedAt": "2026-10-14T17:25:33.378907+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-1571-overview-3.json",
+      "url": "https://www.comics.org/api/series/1571/overview/?page=3",
+      "seriesId": 1571,
+      "sha256": "c53ee3860dc242a4928791f50862930f6b0f8311bc3ad58069bc6edce17e701e",
+      "fetchedAt": "2026-10-14T17:26:17.187869+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4254-overview-1.json",
+      "url": "https://www.comics.org/api/series/4254/overview/",
+      "seriesId": 4254,
+      "sha256": "1935dc84c1ff514e3c61790a0f7692abb491b681b402106c1be438f686260ef3",
+      "fetchedAt": "2026-10-14T17:24:36.462656+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4254-overview-2.json",
+      "url": "https://www.comics.org/api/series/4254/overview/?page=2",
+      "seriesId": 4254,
+      "sha256": "6089fea0faf9322a83ba59547be90169f365e1a94f6a85fd7a32d18e453f15d3",
+      "fetchedAt": "2026-10-14T17:25:15.135195+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4254-overview-3.json",
+      "url": "https://www.comics.org/api/series/4254/overview/?page=3",
+      "seriesId": 4254,
+      "sha256": "32e3f1c7c7aecd944c9833963a93feebc199c30dbb2ff010ef7734c249ab49c4",
+      "fetchedAt": "2026-10-14T17:25:55.099814+00:00",
+      "rows": 18
+    },
+    {
+      "file": "series-4611-overview-1.json",
+      "url": "https://www.comics.org/api/series/4611/overview/",
+      "seriesId": 4611,
+      "sha256": "91f611b0bc4c7c9fd1e9685b7bd4137268aeb47d0ba8fbdb5d2b0dfdb3e1db45",
+      "fetchedAt": "2026-10-14T15:52:07.808023+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-2.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=2",
+      "seriesId": 4611,
+      "sha256": "b812a3e247b20c48201ff0be757d3d8a5895da38bb597597ba2374d90588da75",
+      "fetchedAt": "2026-10-14T15:52:14.816399+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-3.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=3",
+      "seriesId": 4611,
+      "sha256": "30881769459d4225ca20d8eb4a2eddb79df9d5abf0cdb77591e32667ad8264a7",
+      "fetchedAt": "2026-10-14T15:52:21.225498+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-4.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=4",
+      "seriesId": 4611,
+      "sha256": "e30502150f002f59ed73603d8ac51698f004f54b1308c7794c326971e0e8bbd6",
+      "fetchedAt": "2026-10-14T17:25:07.169030+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-5.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=5",
+      "seriesId": 4611,
+      "sha256": "3a4601db00b02eb0e86aa054fd616142d789b234578502ead614eb0e34799a77",
+      "fetchedAt": "2026-10-14T17:25:48.461635+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-6.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=6",
+      "seriesId": 4611,
+      "sha256": "eb06333391d965f7c9cb2980f2cf7286f09a63102c154cd6b3560a6f839ec1e1",
+      "fetchedAt": "2026-10-14T17:28:44.359879+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-7.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=7",
+      "seriesId": 4611,
+      "sha256": "b99a99723e31cbfb8eb6867d2232cb10ba90dd1bc5a7ecdcedfffec715cb8df5",
+      "fetchedAt": "2026-10-14T17:28:55.123487+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-4611-overview-8.json",
+      "url": "https://www.comics.org/api/series/4611/overview/?page=8",
+      "seriesId": 4611,
+      "sha256": "32923952aab8140058d026fc40bb6f2b63325f643fceb453beab177ad974731a",
+      "fetchedAt": "2026-10-14T17:29:03.814924+00:00",
+      "rows": 31
+    },
+    {
+      "file": "series-5109-overview-1.json",
+      "url": "https://www.comics.org/api/series/5109/overview/",
+      "seriesId": 5109,
+      "sha256": "24848a5517ee4d4f5df3ac800cd360ae20ffcc6544db589c14b470ae10350d69",
+      "fetchedAt": "2026-10-14T17:24:21.142700+00:00",
+      "rows": 4
+    },
+    {
+      "file": "series-87-overview-1.json",
+      "url": "https://www.comics.org/api/series/87/overview/",
+      "seriesId": 87,
+      "sha256": "55387391d69fed0699277c463260df4ec27b397da73dc75a7bab4607b06bc305",
+      "fetchedAt": "2026-10-14T17:25:01.342478+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-87-overview-2.json",
+      "url": "https://www.comics.org/api/series/87/overview/?page=2",
+      "seriesId": 87,
+      "sha256": "8cc5293d723467417c0ff5e17e6fcb4aad82b9459d362910a5e6f1d2e8af4c00",
+      "fetchedAt": "2026-10-14T17:25:38.591544+00:00",
+      "rows": 50
+    },
+    {
+      "file": "series-87-overview-3.json",
+      "url": "https://www.comics.org/api/series/87/overview/?page=3",
+      "seriesId": 87,
+      "sha256": "2b1f5a8cd97c3acd52c0bc93a69d6b999683883a496e9005575ea759e424f7a1",
+      "fetchedAt": "2026-10-14T17:28:36.205807+00:00",
+      "rows": 50
+    }
+  ],
+  "catalogComplete": false,
+  "artworkBinariesCopied": false,
+  "coversLicensedByMetadata": false,
+  "remainingCheckpoint": {
+    "reason": "provider_http_error",
+    "status": 429,
+    "retryAfter": "581",
+    "next": "https://www.comics.org/api/series/141/overview/?page=15"
+  },
+  "displayPurpose": "Reduced thumbnails identify indexed editions. Artwork copyright remains with publishers/artists; metadata CC licensing does not cover artwork.",
+  "rightsSources": [
+    "https://www.comics.org/",
+    "https://www.copyright.gov/fair-use/"
+  ]
+}

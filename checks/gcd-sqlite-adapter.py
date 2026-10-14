@@ -221,6 +221,29 @@ class SQLiteArchiveAdapter(unittest.TestCase):
         self.assertNotIn('gcd_story_credit', result['unmappedLinkedTableCounts'])
         self.assertFalse(result['allBibliographicFieldsExported'])
 
+    def test_exact_cover_scan_ids_and_metadata_exclude_restricted_and_deleted_scans(self):
+        with sqlite3.connect(self.archive) as db:
+            db.executescript('''CREATE TABLE gcd_cover(id INTEGER PRIMARY KEY,issue_id INTEGER,deleted INTEGER,
+                limit_display INTEGER,is_wraparound INTEGER,last_upload TEXT,modified TEXT);
+                INSERT INTO gcd_cover VALUES(27847,101,0,0,1,'2026-09-01','2026-09-02');
+                INSERT INTO gcd_cover VALUES(99999,102,1,0,0,NULL,NULL);
+                INSERT INTO gcd_cover VALUES(99998,102,0,1,0,NULL,NULL);''')
+        result,rows=self.convert(include_cover_references=True)
+        self.assertEqual(rows[0]['cover'],'https://files1.comics.org/img/gcd/covers_by_id/27/w400/27847.jpg')
+        self.assertEqual(rows[0]['cover_metadata']['issueId'],101)
+        self.assertEqual(rows[0]['cover_metadata']['coverId'],27847)
+        self.assertTrue(rows[0]['cover_metadata']['isWraparound'])
+        self.assertEqual(rows[1]['cover'],'')  # Variant never inherits the base cover.
+        self.assertEqual(result['coverReferenceCount'],1)
+        self.assertFalse(result['artworkBinariesCopied'])
+        self.assertFalse(result['coversLicensedByMetadata'])
+
+    def test_missing_cover_table_is_reported_without_guessed_image_urls(self):
+        result,rows=self.convert(include_cover_references=True)
+        self.assertFalse(result['coverTablePresent'])
+        self.assertEqual(result['coverReferenceCount'],0)
+        self.assertTrue(all(row['cover']=='' and row['cover_metadata'] is None for row in rows))
+
     def test_archive_timestamp_must_be_real_timezone_and_not_future(self):
         for stamp in ['not-a-date', '2026-10-01T12:00:00', '2999-01-01T00:00:00Z']:
             with self.subTest(stamp=stamp):

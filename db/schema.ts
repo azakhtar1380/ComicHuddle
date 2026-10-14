@@ -85,6 +85,10 @@ export const catalogCreators=appTable('catalog_creators',{
 export const catalogIssues=appTable('catalog_issues',{
  id:integer('id').primaryKey(),metronId:integer('metron_id'),gcdId:integer('gcd_id'),seriesId:integer('series_id').references(()=>catalogSeries.metronId),publisherId:integer('publisher_id').references(()=>catalogPublishers.metronId),title:text('title').notNull(),number:text('number').notNull(),publisher:text('publisher').notNull(),year:integer('year').notNull(),era:text('era').notNull(),kind:text('kind').notNull(),searchText:text('search_text').notNull(),data:text('data').notNull(),sourceModified:text('source_modified').notNull().default(''),fetchedAt:text('fetched_at').notNull(),rawMetadata:text('raw_metadata').notNull().default('')
 },t=>[uniqueIndex('catalog_metron_unique').on(t.metronId),uniqueIndex('catalog_gcd_unique').on(t.gcdId),index('catalog_publisher_title').on(t.publisher,t.title,t.id),index('catalog_era_year').on(t.era,t.year,t.id),index('catalog_refresh_age').on(t.metronId,t.fetchedAt),index('catalog_gcd_refresh_age').on(t.gcdId,t.fetchedAt)]);
+// Public identification references; independent of private collector photos.
+export const catalogCoverReferences=appTable('catalog_cover_references',{
+ issueId:integer('issue_id').primaryKey().references(()=>catalogIssues.id,{onDelete:'cascade'}),gcdId:integer('gcd_id').notNull(),imageUrl:text('image_url').notNull(),sourceUrl:text('source_url').notNull(),sourcePage:text('source_page').notNull(),editionDescriptor:text('edition_descriptor').notNull(),attribution:text('attribution').notNull(),displayBasis:text('display_basis').notNull().default('identification_reference'),status:text('status').notNull().default('active'),sourceSha256:text('source_sha256').notNull(),fetchedAt:text('fetched_at').notNull(),importedAt:text('imported_at').notNull()
+});
 export const catalogIssueCreators=appTable('catalog_issue_creators',{
  issueId:integer('issue_id').notNull().references(()=>catalogIssues.id),creatorId:integer('creator_id').notNull().references(()=>catalogCreators.metronId),role:text('role').notNull()
 },t=>[primaryKey({columns:[t.issueId,t.creatorId,t.role]})]);

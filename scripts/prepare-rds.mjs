@@ -12,4 +12,6 @@ if (process.env.MIGRATE_ON_BUILD === 'true' && (!process.env.VERCEL || process.e
   if (result.status !== 0) throw new Error('ComicHuddle database migration failed.');
   const seed = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/seed-real-data.ts'], { stdio: 'inherit' });
   if (seed.status !== 0) throw new Error('ComicHuddle reviewed catalog seed failed.');
+  const covers = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/seed-cover-references.ts'], { stdio: 'inherit' });
+  if (covers.status !== 0) throw new Error('ComicHuddle cover-reference seed failed.');
 }

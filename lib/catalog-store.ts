@@ -1,6 +1,7 @@
 import {ilike,and,asc,desc,eq,inArray,isNotNull,like,sql} from 'drizzle-orm';
 import {getDb} from '../db';
-import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync} from '../db/schema';
+import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync,catalogCoverReferences} from '../db/schema';
+import {withCatalogCovers} from './catalog-covers';
 import {catalog,type Issue} from './catalog';
 import {catalogSearchDto,searchCatalog} from './catalog-search';
 import {catalogSearchText,eraForYear,metronDirectoryId,plainCatalogText} from './shared-catalog';
@@ -12,12 +13,14 @@ export async function catalogOverview(db:CatalogDb){
  const publishers=await db.selectDistinct({name:catalogIssues.publisher}).from(catalogIssues).orderBy(asc(catalogIssues.publisher)).limit(1000);
  const [sync]=await db.select({state:catalogSync.state}).from(catalogSync).where(eq(catalogSync.id,'metron'));
  let lastSyncedAt:string|null=null;if(sync){try{lastSyncedAt=JSON.parse(sync.state).lastCompletedAt||null}catch{}}
+ const [covers]=await db.select({n:sql<number>`count(*)`.as('cover_count')}).from(catalogIssues).where(sql`(${catalogIssues.data}::jsonb->>'cover') IS NOT NULL OR EXISTS (SELECT 1 FROM ${catalogCoverReferences} WHERE ${catalogCoverReferences.issueId}=${catalogIssues.id} AND ${catalogCoverReferences.status}='active')`);
  const total=Number(counts?.total||0),imported=Number(counts?.imported||0),gcd=Number(counts?.gcd||0);
- return {scope:imported||gcd?'shared':'starter',issueCount:total||catalog.length,syncedIssueCount:imported,lastSyncedAt,gcdIssueCount:gcd,gcdIndexIssueCount:Number(counts?.index||0),lastGcdSyncedAt:counts?.lastGcd||null,gcdCoverage:'Partial sourced catalog. Series-index records provide actual issue IDs and edition descriptors; missing issue dates, stories, credits, artwork and valuations are not inferred. No complete catalog or historical freshness claim.',publishers:total?publishers.map(p=>p.name):[...new Set(catalog.map(p=>p.publisher))].sort(),rights:[imported?'Metron metadata adapted and formatted under CC BY-SA 4.0.':null,gcd?'Bibliographic data from the Grand Comics Database, selected and formatted under CC BY-SA 4.0.':null,'Imported artwork and valuations excluded. Existing starter sources retain their credits.'].filter(Boolean).join(' ')};
+ return {scope:imported||gcd?'shared':'starter',issueCount:total||catalog.length,syncedIssueCount:imported,lastSyncedAt,gcdIssueCount:gcd,gcdIndexIssueCount:Number(counts?.index||0),coverIssueCount:Number(covers?.n||0),lastGcdSyncedAt:counts?.lastGcd||null,gcdCoverage:'Partial sourced catalog. Series-index records provide actual issue IDs and edition descriptors; missing issue dates, stories, credits and valuations are not inferred. Issue-specific cover references are enriched separately. No complete catalog or historical freshness claim.',publishers:total?publishers.map(p=>p.name):[...new Set(catalog.map(p=>p.publisher))].sort(),rights:[imported?'Metron metadata adapted and formatted under CC BY-SA 4.0.':null,gcd?'Bibliographic data from the Grand Comics Database, selected and formatted under CC BY-SA 4.0.':null,'Cover thumbnails identify editions. Artwork copyright stays with the respective publisher and artist; metadata licensing does not include artwork. Existing starter sources retain their credits. No FMV imported.'].filter(Boolean).join(' ')};
 }
 export async function catalogIssue(db:CatalogDb,id:number):Promise<Issue|undefined>{
  const [row]=await db.select({data:catalogIssues.data}).from(catalogIssues).where(eq(catalogIssues.id,id));
- return row?JSON.parse(row.data) as Issue:catalog.find(issue=>issue.id===id);
+ const issue=row?JSON.parse(row.data) as Issue:catalog.find(issue=>issue.id===id);
+ return issue?(await withCatalogCovers(db,[issue]))[0]:undefined;
 }
 export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const meta=await catalogOverview(db);
@@ -36,11 +39,13 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  if(filter.kind)terms.push(eq(catalogIssues.kind,filter.kind));
  const where=terms.length?and(...terms):undefined;
  const [count]=await db.select({n:sql<number>`count(*)`}).from(catalogIssues).where(where);
- const order=filter.sort==='title'?[asc(catalogIssues.title),asc(catalogIssues.id)]:filter.sort==='oldest'?[asc(catalogIssues.year),asc(catalogIssues.id)]:filter.sort==='newest'?[desc(catalogIssues.year),asc(catalogIssues.id)]:[asc(catalogIssues.id)];
+ const coverRank=sql`CASE WHEN EXISTS (SELECT 1 FROM ${catalogCoverReferences} WHERE ${catalogCoverReferences.issueId}=${catalogIssues.id} AND ${catalogCoverReferences.status}='active') THEN 0 WHEN (${catalogIssues.data}::jsonb->>'cover') IS NOT NULL THEN 1 ELSE 2 END`;
+ const order=filter.sort==='title'?[asc(catalogIssues.title),asc(catalogIssues.id)]:filter.sort==='oldest'?[asc(catalogIssues.year),asc(catalogIssues.id)]:filter.sort==='newest'?[desc(catalogIssues.year),asc(catalogIssues.id)]:[asc(coverRank),asc(catalogIssues.id)];
  if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
  const rows=await db.select({data:catalogIssues.data}).from(catalogIssues).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);
  const total=Number(count?.n||0);
- return {...meta,issues:rows.map(row=>catalogSearchDto(JSON.parse(row.data) as Issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
+ const issues=await withCatalogCovers(db,rows.map(row=>JSON.parse(row.data) as Issue));
+ return {...meta,issues:issues.map(issue=>catalogSearchDto(issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
 }
 // A bounded publisher > series tree. Never download the entire catalog to a browser.
 export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q:string;limit:number;offset:number}){

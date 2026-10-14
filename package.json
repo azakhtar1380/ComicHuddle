@@ -15,6 +15,8 @@
     "test:readiness": "node checks/run-readiness.mjs",
     "db:migrate": "tsx scripts/migrate-postgres.ts",
     "db:seed": "tsx scripts/seed-real-data.ts",
+    "db:import:gcd": "tsx scripts/import-gcd-snapshot.ts",
+    "test:catalog-covers": "node --import tsx --test checks/gcd-snapshot-covers.test.ts",
     "test:catalog-seed": "node --import tsx --test checks/gcd-postgres-seed.test.ts",
     "test:postgres": "node --import tsx --test checks/postgres-migration.test.ts",
     "typecheck": "tsc --noEmit"

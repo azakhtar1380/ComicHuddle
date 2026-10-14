@@ -1,4 +1,5 @@
 import {catalog} from '../../../lib/catalog';
+import {withCatalogCovers} from '../../../lib/catalog-covers';
 import {getDb} from '../../../db';
 import {catalogSearchDto} from '../../../lib/catalog-search';
 import {catalogIssue,catalogOverview,searchSharedCatalog,browseSharedSeries} from '../../../lib/catalog-store';
@@ -21,7 +22,8 @@ export async function GET(req:Request){
   const ids=[...new Set(raw.split(',').map(Number))];if(ids.some(id=>!Number.isSafeInteger(id)))return json({error:'Use valid directory IDs.'},400);
   const db=getDb(),rows=await db.select({id:catalogIssues.id,data:catalogIssues.data}).from(catalogIssues).where(inArray(catalogIssues.id,ids));
   const byId=new Map(rows.map(row=>[row.id,JSON.parse(row.data) as Issue]));
-  return json({...await catalogOverview(db),issues:ids.flatMap(id=>{const issue=byId.get(id)||catalog.find(i=>i.id===id);return issue?[catalogSearchDto(issue)]:[]})});
+  const issues=await withCatalogCovers(db,ids.flatMap(id=>{const issue=byId.get(id)||catalog.find(i=>i.id===id);return issue?[issue]:[]}));
+  return json({...await catalogOverview(db),issues:issues.map(issue=>catalogSearchDto(issue))});
  }
  if(params.has('id')){
   if(allowed.filter(n=>n!=='id').some(name=>params.has(name)))return json({error:'Use either an exact directory ID or search parameters.'},400);

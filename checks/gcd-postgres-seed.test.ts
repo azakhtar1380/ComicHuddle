@@ -24,7 +24,7 @@ before(async () => {
   temporary = await mkdtemp(join(tmpdir(), 'comichuddle-gcd-seed-'));
   engine = new PGlite();
   await engine.exec('CREATE SCHEMA ch_web; BEGIN;');
-  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '003_catalog_ingestion.sql']) {
+  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '003_catalog_ingestion.sql', '004_catalog_cover_references.sql']) {
     await engine.exec(await readFile('db/postgres-migrations/' + name, 'utf8'));
   }
   await engine.exec('COMMIT; SET search_path TO ch_web,public;');

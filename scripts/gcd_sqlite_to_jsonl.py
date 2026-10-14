@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import sqlite3
 import sys
+import re
 
 ORIGIN = 'https://www.comics.org'
 LICENSE = 'https://creativecommons.org/licenses/by-sa/4.0/'
@@ -76,11 +77,14 @@ def projected(prefix: str, available: set[str], fields: dict[str,int]) -> str:
         if key in available else 'NULL AS "'+key+'"' for key,cap in fields.items())
 
 def convert(input_path: Path, output_path: Path, report_path: Path,
-            snapshot_at: str, *, limit: int|None=None) -> dict:
+            snapshot_at: str, *, limit: int|None=None, include_cover_references: bool=False,
+            cover_origin: str='https://files1.comics.org') -> dict:
     input_path=input_path.resolve(strict=True)
     output_path=output_path.resolve();report_path=report_path.resolve()
-    if not input_path.is_file() or input_path.stat().st_size>10*1024**3:
-        raise ArchiveError('Provide an extracted ordinary SQLite file no larger than 10 GiB.')
+    if not input_path.is_file() or input_path.stat().st_size>100*1024**3:
+        raise ArchiveError('Provide an extracted ordinary SQLite file no larger than 100 GiB.')
+    if include_cover_references and not re.fullmatch(r'https://files[0-9]+\.comics\.org', cover_origin):
+        raise ArchiveError('Use the HTTPS GCD image origin actually observed in its API.')
     if len({input_path,output_path,report_path})!=3 or output_path.exists() or report_path.exists():
         raise ArchiveError('Use distinct new output/report paths; existing files are preserved.')
     if limit is not None and (not isinstance(limit,int) or isinstance(limit,bool) or limit<1):
@@ -102,6 +106,15 @@ def convert(input_path: Path, output_path: Path, report_path: Path,
         ip=columns(db,'gcd_indicia_publisher',('id','name')) if 'indicia_publisher_id' in ic else set()
         stories=columns(db,'gcd_story',('id','issue_id','sequence_number','type_id','deleted'))
         story_types=columns(db,'gcd_story_type',('id','name')) if stories else set()
+        cover_columns=columns(db,'gcd_cover') if include_cover_references else set()
+        if cover_columns and not {'id','issue_id','deleted'}<=cover_columns:
+            raise ArchiveError('Unsupported gcd_cover schema; image IDs cannot be guessed.')
+        cover_query=None
+        if cover_columns:
+            cover_fields=projected('c',cover_columns,{'is_wraparound':8,'last_upload':50,'modified':50})
+            cover_query='SELECT c.id,'+cover_fields+' FROM gcd_cover c WHERE c.issue_id=? AND c.deleted=0'
+            if 'limit_display' in cover_columns: cover_query+=' AND c.limit_display=0'
+            cover_query+=' ORDER BY c.id LIMIT 1'
         total=db.execute('SELECT count(*) FROM gcd_issue WHERE deleted=0').fetchone()[0]
         if not total:
             raise ArchiveError('The archive contains no active GCD issues.')
@@ -127,7 +140,7 @@ def convert(input_path: Path, output_path: Path, report_path: Path,
             ' WHERE st.deleted=0 AND st.issue_id=? ORDER BY st.sequence_number,st.id LIMIT 101') if stories else None
         output_path.parent.mkdir(parents=True,exist_ok=True)
         report_path.parent.mkdir(parents=True,exist_ok=True)
-        count=0;last_id=0;shortened_story_issues=0;output_sha=hashlib.sha256()
+        count=0;last_id=0;shortened_story_issues=0;cover_count=0;output_sha=hashlib.sha256()
         with temporary.open('xb') as stream:
             created_temporary=True
             while limit is None or count<limit:
@@ -155,6 +168,20 @@ def convert(input_path: Path, output_path: Path, report_path: Path,
                             facts={key:story[key] or '' for key in STORY_FIELDS}
                             facts.update(type=story['type'] or '',sequence_number=story['sequence_number'],keywords='')
                             raw['story_set'].append(facts)
+                    if include_cover_references:
+                        raw['cover']=''
+                        raw['cover_metadata']=None
+                        # Never borrow the parent/base cover for a variant.
+                        cover=db.execute(cover_query,(issue_id,)).fetchone() if cover_query else None
+                        if cover:
+                            cover_id=identity(cover['id'],'cover')
+                            raw['cover']=cover_origin+'/img/gcd/covers_by_id/'+str(cover_id//1000)+'/w400/'+str(cover_id)+'.jpg'
+                            raw['cover_metadata']={'coverId':cover_id,'issueId':issue_id,
+                                'isWraparound':cover['is_wraparound']=='1',
+                                'lastUpload':cover['last_upload'] or None,'modified':cover['modified'] or None,
+                                'thumbnailWidth':400,'mimeType':'image/jpeg','sourceTable':'gcd_cover',
+                                'artworkBinariesCopied':False}
+                            cover_count+=1
                     encoded=json.dumps(raw,ensure_ascii=False,separators=(',',':')).encode('utf-8')
                     if len(encoded)>RECORD_BYTES:
                         raise ArchiveError('Issue '+str(issue_id)+' exceeds the reviewed record bound; export not published.')
@@ -175,8 +202,13 @@ def convert(input_path: Path, output_path: Path, report_path: Path,
             'mappingLimitations':['Legacy textual credits/characters/feature only; linked Django display fields are not reconstructed.',
                 'Modern linked credits, characters, brands, printers, tags and uncertain date display suffixes require schema-specific enrichment.',
                 'Mapped text is bounded as documented; counts are issue coverage, not exact reproduction of all GCD fields.',
-                'No artwork, FMV, customer/private tables or deleted issues are exported.'],
+                'No artwork binaries, FMV, customer/private tables or deleted issues are exported.'],
             'inputModified':False,'upstreamRequests':0}
+        if include_cover_references:
+            report.update(coverReferencesIncluded=True,coverReferenceCount=cover_count,
+                coverTablePresent=bool(cover_columns),coverOrigin=cover_origin,
+                coverMapping='Own nondeleted, unrestricted gcd_cover ID using the published GCD Cover.get_base_url mapping; no issue-ID filename guesses or borrowed variant artwork.',
+                artworkBinariesCopied=False,coversLicensedByMetadata=False)
         with report_temporary.open('x',encoding='utf-8') as stream:
             created_report_temporary=True
             stream.write(json.dumps(report,indent=2)+'\n')
@@ -198,8 +230,11 @@ def main() -> int:
     parser.add_argument('--report',type=Path,required=True)
     parser.add_argument('--snapshot-at',required=True,help='Actual archive date/time from GCD download page; not conversion time.')
     parser.add_argument('--limit',type=int,help='Explicit partial test export; omit for all active issue identities.')
+    parser.add_argument('--include-cover-references',action='store_true',help='Map actual gcd_cover IDs if the archive includes that table; never copy artwork.')
+    parser.add_argument('--cover-origin',default='https://files1.comics.org',help='Current HTTPS GCD image origin observed in the official API.')
     args=parser.parse_args()
-    try:result=convert(args.input,args.output,args.report,args.snapshot_at,limit=args.limit)
+    try:result=convert(args.input,args.output,args.report,args.snapshot_at,limit=args.limit,
+        include_cover_references=args.include_cover_references,cover_origin=args.cover_origin)
     except (ArchiveError,OSError,sqlite3.Error) as error:
         print(json.dumps({'outcome':'export-not-published','error':str(error)}));return 1
     print(json.dumps(result));return 0

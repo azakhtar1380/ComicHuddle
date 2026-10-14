@@ -21,7 +21,7 @@ const pool = new Pool();
 before(async () => {
   engine = new PGlite();
   await engine.exec('CREATE SCHEMA ch_web; BEGIN;');
-  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
+  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
   await engine.exec('COMMIT; SET search_path TO ch_web,public;');
   const query = async (config: string | { text: string; rowMode?: string }, values: unknown[] = []) => {
     const result = await engine.query<Record<string, unknown>>(typeof config === 'string' ? config : config.text, values);

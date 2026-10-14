@@ -4,6 +4,6 @@
   "installCommand": "npm ci --include=dev",
   "buildCommand": "npm run build",
   "regions": ["cle1"],
-  "functions": { "app/api/**/route.ts": { "maxDuration": 60 } },
-  "crons": [{ "path": "/api/cron/new-releases", "schedule": "0 9 * * 1" }]
+  "functions": { "app/api/**/route.ts": { "maxDuration": 60 }, "app/api/cron/new-releases/route.ts": { "maxDuration": 300 }, "app/api/cron/new-releases-resume/route.ts": { "maxDuration": 300 } },
+  "crons": [{ "path": "/api/cron/new-releases", "schedule": "0 9 * * 1" }, { "path": "/api/cron/new-releases-resume", "schedule": "0 10 * * *" }]
 }

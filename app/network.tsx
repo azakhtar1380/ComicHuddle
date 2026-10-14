@@ -31,7 +31,8 @@ export function Modal({children,label,onClose,wide=false}:{children:ReactNode;la
 }
 export function ComicArt({issue,book,small=false}:{issue?:Issue;book?:ShowcaseBook;small?:boolean}){
  const record=issue||(book?bookIssue(book):undefined),url=book?.photoId?'/api/media?id='+book.photoId:record?.cover;
- if(url)return <div className={'comic-photo '+(small?'small':'')}><img src={url} alt={book?book.title+' '+book.issue:record?.title+' #'+record?.number} loading="lazy"/><span>{book?.photoId?'COLLECTOR PHOTO':'VINTAGE COVER'}</span></div>;
+ const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);
+ if(url&&!failed)return <div className={'comic-photo '+(small?'small':'')}><img src={url} alt={book?book.title+' '+book.issue:record?.title+' #'+record?.number} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/><span>{book?.photoId?'COLLECTOR PHOTO':record?.gcdId?'COVER VIA GCD · © RIGHTS HOLDERS':'WIKIMEDIA COMMONS · US PUBLIC DOMAIN'}</span></div>;
  return <div className={'archive-card p-'+(record?.publisher||'other').toLowerCase()+(small?' small':'')}><div className="archive-top"><span>{record?.publisher||'COLLECTOR COPY'}</span><span>{record?.year||''}</span></div><div className="archive-name">{record?.title||book?.title||'Comic'}</div><div className="archive-number">{record?.number||book?.issue||'?'}</div><div className="archive-bottom"><span>ISSUE RECORD</span><BookOpen size={16}/></div></div>;
 }
 const usd=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);

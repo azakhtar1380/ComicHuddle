@@ -3,6 +3,7 @@ import {catalogGcdSeen,catalogGcdSeries,catalogIssues,catalogSync} from '../db/s
 import {seedStarterStatements,type CatalogDb} from './catalog-store';
 import {ApiRequestError,chunks} from './api-security';
 import {conditionalGuard,operationGuardFailed} from './operation-guard';
+import {gcdIssueCoverStatements} from './gcd-cover-writes';
 import {GCD_BOUNDS,GCD_ORIGIN,gcdPage,gcdProviderId,gcdRecordStatements,gcdStoredIssue,gcdStoredSeries,isoWeek,normalizeGcdIssue,normalizeGcdSeries,weeklyPath} from './gcd-catalog';
 
 const KEY='gcd',HOUR=3_600_000;
@@ -12,7 +13,7 @@ type Daily={runId:string;startedAt:string;lastCompletedAt:string|null;stage:'idl
 type Backfill={runId:string;startedAt:string;lastPassCompletedAt:string|null;stage:'idle'|'importing'|'pass_complete';page:number;nextPage:number|null;pendingSeries:number[];currentSeries:number|null;issueOffset:number;expectedSeriesCount:number|null;checkedIssues:number;unavailable:number};
 type State={version:1;requestTimes:number[];lastSuccessfulRequestAt:string|null;pausedByOwner:boolean;error:string|null;daily:Daily;backfill:Backfill};
 export type GcdSyncEnv={METRON_PRIVATE_SERVICE_ENABLED?:string}; // existing owner-private gate is read only
-export type GcdSyncDependencies={fetcher?:typeof fetch;now?:()=>number};
+export type GcdSyncDependencies={fetcher?:typeof fetch;now?:()=>number;onlyMissing?:boolean};
 const initialDaily=():Daily=>({runId:'',startedAt:'',lastCompletedAt:null,stage:'idle',weeks:[],weekIndex:0,page:1,nextPage:null,pending:[],expectedCounts:[],checked:0,unavailable:0});
 const initialBackfill=():Backfill=>({runId:'',startedAt:'',lastPassCompletedAt:null,stage:'idle',page:1,nextPage:null,pendingSeries:[],currentSeries:null,issueOffset:0,expectedSeriesCount:null,checkedIssues:0,unavailable:0});
 const initial=():State=>({version:1,requestTimes:[],lastSuccessfulRequestAt:null,pausedByOwner:false,error:null,daily:initialDaily(),backfill:initialBackfill()});
@@ -106,9 +107,10 @@ export async function gcdSyncStep(db:CatalogDb,mode:'daily'|'backfill',env:GcdSy
   const stored=await gcdStoredIssue(db,pending.id),start=mode==='daily'?state.daily.startedAt:state.backfill.startedAt;
   let writes:unknown[]=[];
   let sameSeries=false;if(stored){try{sameSeries=JSON.parse(stored.rawMetadata).seriesId===pending.seriesId}catch{}}
-  if(!stored||!sameSeries||Date.parse(stored.fetchedAt)<Date.parse(start)){
+  let needsEnrichment=false;if(stored){try{needsEnrichment=JSON.parse(stored.rawMetadata).metadataScope==='selected_series_issue_indexes'}catch{}}
+  if(!stored||!sameSeries||(deps.onlyMissing?needsEnrichment:Date.parse(stored.fetchedAt)<Date.parse(start))){
    const raw=await request('/api/issue/'+pending.id+'/');
-   if(raw!==null){const normalized=normalizeGcdIssue(raw,new Date(clock()).toISOString());if(normalized.issue.gcdId!==pending.id||normalized.seriesId!==pending.seriesId)throw new ApiRequestError('GCD returned a different issue or series identity.',502);writes=gcdRecordStatements(db,normalized)}
+   if(raw!==null){const normalized=normalizeGcdIssue(raw,new Date(clock()).toISOString());if(normalized.issue.gcdId!==pending.id||normalized.seriesId!==pending.seriesId)throw new ApiRequestError('GCD returned a different issue or series identity.',502);writes=[...gcdRecordStatements(db,normalized),...gcdIssueCoverStatements(db,raw,normalized.issue,normalized.stamp)]}
    else if(mode==='daily')state.daily.unavailable++;else state.backfill.unavailable++;
   }
   writes.push(db.insert(catalogGcdSeen).values({runId,kind:'issue',providerId:pending.id,completed:1}).onConflictDoNothing());

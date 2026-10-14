@@ -51,3 +51,8 @@ __pycache__/
 
 *.tsbuildinfo
 /certificates/
+/.catalog-import/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm

@@ -12,7 +12,7 @@ type CatalogPage = {
   issues: Issue[]; total: number; limit: number; offset: number; hasMore: boolean;
   issueCount: number; scope: 'starter' | 'shared'; syncedIssueCount: number;
   lastSyncedAt: string | null; publishers: string[];
-  gcdIssueCount?: number; gcdIndexIssueCount?: number; lastGcdSyncedAt?: string | null;
+  gcdIssueCount?: number; gcdIndexIssueCount?: number; coverIssueCount?:number; lastGcdSyncedAt?: string | null;
 };
 type Props = {onOpen: (issue: Issue) => void; onWant: (issue: Issue) => void; onCollect:(issue:Issue,entry?:CollectionEntry,requestId?:string)=>Promise<void>|void; beforeCollection?:()=>boolean; activeListingCounts?:Record<number,number>|null; onFind:(issue:Issue)=>void; ownedIds:number[]; wantedIds: number[]; saving: boolean};
 const pageSize = 12;
@@ -22,7 +22,8 @@ function DirectoryIssueCard({issue,onOpen}:{issue:Issue;onOpen:(issue:Issue)=>vo
   const [coverFailed,setCoverFailed]=useState(false);
   useEffect(()=>setCoverFailed(false),[issue.cover]);
   return <button type="button" className="sd-card" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}>
-    <span className="sd-art">{issue.cover&&!coverFailed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" decoding="async" onError={()=>setCoverFailed(true)}/>:<span className="sd-cover-empty" role="img" aria-label="Cover unavailable"><BookOpen size={36} aria-hidden="true"/></span>}</span>
+    <span className="sd-art">{issue.cover&&!coverFailed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>:<span className="sd-cover-empty" role="img" aria-label="Cover unavailable"><BookOpen size={36} aria-hidden="true"/><small>Cover unavailable</small></span>}</span>
+    {issue.cover&&!coverFailed&&<span className="sd-cover-credit">{issue.gcdId?'Cover via Grand Comics Database · © rights holders':'Cover: Wikimedia Commons · US public domain'}</span>}
     <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span>
   </button>;
 }
@@ -40,6 +41,7 @@ function catalogPage(value: unknown): CatalogPage {
       (data.scope !== 'starter' && data.scope !== 'shared') || (data.lastSyncedAt !== null && typeof data.lastSyncedAt !== 'string') ||
       (data.gcdIssueCount !== undefined && (!Number.isSafeInteger(data.gcdIssueCount) || data.gcdIssueCount < 0)) ||
       (data.gcdIndexIssueCount !== undefined && (!Number.isSafeInteger(data.gcdIndexIssueCount) || data.gcdIndexIssueCount < 0 || data.gcdIndexIssueCount > (data.gcdIssueCount || 0))) ||
+      (data.coverIssueCount !== undefined && (!Number.isSafeInteger(data.coverIssueCount) || data.coverIssueCount < 0 || data.coverIssueCount > (data.issueCount || 0))) ||
       (data.lastGcdSyncedAt !== undefined && data.lastGcdSyncedAt !== null && typeof data.lastGcdSyncedAt !== 'string') ||
       data.publishers.some(name => typeof name !== 'string') ||
       data.issues.some(issue => !issue || !Number.isSafeInteger(issue.id) || issue.id < 0 || !Number.isInteger(issue.year) ||
@@ -116,6 +118,6 @@ export default function SharedDirectory({onOpen}: Props) {
     </div>
     {!loading && !error && data && data.total > data.limit && <nav className="sd-pagination" aria-label="Directory pages"><button type="button" disabled={data.offset === 0} onClick={() => {invalidate(); setOffset(Math.max(0, data.offset - data.limit));}}><ChevronLeft size={18}/> Previous</button><span>Page {pageNumber} of {totalPages.toLocaleString('en-US')}</span><button type="button" disabled={!data.hasMore} onClick={() => {invalidate(); setOffset(data.offset + data.limit);}}>Next <ChevronRight size={18}/></button></nav>}
     </div></div>
-    <div className="sd-attribution"><BookOpen size={20}/><div>{data && data.syncedIssueCount > 0 && <p>Comic metadata adapted from <a href="https://metron.cloud/" target="_blank" rel="noreferrer">Metron</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted Metron metadata retains that license.</p>}{data && (data.gcdIssueCount||0)>0&&<p>Comic metadata adapted from the <a href="https://www.comics.org/" target="_blank" rel="noreferrer">Grand Comics Database</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted GCD metadata retains that license.</p>}<p>Starter records retain their individual bibliography and image credits. Selected GCD metadata adaptations retain CC BY-SA 4.0 attribution. Metadata licenses do not include cover artwork; these imports do not load provider cover images.</p></div></div>
+    <div className="sd-attribution"><BookOpen size={20}/><div>{data && data.syncedIssueCount > 0 && <p>Comic metadata adapted from <a href="https://metron.cloud/" target="_blank" rel="noreferrer">Metron</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted Metron metadata retains that license.</p>}{data && (data.gcdIssueCount||0)>0&&<p>Comic metadata adapted from the <a href="https://www.comics.org/" target="_blank" rel="noreferrer">Grand Comics Database</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted GCD metadata retains that license.</p>}<p>Cover thumbnails identify the indexed edition. Artwork © the respective publishers and artists; the metadata license does not include artwork. Starter records retain their individual source credits. {data?.coverIssueCount!==undefined&&<>{data.coverIssueCount.toLocaleString('en-US')} records have a cover reference; source availability varies.</>}</p></div></div>
   </section>;
 }
