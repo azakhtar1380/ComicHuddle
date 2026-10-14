@@ -11,7 +11,7 @@ export function gcdThumbnailUrl(value: unknown): string | null {
     if(url.username||url.password||url.port)return null;
     const host=url.hostname;
     if(!(host==='www.comics.org'||/^files[0-9]+\.comics\.org$/.test(host)))return null;
-    if(!/^\/(?:covers|img|images)\//.test(url.pathname))return null;
+    if(!/^\/+(?:covers|img|images)\//.test(url.pathname))return null;
     if(!['http:','https:'].includes(url.protocol))return null;
     url.protocol='https:';return url.href;
   }catch{return null;}
