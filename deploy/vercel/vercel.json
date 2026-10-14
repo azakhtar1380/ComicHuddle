@@ -47,5 +47,6 @@
         }
       ]
     }
-  ]
+  ],
+  "installCommand": "npm ci --include=dev"
 }

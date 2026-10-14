@@ -12,13 +12,13 @@
     "sync:new-releases": "node dist/sync-new-releases.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1151.0",
     "pg": "8.16.3",
-    "zod": "3.25.76",
-    "@aws-sdk/client-s3": "3.922.0"
+    "zod": "3.25.76"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
     "@types/node": "22.15.30",
-    "@types/pg": "8.15.4"
+    "@types/pg": "8.15.4",
+    "typescript": "5.9.3"
   }
 }
