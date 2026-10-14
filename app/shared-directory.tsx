@@ -13,7 +13,7 @@ type CatalogPage = {
   issues: Issue[]; total: number; limit: number; offset: number; hasMore: boolean;
   issueCount: number; scope: 'starter' | 'shared'; syncedIssueCount: number;
   lastSyncedAt: string | null; publishers: string[];
-  gcdIssueCount?: number; gcdIndexIssueCount?: number; coverIssueCount?:number; lastGcdSyncedAt?: string | null;
+  nativeIssueCountEstimate?:number;nativeSnapshotStatus?:string;gcdIssueCount?: number; gcdIndexIssueCount?: number; coverIssueCount?:number; lastGcdSyncedAt?: string | null;
 };
 type Props = {onOpen: (issue: Issue) => void; onWant: (issue: Issue) => void; onCollect:(issue:Issue,entry?:CollectionEntry,requestId?:string)=>Promise<void>|void; beforeCollection?:()=>boolean; activeListingCounts?:Record<number,number>|null; onFind:(issue:Issue)=>void; ownedIds:number[]; wantedIds: number[]; saving: boolean};
 const pageSize = 12;

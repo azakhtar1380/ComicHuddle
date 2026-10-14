@@ -18,5 +18,6 @@ try{
   console.log('Ensuring concurrent GCD index: '+name);
   await client.query('CREATE INDEX CONCURRENTLY IF NOT EXISTS '+name+' ON '+table+'('+columns+')');
  }catch(error){if(['55P03','57014'].includes((error as {code?:string}).code||'')){pending++;console.log('GCD index checkpoint retained during active import: '+name);continue}throw error}}
+ await client.query('ANALYZE gcd.gcd_series');await client.query('ANALYZE gcd.gcd_publisher');
  console.log('GCD_INDEX_RESULT '+JSON.stringify({verified:indexes.length-pending,pending,reason:pending?'Concurrent snapshot activity; retry in the next maintenance build.':null}));
 }finally{await client.query("SELECT pg_advisory_unlock(hashtext('comichuddle-native-indexes'))");client.release();await pool.end()}
