@@ -1,0 +1,194 @@
+{
+  "checkedAt": "2026-10-14T16:03:18.194303+00:00",
+  "deploymentId": "dpl_HB7SpmZyj4Sk2t6CgVMVpvZjB5bm",
+  "applicationCommit": "53bfe18",
+  "sourceSeedRecords": 993,
+  "indexedRecords": 1184,
+  "gcdRecords": 1141,
+  "metronRecords": 0,
+  "catalogComplete": false,
+  "checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "cacheControl": "no-store",
+      "response": {
+        "status": "ok",
+        "application": "ComicHuddle original app",
+        "database": "AWS RDS PostgreSQL"
+      }
+    },
+    {
+      "path": "/api/catalog?limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 1184,
+      "gcd": 1141,
+      "matched": 1184,
+      "returned": 12,
+      "hasMore": true,
+      "examples": [
+        {
+          "id": 0,
+          "title": "Amazing Spider-Man",
+          "number": "300",
+          "publisher": "Marvel"
+        },
+        {
+          "id": 1,
+          "title": "Batman",
+          "number": "423",
+          "publisher": "DC"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?limit=12&offset=1176",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 1184,
+      "gcd": 1141,
+      "matched": 1184,
+      "returned": 8,
+      "hasMore": false,
+      "examples": [
+        {
+          "id": 4002873951,
+          "title": "New History of the DC Universe: The Dakota Incident (2026 series)",
+          "number": "1",
+          "publisher": "DC Comics"
+        },
+        {
+          "id": 4002873952,
+          "title": "Batman & Robin: Year One - Dynamic Duos (2026 series)",
+          "number": "1",
+          "publisher": "DC Comics"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?q=Amazing%20Spider-Man%20%2350&limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 1184,
+      "gcd": 1141,
+      "matched": 1,
+      "returned": 1,
+      "hasMore": false,
+      "examples": [
+        {
+          "id": 4000021127,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "number": "50",
+          "publisher": "Marvel"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?q=Spawn&publisher=Image&limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 1184,
+      "gcd": 1141,
+      "matched": 151,
+      "returned": 12,
+      "hasMore": true,
+      "examples": [
+        {
+          "id": 15,
+          "title": "Spawn",
+          "number": "1",
+          "publisher": "Image"
+        },
+        {
+          "id": 4000051236,
+          "title": "Spawn (1992 series)",
+          "number": "1",
+          "publisher": "Image"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?browse=series&publisher=DC&limit=30&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "response": {
+        "series": [
+          {
+            "title": "Action Comics",
+            "publisher": "DC",
+            "count": 1,
+            "firstYear": 1938,
+            "lastYear": 1938
+          },
+          {
+            "title": "All-American Comics",
+            "publisher": "DC",
+            "count": 1,
+            "firstYear": 1940,
+            "lastYear": 1940
+          },
+          {
+            "title": "Batman",
+            "publisher": "DC",
+            "count": 2,
+            "firstYear": 1940,
+            "lastYear": 1988
+          },
+          {
+            "title": "Batman (1940 series)",
+            "publisher": "DC",
+            "count": 400,
+            "firstYear": 1940,
+            "lastYear": 1986
+          },
+          {
+            "title": "Batman Adventures",
+            "publisher": "DC",
+            "count": 1,
+            "firstYear": 1993,
+            "lastYear": 1993
+          },
+          {
+            "title": "Batman: The Dark Knight Returns",
+            "publisher": "DC",
+            "count": 1,
+            "firstYear": 1986,
+            "lastYear": 1986
+          },
+          {
+            "title": "Detective Comics",
+            "publisher": "DC",
+            "count": 3,
+            "firstYear": 1939,
+            "lastYear": 1940
+          },
+          {
+            "title": "Watchmen",
+            "publisher": "DC",
+            "count": 1,
+            "firstYear": 1986,
+            "lastYear": 1986
+          }
+        ],
+        "total": 8,
+        "limit": 30,
+        "offset": 0,
+        "hasMore": false
+      }
+    }
+  ],
+  "localTests": {
+    "catalogSeed": 6,
+    "postgresApplication": 6,
+    "typecheck": "passed",
+    "build": "passed"
+  },
+  "databaseImportCompletedAt": "2026-10-14T15:59:06.157Z",
+  "browserChecks": [
+    "directory shows 1,184 indexed records and 1,141 GCD records",
+    "live issue search finds Amazing Spider-Man #50",
+    "issue detail displays July 1967, on-sale date and Stan Lee / John Romita credits"
+  ],
+  "screenshot": "comichuddle-rds-catalog-1791994006258.jpg"
+}

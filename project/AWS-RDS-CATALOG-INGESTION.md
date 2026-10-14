@@ -23,8 +23,11 @@ variants and provides the longest comic story rather than every story and
 full issue fields. Unknown information remains unrecorded. Existing complete
 issue records are retained when their GCD IDs already exist. The earlier
 approved seed contains 191 stored records, including 148 GCD issues. Its GCD
-IDs do not overlap this new dataset. The projected combined count is 1,184;
-cloud build logs and the live API must establish the actual database count.
+IDs do not overlap this new dataset. The production import completed on
+October 14, 2026 at 15:59:06 UTC with all 993 new records inserted. AWS RDS,
+the live catalog API and the browser directory show **1,184 indexed records**,
+including **1,141 GCD records**, **0 Metron records** and 43 starter records.
+This total is the actual stored-record count, not proof of full catalog coverage.
 
 Metron and Marvel credentials and the official complete GCD archive are not
 configured or available. Open Library book/edition records are not substituted

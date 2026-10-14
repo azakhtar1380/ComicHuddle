@@ -8,6 +8,12 @@ import type { Pool } from 'pg';
 import { importGcdSeed, preflightSeed, seedRecord, validateSeedManifest } from '../lib/gcd-postgres-seed';
 import { seedStarterStatements, searchSharedCatalog, catalogOverview } from '../lib/catalog-store';
 import { getDb } from '../db';
+import { profiles, collections, media, listings } from '../db/schema';
+import { createListing } from '../lib/marketplace';
+import { emptyVault, vaultSaveSchema } from '../lib/vault';
+import { sharedProviderIdentity } from '../lib/shared-catalog';
+import { previewRulesVersion } from '../lib/community';
+import { eq } from 'drizzle-orm';
 
 const file = resolve('db/gcd-overview-seed.jsonl'), manifestFile = resolve('db/gcd-overview-seed.manifest.json');
 let engine: PGlite, temporary: string, pool: Pool, failNextCatalogInsert = false;
@@ -97,4 +103,25 @@ test('the existing directory search queries all imported PostgreSQL rows with pa
   assert.equal(tail.issues.length, 12); assert.equal(tail.total, 1036); assert.equal(tail.hasMore, false);
   const spawn = await searchSharedCatalog(getDb(), { q: 'Spawn', publisher: 'Image', limit: 12, offset: 0 });
   assert.ok(spawn.total >= 150);
+});
+test('a newly imported GCD issue can link an owned copy and marketplace listing without integer overflow', async () => {
+  const db = getDb(), stamp = new Date().toISOString(), issue = JSON.parse(seedRecord(raw[1], manifest).data);
+  const identity = sharedProviderIdentity(issue.id); assert.ok(identity); assert.equal(identity.provider, 'GCD');
+  const userId = crypto.randomUUID(), photoId = crypto.randomUUID();
+  const [seller] = await db.insert(profiles).values({ id: crypto.randomUUID(), userId, handle: 'gcd_seed_seller',
+    name: 'GCD Seed QA', bio: '', tagline: '', location: 'Minnesota', favorite: '', since: 2026,
+    color: 'red', featured: '[]', visible: 1, dmOpen: 1, createdAt: stamp,
+    rulesVersion: previewRulesVersion, rulesAcceptedAt: stamp }).returning();
+  const vault = emptyVault('GCD Seed QA');
+  vault.books.push({ id: 'gcd-owned-copy', title: issue.title, issue: '#' + issue.number,
+    grade: 'Raw 9.0', price: 250, externalCatalog: identity });
+  assert.ok(vaultSaveSchema.safeParse(vault).success);
+  await db.insert(collections).values({ userId, data: JSON.stringify(vault), revision: crypto.randomUUID() });
+  await db.insert(media).values({ id: photoId, userId, contentType: 'image/jpeg', createdAt: stamp });
+  const result = await createListing(db, seller, { action: 'listing', kind: 'single', saleType: 'fixed',
+    bookIds: ['gcd-owned-copy'], description: 'Isolated PostgreSQL imported-issue link test.',
+    price: 60000, shipping: 1500, photos: [photoId], attest: true, usaAttest: true });
+  const [listing] = await db.select().from(listings).where(eq(listings.id, result.listingId));
+  assert.equal(listing.issueId, issue.id); assert.ok(listing.issueId! > 2_147_483_647);
+  assert.equal(JSON.parse(listing.items)[0].externalCatalog.id, issue.gcdId);
 });
