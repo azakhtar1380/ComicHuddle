@@ -1,0 +1,113 @@
+[
+  {
+    "route": "/api/catalog?limit=2&offset=0",
+    "status": 200,
+    "elapsedSeconds": 5.31,
+    "schema": "gcd",
+    "total": 6826,
+    "issueCount": 6826,
+    "gcdCount": 6783,
+    "rows": 0,
+    "issues": [
+      [
+        24,
+        "Planet Comics",
+        "12"
+      ],
+      [
+        25,
+        "Planet Comics",
+        "21"
+      ]
+    ],
+    "checkoutEnabled": null,
+    "error": null,
+    "cities": []
+  },
+  {
+    "route": "/api/catalog?q=Amazing+Spider-Man+%23300&limit=12&offset=0",
+    "status": 503,
+    "elapsedSeconds": 19.06,
+    "schema": null,
+    "total": null,
+    "issueCount": null,
+    "gcdCount": null,
+    "rows": 0,
+    "issues": [],
+    "checkoutEnabled": null,
+    "error": "The saved comic directory could not be loaded. Please retry.",
+    "cities": []
+  },
+  {
+    "route": "/api/values?issue=0",
+    "status": 200,
+    "elapsedSeconds": 5.23,
+    "schema": null,
+    "total": null,
+    "issueCount": null,
+    "gcdCount": null,
+    "rows": 0,
+    "issues": [],
+    "checkoutEnabled": null,
+    "error": null,
+    "cities": []
+  },
+  {
+    "route": "/api/commerce?kind=setup",
+    "status": 200,
+    "elapsedSeconds": 3.43,
+    "schema": null,
+    "total": null,
+    "issueCount": null,
+    "gcdCount": null,
+    "rows": 0,
+    "issues": [],
+    "checkoutEnabled": false,
+    "error": null,
+    "cities": []
+  },
+  {
+    "route": "/api/cron/new-releases",
+    "status": 401,
+    "elapsedSeconds": 3.11,
+    "schema": null,
+    "total": null,
+    "issueCount": null,
+    "gcdCount": null,
+    "rows": 0,
+    "issues": [],
+    "checkoutEnabled": null,
+    "error": "Unauthorized",
+    "cities": []
+  },
+  {
+    "route": "/api/cron/fmv",
+    "status": 401,
+    "elapsedSeconds": 2.77,
+    "schema": null,
+    "total": null,
+    "issueCount": null,
+    "gcdCount": null,
+    "rows": 0,
+    "issues": [],
+    "checkoutEnabled": null,
+    "error": "Unauthorized",
+    "cities": []
+  },
+  {
+    "route": "/api/locations?q=55421",
+    "status": 200,
+    "elapsedSeconds": 4.95,
+    "schema": null,
+    "total": null,
+    "issueCount": null,
+    "gcdCount": null,
+    "rows": 0,
+    "issues": [],
+    "checkoutEnabled": null,
+    "error": null,
+    "cities": [
+      "Minneapolis"
+    ]
+  }
+]
