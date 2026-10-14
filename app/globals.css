@@ -132,3 +132,5 @@
 .comic-cover-placeholder{display:block;width:100%;height:100%;max-width:100%;object-fit:contain}.sd-art>.comic-cover-placeholder{max-height:100%}
 
 .site-header nav .header-scan.nav-scan{background:transparent;color:var(--ink);border:0;border-radius:8px;box-shadow:none;width:40px;height:40px;min-width:40px;padding:8px;margin:0;align-self:center}.site-header nav .header-scan.nav-scan span{display:none}.site-header nav .nav-wallet{display:flex;align-items:center;gap:7px;font-size:12px;white-space:nowrap;color:var(--ink);text-decoration:none}.site-header nav .nav-wallet:hover{color:var(--red)}
+
+.drawer-profile-links>a:not(.account-signout):not(.account-signin){display:flex;align-items:center;gap:10px;min-height:44px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--cream);text-decoration:none;font-weight:600}.drawer-profile-links>a>svg:last-child{margin-left:auto}
