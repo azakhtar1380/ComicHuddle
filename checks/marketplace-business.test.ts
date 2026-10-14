@@ -9,7 +9,7 @@ import {profiles,collections,media,listings,listingInventory,careProviders,comme
 import {seedStarterStatements} from '../lib/catalog-store';
 import {emptyVault} from '../lib/vault';
 import {previewRulesVersion} from '../lib/community';
-import {createListing} from '../lib/marketplace';
+import {createListing,checkMarketplaceDeletion,anonymizeMarketplaceHistory} from '../lib/marketplace';
 import {markListingSold,requestSafePurchase} from '../lib/marketplace-sales';
 import {marketplaceDirectory} from '../lib/marketplace-directory';
 import {workshopDirectoryRows,studioVisibleFields} from '../lib/workshop-directory';
@@ -20,7 +20,7 @@ import {createCommerceState,applyCommerceEvent,type CommerceState} from '../lib/
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
- for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -151,4 +151,18 @@ test('specialist distance search, visibility and public DTOs protect private int
  const fields=studioVisibleFields(near);for(const key of ['shippingAddress','shippingNotes','locationZip','latitude','longitude'])assert.ok(!Object.hasOwn(fields,key));assert.equal(studioVisibleFields(near,true).shippingAddress,'PRIVATE TEST INTAKE ADDRESS');
  await getDb().insert(blocks).values({fromId:viewer.id,toId:local.id});assert.equal((await workshopDirectoryRows(getDb(),viewer.id,{location:'55421',radius:'50'})).rows.length,0);
  assert.equal((await workshopDirectoryRows(getDb(),viewer.id,{location:'55421',radius:'nationwide'},far.id)).rows[0].provider.id,far.id);
+});
+
+
+test('account cleanup removes pending requests and manual-sale records while active custody requires review',async()=>{
+ const seller=await collector('cleanup'),buyer=await collector('cleanupbuyer'),listing=await offer(seller,{safePurchaseOptIn:true,locationZip:'55421'});
+ await requestSafePurchase(getDb(),buyer,{listingId:listing.id});
+ await pool.query("UPDATE ch_web.safe_purchase_requests SET status='received_at_vault' WHERE listing_id=$1",[listing.id]);
+ await assert.rejects(checkMarketplaceDeletion(getDb(),seller),e=>(e as {status:number}).status===409);
+ await assert.rejects(markListingSold(getDb(),seller,{listingId:listing.id,soldVia:'cash_local'}),e=>(e as {status:number}).status===409);
+ await pool.query("UPDATE ch_web.safe_purchase_requests SET status='requested' WHERE listing_id=$1",[listing.id]);
+ await markListingSold(getDb(),seller,{listingId:listing.id,soldVia:'cash_local'});await checkMarketplaceDeletion(getDb(),seller);
+ const clean=anonymizeMarketplaceHistory(getDb(),seller);await getDb().batch([...clean.checks,...clean.before,getDb().delete(listings).where(eq(listings.sellerId,seller.id)),...clean.after]);
+ assert.equal((await pool.query('SELECT count(*) AS n FROM ch_web.safe_purchase_requests WHERE listing_id=$1',[listing.id])).rows[0].n,0);
+ assert.equal((await pool.query('SELECT count(*) AS n FROM ch_web.marketplace_sales WHERE listing_id=$1',[listing.id])).rows[0].n,0);
 });

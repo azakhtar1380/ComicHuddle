@@ -11,16 +11,19 @@ export async function markListingSold(db:CatalogDb,me:typeof profiles.$inferSele
  const input=z.object({listingId:z.string().uuid(),soldVia:z.enum(['platform','cash_local'])}).parse(raw);
  const [row]=await db.select().from(listings).where(and(eq(listings.id,input.listingId),eq(listings.sellerId,me.id)));
  if(!row)throw new ApiRequestError('Listing not found.',404);
+ const custody=await db.execute(sql`SELECT id FROM ch_web.safe_purchase_requests WHERE listing_id=${row.id} AND status IN ('accepted','received_at_vault','inspected','shipped_to_buyer') LIMIT 1`);
+ if(custody.rows.length)throw new ApiRequestError('Resolve the active SafePurchase inspection or shipment before manually marking this listing sold.',409);
  if(row.status==='sold')return {saved:true,duplicate:true,listingId:row.id,note:'This listing is already in Sold Items.'};
  if(!['active','ended'].includes(row.status))throw new ApiRequestError('This listing is reserved or closed and cannot be marked sold.',409);
  const [order]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.listingId,row.id),sql`${commerceOrders.status} NOT IN ('cancelled','refunded','checkout_expired')`));
  if(order&&!['cancelled','refunded','checkout_expired'].includes(order.status))throw new ApiRequestError('Resolve the current platform order before changing this listing.',409);
  // Manual sale reports close inventory; they never verify payment or sold-price comps.
- const stamp=new Date().toISOString(),guard=conditionalGuard(db,sql`EXISTS(SELECT 1 FROM listings l WHERE l.id=${row.id} AND l.seller_id=${me.id} AND l.status IN ('active','ended')) AND NOT EXISTS(SELECT 1 FROM commerce_orders o WHERE o.listing_id=${row.id} AND o.status NOT IN ('cancelled','refunded','checkout_expired'))`);
+ const stamp=new Date().toISOString(),guard=conditionalGuard(db,sql`EXISTS(SELECT 1 FROM listings l WHERE l.id=${row.id} AND l.seller_id=${me.id} AND l.status IN ('active','ended')) AND NOT EXISTS(SELECT 1 FROM commerce_orders o WHERE o.listing_id=${row.id} AND o.status NOT IN ('cancelled','refunded','checkout_expired')) AND NOT EXISTS(SELECT 1 FROM ch_web.safe_purchase_requests r WHERE r.listing_id=${row.id} AND r.status IN ('accepted','received_at_vault','inspected','shipped_to_buyer'))`);
  try{await db.batch([
   guard.start,
   db.update(listings).set({status:'sold',leaderId:null,leadingBidId:null,auctionVersion:sql`${listings.auctionVersion}+1`}).where(eq(listings.id,row.id)),
   db.execute(sql`INSERT INTO ch_web.marketplace_sales(listing_id,seller_user_id,source,gross_cents,payment_verified,order_id,sold_at) VALUES(${row.id},${me.userId},${input.soldVia},${row.price},0,NULL,${stamp}::timestamptz) ON CONFLICT(listing_id) DO NOTHING`),
+  db.execute(sql`UPDATE ch_web.safe_purchase_requests SET status='cancelled',updated_at=now() WHERE listing_id=${row.id} AND status='requested'`),
   db.delete(listingInventory).where(eq(listingInventory.listingId,row.id)),
   db.update(offers).set({status:'closed'}).where(and(eq(offers.listingId,row.id),eq(offers.status,'pending'))),
   db.update(auctionBids).set({status:'cancelled'}).where(and(eq(auctionBids.listingId,row.id),inArray(auctionBids.status,['leading','outbid']))),

@@ -1,19 +1,8 @@
 {
   "suite": "ComicHuddle platform v2 integration",
-  "passed": 40,
-  "failed": 2,
-  "failures": [
-    {
-      "name": "One physical copy cannot be reserved twice",
-      "message": "The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nerror: INSERT has more target columns than expressions",
-      "code": "ERR_ASSERTION"
-    },
-    {
-      "name": "Standard low-value shipping shares settlement without vault",
-      "message": "Expected values to be strictly equal:\n\ntrue !== false\n",
-      "code": "ERR_ASSERTION"
-    }
-  ],
+  "passed": 42,
+  "failed": 0,
+  "failures": [],
   "engine": "postgresql-wasm",
   "providerTesting": "Fixtures only; no real Stripe/eBay payment or AI provider account was contacted.",
   "browserTesting": "Not available in this environment."

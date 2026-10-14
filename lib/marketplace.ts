@@ -382,6 +382,8 @@ export async function decideTradeTerms(db:Db,me:Profile,raw:Record<string,unknow
 }
 
 export async function checkMarketplaceDeletion(db:Db,me:Profile){
+ const custody=await db.execute(sql`SELECT id FROM ch_web.safe_purchase_requests WHERE (buyer_user_id=${me.userId} OR seller_user_id=${me.userId}) AND status IN ('accepted','received_at_vault','inspected','shipped_to_buyer') LIMIT 1`);
+ if(custody.rows.length)throw new ApiRequestError('Resolve your active SafePurchase inspection or shipment before account removal. Contact maliktecks@gmail.com for custody review.',409);
  const [orderHistory]=await db.select({id:commerceOrders.id}).from(commerceOrders).where(or(eq(commerceOrders.buyerUserId,me.userId),eq(commerceOrders.sellerUserId,me.userId))).limit(1);
  if(orderHistory)throw new ApiRequestError('Ask support at maliktecks@gmail.com to review your sandbox order and refund records before removing your account. Financial history is not silently deleted.',409);
  const [sellerHistory]=await db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),gt(listings.bidCount,0),inArray(listings.status,['active','ended']))).limit(1);
@@ -391,13 +393,14 @@ export async function checkMarketplaceDeletion(db:Db,me:Profile){
 }
 export function anonymizeMarketplaceHistory(db:Db,me:Profile){
  const removed='deleted:'+crypto.randomUUID(),stamp=new Date().toISOString();
- const sellerSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.buyer_user_id = ${me.userId} OR o.seller_user_id = ${me.userId}) AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = ${me.id} AND l.sale_type = 'auction' AND l.bid_count > 0 AND l.status IN ('active','ended'))`);
+ const sellerSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.buyer_user_id = ${me.userId} OR o.seller_user_id = ${me.userId}) AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = ${me.id} AND l.sale_type = 'auction' AND l.bid_count > 0 AND l.status IN ('active','ended')) AND NOT EXISTS(SELECT 1 FROM ch_web.safe_purchase_requests r WHERE (r.buyer_user_id=${me.userId} OR r.seller_user_id=${me.userId}) AND r.status IN ('accepted','received_at_vault','inspected','shipped_to_buyer'))`);
  const bidderSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM auction_bids b JOIN listings l ON l.id = b.listing_id WHERE b.bidder_id = ${me.id} AND b.status IN ('leading','outbid') AND l.status = 'active' AND parse_iso_timestamp(l.end_at) IS NOT NULL AND l.end_at > ${stamp})`);
  return {checks:[sellerSafe.start,bidderSafe.start],before:[
   db.update(profiles).set({deletionStartedAt:stamp,visible:0,dmOpen:0}).where(eq(profiles.id,me.id)),
+  db.execute(sql`DELETE FROM ch_web.safe_purchase_requests WHERE buyer_user_id=${me.userId} OR seller_user_id=${me.userId}`),
   db.update(auctionBids).set({bidderId:removed,requestId:sql`${auctionBids.id}`}).where(eq(auctionBids.bidderId,me.id)),
   db.update(listings).set({leaderId:null}).where(eq(listings.leaderId,me.id)),
-  db.update(listings).set({sellerId:removed,title:'Cancelled preview · seller account removed',description:'Historical nonbinding preview. The seller removed their account.',photos:'[]',items:'[]',itemCount:0,bookId:'deleted',issueId:null,grade:'',cert:'',vaultRevision:'',usaAttestedAt:'',fulfillment:'shipping',pickupCity:'',pickupState:''}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),gt(listings.bidCount,0),eq(listings.status,'cancelled'))),
+  db.update(listings).set({sellerId:removed,title:'Cancelled preview · seller account removed',description:'Historical nonbinding preview. The seller removed their account.',photos:'[]',items:'[]',itemCount:0,bookId:'deleted',issueId:null,grade:'',cert:'',vaultRevision:'',usaAttestedAt:'',fulfillment:'shipping',pickupCity:'',pickupState:'',locationZip:'',locationCity:'',locationState:'',latitude:null,longitude:null,safePurchaseOptIn:0,safePurchaseVerifiedAt:null}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),gt(listings.bidCount,0),eq(listings.status,'cancelled'))),
   db.delete(listingInventory).where(eq(listingInventory.sellerId,me.id))
  ],after:[sellerSafe.finish,bidderSafe.finish]};
 }
