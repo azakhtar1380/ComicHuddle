@@ -43,5 +43,5 @@ export async function GET(req:Request){
   const after=params.has('after')?integer(params.get('after'),0,0,Number.MAX_SAFE_INTEGER):undefined;
   if(params.has('after')&&(after===undefined||sort&&sort!=='featured'))return json({error:'Use an integer issue cursor with the default directory sort.'},400);
   return json(await searchSharedCatalog(getDb(),{q:query,limit,offset,publisher,series,era,kind,sort,after}));
- }catch{return json({error:'The saved comic directory could not be loaded. Please retry.'},503)}
+ }catch(error){let cause:unknown=error;let code='unknown';for(let depth=0;depth<5&&cause;depth++){const item=cause as {code?:string;cause?:unknown};if(item.code)code=item.code;cause=item.cause}console.error('ComicHuddle catalog read stopped; database code '+code);return json({error:'The saved comic directory could not be loaded. Please retry.'},503)}
 }

@@ -79,7 +79,26 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const retainedGcd=retained.filter(id=>id>=4000000000).map(id=>id-4000000000);
  const excluded=retainedGcd.length?sql`AND n.gcd_id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`:sql``;
  const extra=retained.length?sql`SELECT e.id,e.title,e.year FROM gcd.comichuddle_legacy_directory e WHERE e.id IN (${sql.join(retained.map(id=>sql`${id}`),sql`,`)}) AND ${nativeTerms('e')}`:sql`SELECT 0::bigint AS id,''::text AS title,0 AS year WHERE false`;
- const base=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded} UNION ALL ${extra}`;
+ let nativeBase=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded}`;
+ if((!filter.sort||filter.sort==='featured')&&!filter.era&&!filter.kind){
+  const rawTerms=[sql`COALESCE(i.deleted,0)=0`,...numbers.map(n=>sql`lower(i.number)=${n}`)];
+  if(retainedGcd.length)rawTerms.push(sql`i.id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`);
+  if(words.length||filter.publisher||filter.series){
+   const st=words.map(w=>sql`lower(s.name) LIKE ${'%'+w+'%'}`);
+   if(filter.publisher)st.push(sql`p.name=${filter.publisher}`);
+   if(filter.series)st.push(sql`s.name=${filter.series}`);
+   const candidates=await db.execute(sql`SELECT s.id FROM gcd.gcd_series s LEFT JOIN gcd.gcd_publisher p ON p.id=s.publisher_id WHERE COALESCE(s.deleted,0)=0 AND ${st.length?sql.join(st,sql` AND `):sql`true`}`);
+   const known=await db.execute(sql`SELECT e.gcd_id FROM gcd.comichuddle_legacy_directory e WHERE e.gcd_id IS NOT NULL AND ${nativeTerms('e')}`);
+   const seriesIds=candidates.rows.map(row=>Number(row.id)),knownIds=known.rows.map(row=>Number(row.gcd_id));
+   const matches=[];
+   if(seriesIds.length)matches.push(sql`i.series_id IN (${sql.join(seriesIds.map(id=>sql`${id}`),sql`,`)})`);
+   if(knownIds.length)matches.push(sql`i.id IN (${sql.join(knownIds.map(id=>sql`${id}`),sql`,`)})`);
+   if(words.length&&!filter.publisher&&!filter.series)matches.push(sql.join(words.map(w=>sql`lower(i.title) LIKE ${'%'+w+'%'}`),sql` AND `));
+   rawTerms.push(matches.length?sql`(${sql.join(matches,sql` OR `)})`:sql`false`);
+  }
+  nativeBase=sql`SELECT 4000000000::bigint+i.id AS id,''::text AS title,0 AS year FROM gcd.gcd_issue i WHERE ${sql.join(rawTerms,sql` AND `)}`;
+ }
+ const base=sql`${nativeBase} UNION ALL ${extra}`;
  const filtered=!!(filter.q||filter.publisher||filter.series||filter.era||filter.kind);
  const countTask=filtered?db.execute(sql`SELECT count(*)::bigint AS n FROM (${base}) matches`):Promise.resolve({rows:[{n:meta.issueCount}]});
  const order=filter.sort==='title'?sql`title,id`:filter.sort==='oldest'?sql`year,id`:filter.sort==='newest'?sql`year DESC,id`:sql`id`;
