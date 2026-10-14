@@ -1,0 +1,60 @@
+{
+  "publicUrl": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "deploymentId": "dpl_Hso4dXAjUfXERPzdCyzbNxgyTvkm",
+  "deployedCommit": "f9c9700",
+  "application": "Original ComicHuddle Next.js application at repository root",
+  "database": "AWS RDS PostgreSQL with verified TLS",
+  "catalog": {
+    "indexed": 191,
+    "GCD": 148,
+    "Metron": 0,
+    "approvedSnapshot": "2026-10-14",
+    "modernCoverImport": false
+  },
+  "checks": {
+    "originalPostgresMigration": {
+      "passed": 6,
+      "failed": 0,
+      "engine": "PostgreSQL WASM"
+    },
+    "platformServices": {
+      "passed": 42,
+      "failed": 0,
+      "engine": "PostgreSQL WASM",
+      "providers": "Fixtures; no real Stripe/eBay/AI account contacted"
+    },
+    "liveAPI": [
+      "collector registration and session",
+      "presser registration and collector showcase",
+      "Comic Workshop provider registration, readback and cleanup",
+      "collection write and readback",
+      "stale ETag rejected",
+      "cross-account collection isolation",
+      "photo upload and retrieval",
+      "private photo access denied to another account",
+      "listing creation and readback",
+      "foreign-origin write rejected",
+      "listing withdrawal",
+      "test profile/collection/media/provider cleanup",
+      "actual RDS health 200",
+      "central catalog 200",
+      "Cron unauthorized caller rejected"
+    ],
+    "browser": [
+      "Original homepage and branding",
+      "191 indexed issues rendered",
+      "Directory cards and issue detail interaction",
+      "Scanner opens; missing camera produces device error rather than a false scan result"
+    ]
+  },
+  "remaining": {
+    "livePayments": "Disabled; checkout/provider keys are absent. No real financial transaction was executed.",
+    "SafeTrade": "Planned UI; physical service and provider integration are not active.",
+    "wallet": "Planned UI; payout provider is not active.",
+    "FMV": "Coming soon; no licensed live feed.",
+    "authenticityAI": "No real provider configured; local matching is not authenticity verification.",
+    "ebay": "Service/export architecture retained; automatic publication/sync is not connected.",
+    "releaseCron": "Configured; skips until authorized ingestion is configured.",
+    "emailVerificationAndRecovery": "Provider not connected."
+  }
+}
