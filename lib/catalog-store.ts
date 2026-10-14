@@ -13,7 +13,7 @@ async function loadCatalogOverview(db:CatalogDb){
  const publishers=await db.selectDistinct({name:directoryIssues.publisher}).from(directoryIssues).orderBy(asc(directoryIssues.publisher)).limit(1000);
  const [sync]=await db.select({state:catalogSync.state}).from(catalogSync).where(eq(catalogSync.id,'metron'));
  let lastSyncedAt:string|null=null;if(sync){try{lastSyncedAt=JSON.parse(sync.state).lastCompletedAt||null}catch{}}
- const [covers]=await db.select({n:sql<number>`count(*)`.as('cover_count')}).from(directoryIssues).where(sql`${directoryIssues.coverRank}<2`);
+ const coverResult=await db.execute(sql`SELECT (SELECT count(*) FROM gcd.comichuddle_cover_references WHERE status='active')+(SELECT count(*) FROM ch_web.catalog_issues WHERE gcd_id IS NULL AND data LIKE '%/covers/%') AS n`);const covers=coverResult.rows[0] as {n:number};
  const total=Number(counts?.total||0),imported=Number(counts?.imported||0),gcd=Number(counts?.gcd||0);
  return {scope:imported||gcd?'shared':'starter',issueCount:total||catalog.length,syncedIssueCount:imported,lastSyncedAt,gcdIssueCount:gcd,gcdIndexIssueCount:Number(counts?.index||0),coverIssueCount:Number(covers?.n||0),lastGcdSyncedAt:counts?.lastGcd||null,catalogSchema:'gcd',gcdCoverage:'Native GCD snapshot with incremental additions. Not a complete current GCD export. Series-index records provide actual issue IDs and edition descriptors; missing issue dates, stories, credits and valuations are not inferred. Issue-specific cover references are enriched separately. No complete catalog or historical freshness claim.',publishers:total?publishers.flatMap(p=>p.name?[p.name]:[]):[...new Set(catalog.map(p=>p.publisher))].sort(),rights:[imported?'Metron metadata adapted and formatted under CC BY-SA 4.0.':null,gcd?'Bibliographic data from the Grand Comics Database, selected and formatted under CC BY-SA 4.0.':null,'Cover thumbnails identify editions. Artwork copyright stays with the respective publisher and artist; metadata licensing does not include artwork. Existing starter sources retain their credits. No FMV imported.'].filter(Boolean).join(' ')};
 }
@@ -23,9 +23,14 @@ export function catalogOverview(db:CatalogDb){
  if(overviewCache&&overviewCache.expires>Date.now())return overviewCache.value;
  const value=loadCatalogOverview(db);overviewCache={expires:Date.now()+30000,value};void value.catch(()=>{if(overviewCache?.value===value)overviewCache=null});return value;
 }
+function directoryIssueData(data:string):Issue{
+ const issue=JSON.parse(data) as Issue,b=issue.bibliography;
+ if(b){const limits:Record<string,number>={issueTitle:1000,editing:2000,keywords:2000};const next={...b};for(const key of ['publicationDate','keyDate','onSaleDate','pageCount','isbn','barcode','issueTitle','volume','indiciaPublisher','brandEmblem','rating','indiciaFrequency','indiciaPrinter','keywords','editing'] as const)next[key]=plainCatalogText(b[key],limits[key]||400);next.originalCoverPrice={kind:'ORIGINAL_COVER_PRICE',text:plainCatalogText(b.originalCoverPrice?.text,400)};issue.bibliography=next;}
+ return issue;
+}
 export async function catalogIssue(db:CatalogDb,id:number):Promise<Issue|undefined>{
  const [row]=await db.select({data:directoryIssues.data}).from(directoryIssues).where(eq(directoryIssues.id,id));
- const issue=row?JSON.parse(row.data!) as Issue:catalog.find(issue=>issue.id===id);
+ const issue=row?directoryIssueData(row.data!):catalog.find(issue=>issue.id===id);
  return issue?(await withCatalogCovers(db,[issue]))[0]:undefined;
 }
 export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
@@ -49,7 +54,7 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
  const rows=await db.select({data:directoryIssues.data}).from(directoryIssues).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);
  const total=Number(count?.n||0);
- const issues=await withCatalogCovers(db,rows.map(row=>JSON.parse(row.data!) as Issue));
+ const issues=await withCatalogCovers(db,rows.map(row=>directoryIssueData(row.data!)));
  return {...meta,issues:issues.map(issue=>catalogSearchDto(issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
 }
 // A bounded publisher > series tree. Never download the entire catalog to a browser.

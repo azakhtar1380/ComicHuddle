@@ -54,3 +54,5 @@ test('reserved credit cannot be spent twice, verified payment consumes it once, 
 test('expired unpaid orders release their credit reservation without points or spend entries',async()=>{
  const user=await profile('expire'),first=await order(user.userId);await pay(first);await convertPoints(pool,user.userId,'sandbox',crypto.randomUUID(),100);const second=await order(user.userId,10,100);await pool.query('SELECT ch_web.reserve_store_credit($1,$2,$3,100)',[second,user.userId,'sandbox']);await engine.query("UPDATE ch_web.commerce_orders SET status='checkout_expired' WHERE id=$1",[second]);await pool.query('SELECT ch_web.reconcile_order_rewards($1)',[second]);const result=await collectorRewards(pool,user.userId);assert.equal(result.balances.sandbox.availableCreditCents,100);assert.equal(result.balances.sandbox.points,100);
 });
+
+test('FMV cannot pool different grades or printings into a single price',()=>{assert.throws(()=>rollingMedian([comp(1000),comp(1100),comp(1200,{printing:'Later printing'})]),/different/)});
