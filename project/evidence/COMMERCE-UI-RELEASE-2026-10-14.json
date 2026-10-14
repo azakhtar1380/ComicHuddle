@@ -1,0 +1,71 @@
+{
+  "checkedAt": "2026-10-14T21:10:00Z",
+  "url": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "deploymentId": "dpl_7pwhsdJUSzpkznFjTApFSQH1rub2",
+  "deploymentCommit": "b4c00f6378f4233c40cc4143c71f27b11a480518",
+  "readyState": "READY",
+  "database": "AWS RDS PostgreSQL / postgres / ch_web",
+  "migration": "009_wallet_history_mode.sql applied during successful cloud build",
+  "localChecksPassed": 198,
+  "liveApiChecksPassed": 28,
+  "liveApiError": null,
+  "cleanup": [
+    {
+      "role": "seller",
+      "applicationRecordsRemoved": true
+    },
+    {
+      "role": "buyer",
+      "applicationRecordsRemoved": true
+    }
+  ],
+  "browserChecks": {
+    "headerSignIn": "visible",
+    "desktopNavigationIcons": 6,
+    "headerCameraIcon": "visible",
+    "initialAccountMenu": [
+      "Sign in or red Sign out",
+      "My Wallet",
+      "Scan a comic",
+      "Orders & refunds"
+    ],
+    "walletDrawerAction": "closes drawer and opens Collector Wallet page",
+    "rawToCgcToggle": "CGC selects grade 9.8",
+    "coloredAddToCollection": "rgb(200, 62, 48)",
+    "detailLayout": {
+      "coverWidth": 263.5,
+      "bodyWidth": 485.5,
+      "sourceLinkBorders": [
+        "0px",
+        "0px",
+        "0px"
+      ]
+    },
+    "pagesWithoutHorizontalOverflow": [
+      "Home",
+      "Marketplace",
+      "Comic Workshop",
+      "My Profile",
+      "Upcoming",
+      "Directory",
+      "Wallet"
+    ],
+    "browserWidth": 1363,
+    "documentWidth": 1348
+  },
+  "catalog": {
+    "indexed": 6826,
+    "gcd": 6783,
+    "coverReferences": 2094,
+    "fmvQuotes": 0,
+    "verifiedLocalReferenceCovers": 6
+  },
+  "limitations": [
+    "Synthetic processor tests only; Stripe credentials are missing on Vercel.",
+    "Current FMV endpoint has zero quotes.",
+    "External GCD covers are inaccessible from the observed browser; six local archive reference covers work.",
+    "Two-sided cash-plus-comic trade settlement is not implemented; the trade screen offers full-price purchase as an alternative.",
+    "Native camera hardware and signed-in browser checkout are not exercised."
+  ],
+  "screenshot": "project/evidence/comichuddle-account-checkout-fixes-1792011850663.jpg"
+}

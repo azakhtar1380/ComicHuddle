@@ -1,0 +1,60 @@
+{
+  "checkedAt": "2026-10-14T21:00:55.628172+00:00",
+  "commit": "b4c00f6378f4233c40cc4143c71f27b11a480518",
+  "localBuild": "passed",
+  "typecheck": "passed",
+  "suites": [
+    {
+      "name": "Commerce UI and recovery",
+      "passed": 12
+    },
+    {
+      "name": "Marketplace/wallet/location PostgreSQL",
+      "passed": 10
+    },
+    {
+      "name": "Collection and listing clients",
+      "passed": 7
+    },
+    {
+      "name": "Vault transport and concurrency",
+      "passed": 12
+    },
+    {
+      "name": "Workshop/network account races",
+      "passed": 30
+    },
+    {
+      "name": "Directory card states and ownership",
+      "passed": 15
+    },
+    {
+      "name": "Mobile camera dock",
+      "passed": 4
+    },
+    {
+      "name": "Stripe adapter/signature boundaries",
+      "passed": 53
+    },
+    {
+      "name": "Scanner controlled lifecycle",
+      "passed": 12
+    },
+    {
+      "name": "Commerce deadline/refund/release policy",
+      "passed": 36
+    },
+    {
+      "name": "Mobile directory source geometry",
+      "passed": 7
+    }
+  ],
+  "limitations": [
+    "Synthetic processor tests only; Stripe credentials are missing on Vercel.",
+    "Current FMV endpoint has zero quotes.",
+    "External GCD covers are inaccessible from the observed browser; six local archive reference covers work.",
+    "Two-sided cash-plus-comic trade settlement is not implemented; the trade screen offers full-price purchase as an alternative.",
+    "Native camera hardware and signed-in browser checkout are not exercised."
+  ],
+  "localChecksPassed": 198
+}
