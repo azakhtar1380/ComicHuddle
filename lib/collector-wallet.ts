@@ -51,7 +51,7 @@ async function reconcileOrder(client:PoolClient,row:Order,userId:string){
 /** Reconcile authenticated processor receipts only. Manual sold reports never
  * credit funds, sandbox balances are separate, and cash-out stays disabled
  * until a payment account and payout service are connected. */
-export async function collectorWallet(pool:Pool,userId:string,offset=0){
+export async function collectorWallet(pool:Pool,userId:string,offset=0,mode:'live'|'sandbox'|'all'='all'){
  const client=await pool.connect();
  try{
   await client.query('BEGIN');
@@ -69,7 +69,7 @@ export async function collectorWallet(pool:Pool,userId:string,offset=0){
   const balances=await client.query<{mode:string;bucket:string;cents:string}>(`SELECT mode,bucket,sum(amount_cents)::text AS cents FROM ch_web.collector_wallet_entries WHERE user_id=$1 GROUP BY mode,bucket`,[userId]);
   const result={live:{availableCents:'0',pendingCents:'0'},sandbox:{availableCents:'0',pendingCents:'0'}};
   for(const row of balances.rows)if((row.mode==='live'||row.mode==='sandbox')&&(row.bucket==='available'||row.bucket==='pending'))result[row.mode][row.bucket==='available'?'availableCents':'pendingCents']=row.cents;
-  const history=await client.query<{id:string;order_id:string;mode:string;bucket:string;kind:string;amount_cents:string;created_at:string}>(`SELECT id,order_id,mode,bucket,kind,amount_cents::text AS amount_cents,created_at FROM ch_web.collector_wallet_entries WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT 31 OFFSET $2`,[userId,offset]);
+  const history=await client.query<{id:string;order_id:string;mode:string;bucket:string;kind:string;amount_cents:string;created_at:string}>(`SELECT id,order_id,mode,bucket,kind,amount_cents::text AS amount_cents,created_at FROM ch_web.collector_wallet_entries WHERE user_id=$1 AND ($3='all' OR mode=$3) ORDER BY created_at DESC,id DESC LIMIT 31 OFFSET $2`,[userId,offset,mode]);
   const [unreconciled]=(await client.query<{n:string}>("SELECT count(*)::text AS n FROM ch_web.wallet_reconciliation_checks WHERE user_id=$1 AND NOT valid",[userId])).rows;
   const [remaining]=(await client.query<{n:string}>(`SELECT count(*)::text AS n ${candidates}`,[userId])).rows;
   return {...result,history:history.rows.slice(0,30),hasMore:history.rows.length>30,offset,unreconciledOrders:Number(unreconciled.n),remainingOrders:Number(remaining.n),withdrawalEnabled:false,

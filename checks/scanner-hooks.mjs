@@ -29,7 +29,7 @@ export function createScannerFixture(options = {}) {
       slots[key] = {dependencies, cleanup: typeof cleanup === 'function' ? cleanup : null};});
   }
   const hookReact = {useState: state, useRef: ref, useEffect: effect, useId:()=> 'qa-title-' + cursor++,
-    useMemo: callback => {cursor++; return callback();}, useCallback: callback => {cursor++; return callback;}};
+    useMemo: (callback,dependencies) => {const key=cursor++,old=slots[key];if(!old||!dependencies||dependencies.some((value,index)=>!Object.is(value,old.dependencies?.[index]))){slots[key]={dependencies,value:callback()}}return slots[key].value;}, useCallback: (callback,dependencies) => {const key=cursor++,old=slots[key];if(!old||!dependencies||dependencies.some((value,index)=>!Object.is(value,old.dependencies?.[index]))){slots[key]={dependencies,value:callback}}return slots[key].value;}};
   const jsx = (type, props, key) => ({type, props: {...props, key}});
   const requests = (url, requestOptions = {}) => new Promise((resolve, reject) => {
     const request = {url, options: requestOptions, resolve, reject};
@@ -74,7 +74,7 @@ export function createScannerFixture(options = {}) {
     window: {addEventListener() {}, removeEventListener() {}}, Image: FixtureImage, fetch: requests,
     URL: {createObjectURL(value) {const url = 'blob:qa-' + calls.urls.length; calls.urls.push({url, value}); return url;},
       revokeObjectURL(value) {calls.revoked.push(value);}}};
-  const context = vm.createContext(globals);
+  const context = vm.createContext({...globals,...options.globals});
   const componentFile = path.join(root, options.componentFile || 'app/scan-comic.tsx');
   if (options.componentLocal) assert.match(options.componentLocal, /^[A-Za-z_$][A-Za-z0-9_$]*$/,
     'QA local component must be an identifier');
@@ -121,6 +121,7 @@ export function createScannerFixture(options = {}) {
     for (const node of nodes()) if (node.props?.ref) {
       if (node.type === 'video') node.props.ref.current = video;
       else if (node.type === 'dialog'||node.type === 'button') node.props.ref.current = dialog;
+      else if (node.type === 'form') node.props.ref.current = options.formElement || {querySelector:()=>null};
       else if (node.type === 'canvas') node.props.ref.current = document.createElement('canvas');
       else if (typeof node.type === 'string') node.props.ref.current = viewport;
     }

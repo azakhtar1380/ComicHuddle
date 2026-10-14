@@ -22,9 +22,9 @@ export default function SignInForm() {
       window.location.assign(returnPath());
     } catch (problem) { setError(problem instanceof Error ? problem.message : 'Account service unavailable.'); setBusy(false); }
   }}>
-    {register && <label>Display name<input name="name" required minLength={2} maxLength={60} autoComplete="name"/></label>}
-    <label>Email<input name="email" type="email" required maxLength={254} autoComplete="email"/></label>
-    <label>Password<input name="password" type="password" required minLength={12} maxLength={128} autoComplete={register ? 'new-password' : 'current-password'}/></label>
+    {register && <label><span className="field-label">Display name<span className="required-mark" aria-hidden="true"> *</span></span><input name="name" required minLength={2} maxLength={60} autoComplete="name"/></label>}
+    <label><span className="field-label">Email<span className="required-mark" aria-hidden="true"> *</span></span><input name="email" type="email" required maxLength={254} autoComplete="email"/></label>
+    <label><span className="field-label">Password<span className="required-mark" aria-hidden="true"> *</span></span><input name="password" type="password" required minLength={12} maxLength={128} autoComplete={register ? 'new-password' : 'current-password'}/></label>
     {register && <p>Use at least 12 characters. Email verification and password recovery are not connected in this preview.</p>}
     {error && <p role="alert" className="auth-error">{error}</p>}
     <button className="button red" disabled={busy}>{busy ? 'Connecting…' : register ? 'Create my free account' : 'Sign in'}</button>

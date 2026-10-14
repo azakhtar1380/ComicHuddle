@@ -273,7 +273,7 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
       cents(item); cents(shipping, 0); cents(tax, 0);
       if (item + shipping + tax !== input.amountCents) fail('invalid_amount', 'Order breakdown does not match the total.');
       const fields: Record<string, string> = {
-        mode: 'payment', ui_mode: 'hosted_page', 'payment_method_types[0]': 'card',
+        mode: 'payment', ui_mode: 'hosted_page',
         client_reference_id: input.orderId, success_url: returnUrl(input.successUrl, origin!), cancel_url: returnUrl(input.cancelUrl, origin!),
         // Fulfillment uses the route's immutable, buyer-confirmed US address.
         // Do not collect a second shipping address that could contradict it.

@@ -56,7 +56,7 @@ function needShippingCheckout(listing:{fulfillment:unknown}){
  if(listing.fulfillment!=='shipping'&&listing.fulfillment!=='both')throw new ApiRequestError('This listing’s delivery method is unavailable for shipping checkout.',409);
 }
 function retryWindow(createdAt:string){const age=Date.now()-Date.parse(createdAt);if(!Number.isFinite(age)||age<0||age>=23*3600000)throw new ApiRequestError('The processor idempotency safety window expired. Support must reconcile the original operation before any new request.',409)}
-export function commerceSetup(environment:StripeSandboxEnv){return {sandbox:true,setup:sandboxSetup(environment),carrierConnected:false,payoutsEnabled:false,productionPaymentsEnabled:false}}
+export function commerceSetup(environment:StripeSandboxEnv){return {sandbox:true,setup:sandboxSetup(environment),carrierConnected:false,payoutsEnabled:false,productionPaymentsEnabled:false,provider:'Stripe',supportedPaymentMethods:['card','apple_pay'],applePayRequiresEligibleDevice:true}}
 export function commerceOrderDto(row:Row,userId:string){
  const state=stateOf(row),snapshot=snapshotOf(row),decision=evaluateCommercePolicy(state,now()),timingUnknown=state.paymentTimingVerified===false;
  const verified=state.shipment.validatedAt?{carrier:state.shipment.carrier,number:state.shipment.trackingNumber,verified:true,submittedAt:state.shipment.submittedAt}:state.trackingSubmission||null;

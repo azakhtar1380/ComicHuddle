@@ -122,6 +122,15 @@ try:
     lot = post(seller, '/api/social', {**fixture, 'kind': 'collection', 'bookIds': ['qa-copy-1', 'qa-copy-2'],
                                       'title': 'TEMPORARY QA COLLECTION — NOT FOR SALE', 'price': 60000,
                                       'safePurchaseOptIn': False})['listingId']
+    stage = 'payment and exact-listing availability'
+    exact = call(buyer, 'GET', '/api/marketplace?listingId=' + lot).json()
+    check('deep purchase links load exactly the selected active listing', [row['id'] for row in exact['listings']] == [lot])
+    setup = call(buyer, 'GET', '/api/commerce?kind=setup').json()
+    check('payment setup truthfully reports current availability without exposing credentials', setup['setup']['checkoutEnabled'] is False and setup.get('provider') == 'Stripe' and 'STRIPE' not in json.dumps(setup))
+    blocked_checkout = call(buyer, 'POST', '/api/commerce', {'action': 'checkout', 'listingId': lot, 'requestId': str(__import__('uuid').uuid4()), 'sandboxAcknowledged': True, 'shippingAddress': {'name': 'Synthetic Buyer', 'line1': '1 Test St', 'city': 'Minneapolis', 'state': 'MN', 'postalCode': '55421', 'country': 'US'}})
+    check('unconfigured checkout creates no payment or order and keeps the listing active', blocked_checkout.status_code in [400, 503] and call(buyer, 'GET', '/api/marketplace?listingId=' + lot).json()['listings'][0]['status'] == 'active')
+    check('invalid FMV issue selection is rejected clearly', call(buyer, 'GET', '/api/values?issue=invalid').status_code == 400)
+    check('invalid wallet mode is rejected without mixing real and test balances', call(seller, 'GET', '/api/wallet?mode=invalid').status_code == 400)
     stage = 'inspection request'
     request = post(buyer, '/api/social', {'action': 'safe_purchase_request', 'listingId': single})
     check('opted-in inspection request opens a private conversation', bool(request.get('threadId')))

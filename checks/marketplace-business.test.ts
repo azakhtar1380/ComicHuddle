@@ -20,7 +20,7 @@ import {createCommerceState,applyCommerceEvent,type CommerceState} from '../lib/
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
- for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -71,6 +71,7 @@ test('real ZIP origins produce PostgreSQL distance filters and prioritize local 
  const near=await marketplaceDirectory(getDb(),buyer,filter({location:'55421',radius:'5'}));
  const ids=near.listings.map(row=>row.id);assert.ok(ids.includes(pickup.id),JSON.stringify({pickup:pickup.id,coords:[pickup.latitude,pickup.longitude],origin,near}));assert.ok(ids.includes(ship.id));assert.ok(!ids.includes(far.id));assert.ok(!ids.includes(unknown.id));assert.ok(ids.indexOf(pickup.id)<ids.indexOf(ship.id));
  assert.equal(near.listings.find(row=>row.id===pickup.id)?.distanceMiles,0);
+ const exact=await marketplaceDirectory(getDb(),buyer,{...filter({}),listingId:ship.id});assert.deepEqual(exact.listings.map(row=>row.id),[ship.id]);
  const nation=await marketplaceDirectory(getDb(),buyer,filter({location:'55421'}));assert.ok(nation.listings.some(row=>row.id===far.id&&row.distanceMiles!>1000));assert.ok(nation.listings.some(row=>row.id===unknown.id&&row.distanceMiles===null));
  assert.ok(!Object.hasOwn(near.listings[0],'latitude'));assert.ok(!Object.hasOwn(near.listings[0],'locationZip'));
  assert.throws(()=>locationFilters(new URL('https://test/api?radius=15')));assert.throws(()=>locationFilters(new URL('https://test/api?location=55421&radius=100')));
@@ -131,7 +132,7 @@ test('wallet ignores unverified payments and isolates every account and sandbox 
  wallet=await collectorWallet(pool,seller.userId);assert.equal(wallet.sandbox.pendingCents,'61500');assert.equal(wallet.live.pendingCents,'0');assert.equal(wallet.sandbox.availableCents,'0');
  assert.equal((await collectorWallet(pool,other.userId)).history.length,0);
  await confirmation(order,'transfer');wallet=await collectorWallet(pool,seller.userId);assert.equal(wallet.sandbox.pendingCents,'0');assert.equal(wallet.sandbox.availableCents,'61500');assert.equal(wallet.live.availableCents,'0');assert.equal(wallet.withdrawalEnabled,false);
- const again=await collectorWallet(pool,seller.userId);assert.equal(again.sandbox.availableCents,'61500');assert.equal(again.history.length,3);
+ const again=await collectorWallet(pool,seller.userId);assert.equal(again.sandbox.availableCents,'61500');assert.equal(again.history.length,3);const liveOnly=await collectorWallet(pool,seller.userId,0,'live');assert.equal(liveOnly.history.length,0);const testOnly=await collectorWallet(pool,seller.userId,0,'sandbox');assert.equal(testOnly.history.length,3);assert.ok(testOnly.history.every(entry=>entry.mode==='sandbox'));
  const purchaser=await collectorWallet(pool,buyer.userId);assert.equal(purchaser.history.length,1);assert.equal(purchaser.history[0].amount_cents,'-61500');assert.equal(purchaser.sandbox.availableCents,'0');
 });
 test('confirmed refund clears pending proceeds while mismatched transfer amounts stay held',async()=>{

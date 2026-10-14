@@ -136,7 +136,7 @@ await test('Hosted checkout uses server cents, exact metadata and persisted idem
   assert.equal(url, 'https://api.stripe.com/v1/checkout/sessions'); assert.equal(options.redirect, 'error');
   assert.equal(options.headers['Stripe-Version'], '2026-09-30.endive'); assert.equal(options.headers['Idempotency-Key'], randomKey);
   assert.equal(options.headers.Authorization, 'Bearer ' + env.COMMERCE_STRIPE_TEST_SECRET_KEY);
-  assert.equal(fields.ui_mode, 'hosted_page'); assert.equal(fields.mode, 'payment'); assert.equal(fields['payment_method_types[0]'], 'card');
+  assert.equal(fields.ui_mode, 'hosted_page'); assert.equal(fields.mode, 'payment'); assert.ok(!Object.keys(fields).some(key=>key.startsWith('payment_method_types')), 'Stripe selects configured, device-eligible methods dynamically');
   assert.equal(fields.client_reference_id, ids.order); assert.equal(fields['metadata[order_id]'], ids.order);
   assert.equal(fields['payment_intent_data[metadata][order_id]'], ids.order); assert.equal(fields['payment_intent_data[transfer_group]'], 'ORDER_' + ids.order);
   assert.equal(fields['line_items[0][price_data][unit_amount]'], String(amount)); assert.equal(fields['line_items[0][price_data][currency]'], 'usd');
