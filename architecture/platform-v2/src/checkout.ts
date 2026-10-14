@@ -1,7 +1,7 @@
 import {DomainError,once,outbox,serializable,type SqlPool} from './db';
-import {createSafeTradeForOrder,type SafeTradeConfig} from './escrow';
+import {createSafePurchaseForOrder,type SafePurchaseConfig} from './escrow';
 import {bps,cents} from './money';
-export async function prepareOrder(pool:SqlPool,buyerId:string,listingId:string,key:string,config:{safetrade:SafeTradeConfig;platformFeeBps:number;shippingCents:string;taxCents:string;paymentsEnabled:boolean}){
+export async function prepareOrder(pool:SqlPool,buyerId:string,listingId:string,key:string,config:{safepurchase:SafePurchaseConfig;platformFeeBps:number;shippingCents:string;taxCents:string;paymentsEnabled:boolean}){
  if(!config.paymentsEnabled)throw new DomainError('checkout_disabled','Checkout is not enabled.',503);
  return serializable(pool,db=>once(db,key,'prepare_order',{buyerId,listingId},async()=>{
   const listing=(await db.query<{seller_id:string;status:string;is_custom_entry:boolean;asking_price_cents:string;sale_mode:string}>('SELECT * FROM ch_platform.marketplace_listings WHERE id=$1 FOR UPDATE',[listingId])).rows[0];
@@ -19,10 +19,10 @@ export async function prepareOrder(pool:SqlPool,buyerId:string,listingId:string,
    VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,[listingId,buyerId,listing.seller_id,amount.toString(),cents(config.shippingCents).toString(),cents(config.taxCents).toString(),fee.toString()])).rows[0];
   for(const copy of copies)await db.query('INSERT INTO ch_platform.order_items(order_id,collection_item_id,comic_id,grade_key,snapshot) VALUES($1,$2,$3,$4,$5::jsonb)',[order.id,copy.collection_item_id,copy.comic_id,copy.grade_key,JSON.stringify({comicId:copy.comic_id,issueNumber:copy.issue_number,printingType:copy.printing_type,variantCode:copy.variant_code,gradeKey:copy.grade_key})]);
   await db.query("UPDATE ch_platform.marketplace_listings SET status='reserved',version=version+1 WHERE id=$1",[listingId]);
-  const safetrade=await createSafeTradeForOrder(db,order.id,config.safetrade);
+  const safepurchase=await createSafePurchaseForOrder(db,order.id,config.safepurchase);
   // Payment Intent creation is a separate explicit checkout step, after points
   // redemption and a server-created shipping/tax quote. No stale price capture.
-  return {orderId:order.id,subtotalCents:amount.toString(),platformFeeCents:fee.toString(),safetrade};
+  return {orderId:order.id,subtotalCents:amount.toString(),platformFeeCents:fee.toString(),safepurchase};
  }));
 }
 export async function requestOrderPayment(pool:SqlPool,userId:string,orderId:string,key:string){

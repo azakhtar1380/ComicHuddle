@@ -9,6 +9,8 @@ import {rankProviders,canCareTransition,careIntakeForViewer,type Provider,type C
 import {ApiRequestError,enforceWriteLimits,isRestricted,privateJson,readObject,chunks,blockedPeerIds} from '../../../lib/api-security';
 import {previewRulesVersion} from '../../../lib/community';
 import {conditionalGuard,operationGuardFailed} from '../../../lib/operation-guard';
+import {locationFilters,resolveLocation} from '../../../lib/location-search';
+import {workshopDirectoryRows,studioVisibleFields} from '../../../lib/workshop-directory';
 
 type Db=ReturnType<typeof getDb>;
 type P=typeof profiles.$inferSelect;
@@ -28,8 +30,8 @@ async function carePeople(db:Db,ids:string[]){const people=new Map<string,P>();f
 async function providerDto(db:Db,row:ProviderRow,own=false,known?:{profile:P|undefined;stats:ProviderStats|undefined}):Promise<Provider>{
  const p=known?known.profile:(await db.select().from(profiles).where(eq(profiles.id,row.profileId)))[0];
  const stats=known?known.stats:(await providerStats(db,[row.id])).get(row.id);
- const {shippingAddress,shippingNotes,moderated,...publicRow}=row;
- return {...publicRow,services:JSON.parse(row.services),prices:JSON.parse(row.prices),portfolio:JSON.parse(row.portfolio),mailIn:!!row.mailIn,dropoff:!!row.dropoff,accepting:!!row.accepting,visible:!!row.visible,submissionMode:row.submissionMode as Provider['submissionMode'],collector:{name:p?.name||'Collector',handle:p?.handle||''},rating:stats?.rating??null,reviewCount:stats?.reviewCount??0,completedReviewCount:stats?.completedReviewCount??0,categoryRatings:{quality:stats?.quality??null,communication:stats?.communication??null,timeliness:stats?.timeliness??null},rank:null,...(own?{shippingAddress,shippingNotes}:{})};
+ const publicRow=studioVisibleFields(row,own);
+ return {...publicRow,services:JSON.parse(row.services),prices:JSON.parse(row.prices),portfolio:JSON.parse(row.portfolio),mailIn:!!row.mailIn,dropoff:!!row.dropoff,accepting:!!row.accepting,visible:!!row.visible,submissionMode:row.submissionMode as Provider['submissionMode'],collector:{name:p?.name||'Collector',handle:p?.handle||''},rating:stats?.rating??null,reviewCount:stats?.reviewCount??0,completedReviewCount:stats?.completedReviewCount??0,categoryRatings:{quality:stats?.quality??null,communication:stats?.communication??null,timeliness:stats?.timeliness??null},rank:null};
 }
 async function jobDto(db:Db,row:JobRow,me:P,known?:{providers:Map<string,ProviderRow>;people:Map<string,P>}):Promise<CareJob>{
  const provider=known?known.providers.get(row.providerId):(await db.select().from(careProviders).where(eq(careProviders.id,row.providerId)))[0];
@@ -51,7 +53,7 @@ async function commitCareEvent(db:Db,job:JobRow,actor:P,update:Partial<JobRow>,s
 async function ownJob(db:Db,jobId:string,p:P){const [j]=await db.select().from(careJobs).where(eq(careJobs.id,jobId));return j&&[j.providerProfileId,j.requesterId].includes(p.id)?j:null}
 
 export async function GET(req:Request){try{
- const u=await getChatGPTUser();if(!u)return json({error:'Sign in to open the Press Room.'},401);
+ const u=await getChatGPTUser();if(!u)return json({error:'Sign in to open Comic Workshop.'},401);
  const db=getDb(),url=new URL(req.url);const [me]=await db.select().from(profiles).where(eq(profiles.userId,u.userId));
  if(url.searchParams.get('kind')==='job'){
   if(!me)return json({error:'Create your free collector profile first.'},403);
@@ -60,9 +62,10 @@ export async function GET(req:Request){try{
   const actors=await carePeople(db,rows.map(e=>e.actorId));const events=[];for(const row of rows){const actor=actors.get(row.actorId);events.push({...row,photos:JSON.parse(row.photos),authorName:actor?.name||'Collector'})}
   return json({job:await jobDto(db,j,me),events});
  }
- const publicRows=await db.select().from(careProviders).where(eq(careProviders.visible,1)).orderBy(desc(careProviders.createdAt)).limit(200);
+ const nearby=await workshopDirectoryRows(db,me?.id,locationFilters(url),url.searchParams.get('kind')==='provider'?url.searchParams.get('id')||'':undefined);
+ const publicRows=nearby.rows.map(row=>row.provider),distances=new Map(nearby.rows.map(row=>[row.provider.id,row.distance]));
  const [people,stats,hidden]=await Promise.all([carePeople(db,publicRows.map(r=>r.profileId)),providerStats(db,publicRows.map(r=>r.id)),me?blockedPeerIds(db,me.id,publicRows.map(r=>r.profileId)):Promise.resolve(new Set<string>())]);
- const directory:Provider[]=[];for(const row of publicRows){const p=people.get(row.profileId);if(p?.visible&&!p.moderated&&!row.moderated&&!hidden.has(p.id))directory.push(await providerDto(db,row,false,{profile:p,stats:stats.get(row.id)}))}
+ const directory:Provider[]=[];for(const row of publicRows){const p=people.get(row.profileId);if(p?.visible&&!p.moderated&&!row.moderated&&!hidden.has(p.id)){const distance=distances.get(row.id);directory.push({...await providerDto(db,row,false,{profile:p,stats:stats.get(row.id)}),distanceMiles:distance===null||distance===undefined?null:Math.round(distance*10)/10})}}
  const ranked=rankProviders(directory);
  if(url.searchParams.get('kind')==='provider'){
   const providerId=url.searchParams.get('id')||'';let provider=ranked.find(p=>p.id===providerId);
@@ -76,8 +79,8 @@ export async function GET(req:Request){try{
  const jobs=me?await db.select().from(careJobs).where(or(eq(careJobs.requesterId,me.id),eq(careJobs.providerProfileId,me.id))).orderBy(desc(careJobs.updatedAt)).limit(200):[];
  const jobProviders=new Map(publicRows.map(p=>[p.id,p]));if(mine)jobProviders.set(mine.id,mine);for(const batch of chunks([...new Set(jobs.map(j=>j.providerId))].filter(id=>!jobProviders.has(id)))){for(const row of await db.select().from(careProviders).where(inArray(careProviders.id,batch)))jobProviders.set(row.id,row)}
  const jobPeople=await carePeople(db,[...new Set(jobs.flatMap(j=>[j.providerProfileId,j.requesterId]))].filter(id=>!people.has(id)));for(const [id,p] of people)jobPeople.set(id,p);if(me)jobPeople.set(me.id,me);
- return json({providers:ranked,mine:mine?await providerDto(db,mine,true,stats.has(mine.id)?{profile:me,stats:stats.get(mine.id)}:undefined):null,jobs:await Promise.all(jobs.map(j=>jobDto(db,j,me!,{providers:jobProviders,people:jobPeople})))});
- }catch{return json({error:'Could not load pressing services. Please retry.'},500)}}
+ return json({providers:ranked,hasMore:nearby.hasMore,mine:mine?await providerDto(db,mine,true,stats.has(mine.id)?{profile:me,stats:stats.get(mine.id)}:undefined):null,jobs:await Promise.all(jobs.map(j=>jobDto(db,j,me!,{providers:jobProviders,people:jobPeople})))});
+ }catch(error){if(error instanceof ApiRequestError)return json({error:error.message},error.status);return json({error:'Could not load pressing services. Please retry.'},500)}}
 
 export async function POST(req:Request){try{
  const u=await getChatGPTUser();if(!u)return json({error:'Sign in to continue.'},401);
@@ -88,7 +91,7 @@ export async function POST(req:Request){try{
  if(['provider','review','request'].includes(action)){if(p.moderated||await isRestricted(db,u.userId))return json({error:'Your account is restricted pending moderation review.'},403);if(p.rulesVersion!==previewRulesVersion||!p.rulesAcceptedAt)return json({error:'Open your collector profile and accept the current community rules before continuing.'},403)}
  if(a.action==='provider'){
   if(await isRestricted(db,u.userId,'provider'))return json({error:'Your provider profile is restricted pending moderation review.'},403);
-  const v=z.object({name:short(80),bio:short(1200),location:short(100),services,prices:z.record(z.string(),cents.nullable()),specialties:z.string().max(300),experienceSince:z.number().int().min(1930).max(new Date().getFullYear()),turnaroundMin:z.number().int().min(1).max(365),turnaroundMax:z.number().int().min(1).max(365),mailIn:z.boolean(),dropoff:z.boolean(),accepting:z.boolean(),visible:z.boolean(),submissionMode:z.enum(['none','prepare_only','dealer']),dealerReference:web,website:web,logoId:id.nullable(),portfolio:z.array(z.object({before:id,after:id,caption:short(200)})).max(4),shippingAddress:z.string().trim().max(1000),shippingNotes:z.string().max(1500),terms:short(2000),attest:z.literal(true),dealerAttest:z.boolean()}).parse(a);
+  const v=z.object({name:short(80),bio:short(1200),location:short(100),locationZip:z.string().regex(/^\d{5}$/).optional(),services,prices:z.record(z.string(),cents.nullable()),specialties:z.string().max(300),experienceSince:z.number().int().min(1930).max(new Date().getFullYear()),turnaroundMin:z.number().int().min(1).max(365),turnaroundMax:z.number().int().min(1).max(365),mailIn:z.boolean(),dropoff:z.boolean(),accepting:z.boolean(),visible:z.boolean(),submissionMode:z.enum(['none','prepare_only','dealer']),dealerReference:web,website:web,logoId:id.nullable(),portfolio:z.array(z.object({before:id,after:id,caption:short(200)})).max(4),shippingAddress:z.string().trim().max(1000),shippingNotes:z.string().max(1500),terms:short(2000),attest:z.literal(true),dealerAttest:z.boolean()}).parse(a);
   if(!p.visible||!p.dmOpen)return json({error:'Enable your collector showcase and messages before listing a service.'},400);
   if(v.turnaroundMax<v.turnaroundMin||!v.mailIn&&!v.dropoff||v.mailIn&&!v.shippingAddress)return json({error:'Check your turnaround and intake details.'},400);
   if(v.services.includes('cgc')!== (v.submissionMode!=='none'))return json({error:'Select a CGC support type when offering that service.'},400);
@@ -96,7 +99,8 @@ export async function POST(req:Request){try{
   if(Object.keys(v.prices).some(k=>!v.services.includes(k as typeof v.services[number])))return json({error:'Prices must belong to your selected services.'},400);
   if(!await ownedPhotos(db,u.userId,[...(v.logoId?[v.logoId]:[]),...v.portfolio.flatMap(x=>[x.before,x.after])]))return json({error:'Use your own uploaded portfolio photos.'},403);
   const [existing]=await db.select().from(careProviders).where(eq(careProviders.profileId,p.id));if(existing?.moderated)return json({error:'Your provider profile is restricted pending moderation review.'},403);
-  const {attest,dealerAttest,...fields}=v;const data={...fields,services:JSON.stringify(v.services),prices:JSON.stringify(v.prices),portfolio:JSON.stringify(v.portfolio),mailIn:Number(v.mailIn),dropoff:Number(v.dropoff),accepting:Number(v.accepting),visible:Number(v.visible),updatedAt:now()};
+  const origin=v.locationZip?await resolveLocation(db,v.locationZip):null;
+  const {attest,dealerAttest,...fields}=v;const data={...fields,...(origin?{location:origin.city+', '+origin.state,locationZip:origin.zip,locationCity:origin.city,locationState:origin.state,latitude:origin.latitude,longitude:origin.longitude}:{}),services:JSON.stringify(v.services),prices:JSON.stringify(v.prices),portfolio:JSON.stringify(v.portfolio),mailIn:Number(v.mailIn),dropoff:Number(v.dropoff),accepting:Number(v.accepting),visible:Number(v.visible),updatedAt:now()};
   if(existing)await db.update(careProviders).set(data).where(eq(careProviders.id,existing.id));else await db.insert(careProviders).values({...data,id:crypto.randomUUID(),profileId:p.id,createdAt:now()});
   return json({saved:true});
  }

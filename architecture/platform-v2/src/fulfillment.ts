@@ -1,5 +1,5 @@
 import {DomainError,serializable,type SqlPool} from './db';
-import {transitionSafeTrade,type SafeTradeConfig} from './escrow';
+import {transitionSafePurchase,type SafePurchaseConfig} from './escrow';
 export type ShipmentReceipt={tracking:string;carrier:string;acceptedAt:string;destinationMatches:boolean};
 // A provider-verified carrier integration must retrieve the shipment server-side
 // and compare its destination with the vault/order address. Printing a label is
@@ -8,20 +8,20 @@ export interface CarrierVerifier {
  acceptance(orderId:string,tracking:string,carrier:string,destination:'vault'|'buyer'):Promise<ShipmentReceipt|null>;
  delivery(orderId:string,eventId:string):Promise<{tracking:string;deliveredAt:string;destinationMatches:boolean}|null>;
 }
-export async function recordSellerShipment(pool:SqlPool,userId:string,transactionId:string,tracking:string,carrier:string,key:string,verifier:CarrierVerifier,config:SafeTradeConfig,now=new Date()){
+export async function recordSellerShipment(pool:SqlPool,userId:string,transactionId:string,tracking:string,carrier:string,key:string,verifier:CarrierVerifier,config:SafePurchaseConfig,now=new Date()){
  const db=await pool.connect();let row:{seller_id:string;order_id:string;requires_vault:boolean}|undefined;
  try{row=(await db.query<typeof row extends infer T?NonNullable<T>:never>(`SELECT o.seller_id,e.order_id,e.requires_vault FROM ch_platform.escrow_transactions e JOIN ch_platform.orders o ON o.id=e.order_id WHERE e.id=$1`,[transactionId])).rows[0]}finally{db.release()}
  if(!row||row.seller_id!==userId)throw new DomainError('shipment_missing','Owned transaction not found.',404);
  const receipt=await verifier.acceptance(row.order_id,tracking,carrier,row.requires_vault?'vault':'buyer');
  if(!receipt||receipt.tracking!==tracking||receipt.carrier!==carrier||!receipt.destinationMatches||!Number.isFinite(Date.parse(receipt.acceptedAt))||Date.parse(receipt.acceptedAt)>now.getTime())throw new DomainError('carrier_not_accepted','The carrier has not accepted this shipment to the required destination.');
  // Eligibility is evaluated using the real carrier acceptance time, not label time.
- return transitionSafeTrade(pool,transactionId,{kind:'user',userId},{type:'seller_dispatched',tracking,carrier,acceptanceScanVerified:true},key,config,new Date(receipt.acceptedAt));
+ return transitionSafePurchase(pool,transactionId,{kind:'user',userId},{type:'seller_dispatched',tracking,carrier,acceptanceScanVerified:true},key,config,new Date(receipt.acceptedAt));
 }
-export async function recordBuyerDelivery(pool:SqlPool,transactionId:string,carrierEventId:string,verifier:CarrierVerifier,config:SafeTradeConfig){
+export async function recordBuyerDelivery(pool:SqlPool,transactionId:string,carrierEventId:string,verifier:CarrierVerifier,config:SafePurchaseConfig){
  const db=await pool.connect();let orderId:string|undefined;try{orderId=(await db.query<{order_id:string}>('SELECT order_id FROM ch_platform.escrow_transactions WHERE id=$1',[transactionId])).rows[0]?.order_id}finally{db.release()}
  if(!orderId)throw new DomainError('transaction_missing','Transaction not found.',404);
  const receipt=await verifier.delivery(orderId,carrierEventId);if(!receipt?.destinationMatches)throw new DomainError('delivery_unverified','Verified destination delivery is required.');
- return transitionSafeTrade(pool,transactionId,{kind:'carrier_webhook'},{type:'buyer_delivery_confirmed',...receipt,destinationMatches:true,carrierEventId},'carrier:'+carrierEventId,config);
+ return transitionSafePurchase(pool,transactionId,{kind:'carrier_webhook'},{type:'buyer_delivery_confirmed',...receipt,destinationMatches:true,carrierEventId},'carrier:'+carrierEventId,config);
 }
 export async function cancelUnpaidOrder(pool:SqlPool,userId:string,orderId:string){
  return serializable(pool,async db=>{

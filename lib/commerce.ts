@@ -114,6 +114,7 @@ export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Re
   const [listing]=await db.select().from(listings).where(eq(listings.id,input.listingId));
   if(!listing||listing.status!=='active'||listing.saleType!=='fixed')throw new ApiRequestError('Fixed-price listing is unavailable. Auctions are still nonbinding previews.',409);
   needShippingCheckout(listing);
+  if(listing.safePurchaseOptIn)throw new ApiRequestError('This listing selected SafePurchase. Request inspection and accepted service terms before payment; no charge was started.',409);
   if(listing.sellerId===profile.id)throw new ApiRequestError('You cannot buy your own comic listing.',403);
   const [seller]=await db.select().from(profiles).where(eq(profiles.id,listing.sellerId));
   if(!seller?.visible||seller.moderated||seller.deletionStartedAt||seller.rulesVersion!==previewRulesVersion||!seller.rulesAcceptedAt||!listing.usaAttestedAt||await isRestricted(db,seller.userId)||await blocked(db,profile.id,seller.id))throw new ApiRequestError('Listing is unavailable for checkout.',404);

@@ -1,15 +1,16 @@
 import {DomainError,once,outbox,serializable,type SqlClient,type SqlPool} from './db';
 import {account,post,sellerWallet} from './ledger';
 import {cents} from './money';
-export type SafeTradeStatus='pending_deposit'|'funded'|'seller_shipped'|'received_at_vault'|'inspected'|'inspection_failed'|'shipped_to_buyer'|'delivered'|'release_pending'|'completed'|'disputed'|'refund_pending'|'refunded'|'cancelled';
-export type SafeTradeConfig={enabled:boolean;providerApproved:boolean;thresholdCents:string;inclusive:boolean;shipWithinHours:number;inspectionWindowHours:number;minimumDeliveryReviewHours:number};
-export const defaultSafeTrade:SafeTradeConfig={enabled:false,providerApproved:false,thresholdCents:'50000',inclusive:true,shipWithinHours:48,inspectionWindowHours:72,minimumDeliveryReviewHours:48};
-export function requiresSafeTrade(subtotalCents:string,config:SafeTradeConfig=defaultSafeTrade){
- const price=cents(subtotalCents),threshold=cents(config.thresholdCents);
- return config.inclusive?price>=threshold:price>threshold;
+export type SafePurchaseStatus='pending_deposit'|'funded'|'seller_shipped'|'received_at_vault'|'inspected'|'inspection_failed'|'shipped_to_buyer'|'delivered'|'release_pending'|'completed'|'disputed'|'refund_pending'|'refunded'|'cancelled';
+export type SafePurchaseConfig={enabled:boolean;providerApproved:boolean;thresholdCents:string;inclusive:boolean;shipWithinHours:number;inspectionWindowHours:number;minimumDeliveryReviewHours:number};
+export const defaultSafePurchase:SafePurchaseConfig={enabled:false,providerApproved:false,thresholdCents:'50000',inclusive:true,shipWithinHours:48,inspectionWindowHours:72,minimumDeliveryReviewHours:48};
+export function requiresSafePurchase(subtotalCents:string,config:SafePurchaseConfig=defaultSafePurchase,optedIn=false){
+ cents(subtotalCents);cents(config.thresholdCents); // Validate amounts; threshold is guidance only.
+ return optedIn;
 }
+
 export type Actor={kind:'user';userId:string}|{kind:'payment_processor'|'carrier_webhook'|'release_worker'};
-export type SafeTradeEvent=
+export type SafePurchaseEvent=
  {type:'payment_confirmed';paymentIntentId:string;chargeId:string;amountCents:string;currency:'USD';receiptVerified:true}
  |{type:'seller_dispatched';tracking:string;carrier:string;acceptanceScanVerified:true}
  |{type:'vault_received';inspectionId:string}
@@ -22,32 +23,32 @@ export type SafeTradeEvent=
  |{type:'refund_requested';reason:'seller_missed_ship_deadline'|'inspection_failed'|'approved_return'}
  |{type:'refund_confirmed';refundId:string;amountCents:string;receiptVerified:true}
  |{type:'dispute_opened';providerDisputeId:string};
-type Order={id:string;buyer_id:string;seller_id:string;status:string;subtotal_cents:string;shipping_cents:string;tax_cents:string;platform_fee_cents:string;discount_cents:string;currency:string;payment_intent_id:string|null;charge_id:string|null;dispute_open:boolean;confirmed_delivery_at:string|null;return_window_ends_at:string|null};
-type Escrow={requires_vault:boolean;id:string;order_id:string;status:SafeTradeStatus;seller_ship_by:string|null;inspection_id:string|null;buyer_tracking:string|null;provider_transfer_id:string|null;inspection_report:Record<string,unknown>|null;version:string};
+type Order={id:string;buyer_id:string;seller_id:string;status:string;subtotal_cents:string;shipping_cents:string;tax_cents:string;platform_fee_cents:string;discount_cents:string;currency:string;payment_intent_id:string|null;charge_id:string|null;dispute_open:boolean;confirmed_delivery_at:string|null;return_window_ends_at:string|null;safe_purchase_opt_in:boolean};
+type Escrow={requires_vault:boolean;id:string;order_id:string;status:SafePurchaseStatus;seller_ship_by:string|null;inspection_id:string|null;buyer_tracking:string|null;provider_transfer_id:string|null;inspection_report:Record<string,unknown>|null;version:string};
 const fullAmount=(o:Order)=>cents(o.subtotal_cents)-cents(o.discount_cents)+cents(o.shipping_cents)+cents(o.tax_cents);
 async function operationsActor(db:SqlClient,actor:Actor){
  if(actor.kind!=='user')return false;
  const row=(await db.query<{role:string}>('SELECT role FROM ch_platform.users WHERE id=$1',[actor.userId])).rows[0];
  return !!row&&['admin','vault_operator'].includes(row.role);
 }
-function requireAt(e:Escrow,states:SafeTradeStatus[]){if(!states.includes(e.status))throw new DomainError('invalid_transition','This event is not valid in the current SafeTrade state.')}
-export async function createSafeTradeForOrder(db:SqlClient,orderId:string,config:SafeTradeConfig){
- const o=(await db.query<Order>('SELECT * FROM ch_platform.orders WHERE id=$1 FOR UPDATE',[orderId])).rows[0];
+function requireAt(e:Escrow,states:SafePurchaseStatus[]){if(!states.includes(e.status))throw new DomainError('invalid_transition','This event is not valid in the current SafePurchase state.')}
+export async function createSafePurchaseForOrder(db:SqlClient,orderId:string,config:SafePurchaseConfig){
+ const o=(await db.query<Order>('SELECT o.*,l.safe_purchase_opt_in FROM ch_platform.orders o JOIN ch_platform.marketplace_listings l ON l.id=o.listing_id WHERE o.id=$1 FOR UPDATE OF o',[orderId])).rows[0];
  if(!o)throw new DomainError('order_not_found','Order not found.',404);
- const required=requiresSafeTrade(o.subtotal_cents,config);
- if(required&&(!config.enabled||!config.providerApproved))throw new DomainError('safetrade_not_ready','This high-value order needs SafeTrade, which is not enabled yet.',503);
+ const required=requiresSafePurchase(o.subtotal_cents,config,o.safe_purchase_opt_in);
+ if(required&&(!config.enabled||!config.providerApproved))throw new DomainError('safepurchase_not_ready','This listing selected SafePurchase; its inspection service must be configured before checkout.',503);
  const row=(await db.query<{id:string}>(`INSERT INTO ch_platform.escrow_transactions(order_id,threshold_cents,requires_vault) VALUES($1,$2,$3)
   ON CONFLICT(order_id) DO UPDATE SET order_id=EXCLUDED.order_id RETURNING id`,[orderId,config.thresholdCents,required])).rows[0];
  return {required,transactionId:row.id};
 }
-export async function transitionSafeTrade(pool:SqlPool,transactionId:string,actor:Actor,event:SafeTradeEvent,key:string,config:SafeTradeConfig,now=new Date()){
+export async function transitionSafePurchase(pool:SqlPool,transactionId:string,actor:Actor,event:SafePurchaseEvent,key:string,config:SafePurchaseConfig,now=new Date()){
  if(!config.providerApproved)throw new DomainError('payments_disabled','Approved payment configuration is required.',503);
- return serializable(pool,db=>once(db,key,'safetrade_event',{transactionId,actor,event},async()=>{
+ return serializable(pool,db=>once(db,key,'safepurchase_event',{transactionId,actor,event},async()=>{
   const e=(await db.query<Escrow>('SELECT * FROM ch_platform.escrow_transactions WHERE id=$1 FOR UPDATE',[transactionId])).rows[0];
   if(!e)throw new DomainError('transaction_not_found','Transaction not found.',404);
-  if(e.requires_vault&&!config.enabled)throw new DomainError('safetrade_disabled','SafeTrade is not enabled.',503);
-  const o=(await db.query<Order>('SELECT * FROM ch_platform.orders WHERE id=$1 FOR UPDATE',[e.order_id])).rows[0];
-  const operator=await operationsActor(db,actor);let next:SafeTradeStatus=e.status;
+  if(e.requires_vault&&!config.enabled)throw new DomainError('safepurchase_disabled','SafePurchase is not enabled.',503);
+  const o=(await db.query<Order>('SELECT o.*,l.safe_purchase_opt_in FROM ch_platform.orders o JOIN ch_platform.marketplace_listings l ON l.id=o.listing_id WHERE o.id=$1 FOR UPDATE OF o',[e.order_id])).rows[0];
+  const operator=await operationsActor(db,actor);let next:SafePurchaseStatus=e.status;
   const denied=()=>{throw new DomainError('forbidden','This actor cannot perform this transition.',403)};
   if(event.type==='payment_confirmed'){
    if(actor.kind!=='payment_processor'||!event.receiptVerified)denied();requireAt(e,['pending_deposit']);

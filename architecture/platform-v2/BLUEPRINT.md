@@ -8,7 +8,7 @@ Version: 2026-10-14. US-only launch. This package contains executable PostgreSQL
 |---|---|---|
 | 1. Homepage | `ui/Homepage.tsx`, `src/home-feed.ts`, `app/collector-home.tsx`, `app/platform-v2.css` | Redesigned homepage reads the existing central catalog and opens existing details/scanner/profile/workshop. Market values and rewards remain visibly planned until their sources/services are enabled. |
 | 2. PostgreSQL | `sql/001-platform.sql`, `002-roles-and-guards.sql`, `003-moderation-and-migration.sql` | Applied to an isolated PostgreSQL engine during tests. Not applied to the hosted database. |
-| 3. SafeTrade / wallet | `src/checkout.ts`, `escrow.ts`, `ledger.ts`, `wallet.ts`, `rewards.ts`, `returns.ts`, `fulfillment.ts`, `providers.ts`, `worker.ts` | Tested with provider fixtures. Production flags default OFF. |
+| 3. SafePurchase / wallet | `src/checkout.ts`, `escrow.ts`, `ledger.ts`, `wallet.ts`, `rewards.ts`, `returns.ts`, `fulfillment.ts`, `providers.ts`, `worker.ts` | Tested with provider fixtures. Production flags default OFF. |
 | 4. Scan / listing verification | `src/scans.ts`, `inventory-fingerprint.ts` | Edition evidence classifier, model gateway contract, owned-image checks and human-review gate implemented. Real AI gateway requires deployment and evaluation. Existing camera scanner remains available. |
 | 5. FMV | `src/fmv.ts`, `valuation-store.ts`, `home-feed.ts` | Adapter classes, rights toggles, exact-grade estimation and price alerts implemented. Restricted/licensed provider clients are explicit integration ports. No fabricated sold API or data. |
 | 6. Cards / CGC | `ui/DirectoryCard.tsx`, `CollectionModal.tsx`, `Dialog.tsx`, `cgc-links.ts` | Portrait cards, two-column mobile grid, grade controls, save/buy callbacks, modal and verified CGC destinations included. |
@@ -79,9 +79,9 @@ Use `legacy_identity_map` to preserve the existing D1/GCD/Metron numeric IDs and
 
 A safe migration has a read-only export, immutable source checksums, staging validation, owner/foreign-key reconciliation, rejection records, counts by publisher and source, backup, sampled reads, then a controlled cutover. Keep legacy URLs resolving through the crosswalk. The package includes the crosswalk and rejection tables, not a one-click migration that guesses at the user's complete runtime data. Payment history must be reconciled to the actual provider before any balances are imported.
 
-## Module 3: SafeTrade, money and rewards
+## Module 3: SafePurchase, money and rewards
 
-The default high-value threshold is **$500 inclusive**, computed from the complete listing subtotal before a points discount. It is configurable and cannot be bypassed by turning the service off: an eligible order fails closed until SafeTrade is ready. Lower-value orders use the same payment/settlement machinery with direct seller-to-buyer delivery and no vault leg.
+SafePurchase is an explicit listing opt-in for either single books or whole collections, independent of price. The $500 threshold remains recommendation metadata only. An opted-in order requires configured inspection and payment services; an unchecked listing uses direct delivery without a vault leg. Selection is not proof of completed physical inspection.
 
 ```mermaid
 flowchart TD
@@ -105,7 +105,7 @@ The shipping deadline is 48 hours by default. A printed label alone does not sat
 
 A created transfer is distinct from a paid bank payout. A refund of a charge does not automatically reverse a seller transfer. `approveInspectedReturn` and `confirmReturnRecovery` reserve recoverable seller proceeds, confirm the reversal and then request the buyer refund. When proceeds have been withdrawn, the flow blocks for a funded recovery reserve and operator reconciliation. This avoids an invented negative wallet or an unfunded refund promise.
 
-Stripe explicitly does not provide legal escrow services or escrow accounts. SafeTrade is an inspect-first middleman product with delayed settlement in this implementation. A genuine escrow claim requires an appropriate licensed structure/provider and legal review. Provider approval, seller KYC, manual payout configuration, restricted-business acceptance, liability/chargeback reserves, insured custody, shipping address verification and tax handling are launch dependencies. Software does not create those approvals. Do not describe the product as guaranteed scam-proof.
+Stripe explicitly does not provide legal escrow services or escrow accounts. SafePurchase is an inspect-first middleman product with delayed settlement in this implementation. A genuine escrow claim requires an appropriate licensed structure/provider and legal review. Provider approval, seller KYC, manual payout configuration, restricted-business acceptance, liability/chargeback reserves, insured custody, shipping address verification and tax handling are launch dependencies. Software does not create those approvals. Do not describe the product as guaranteed scam-proof.
 
 ### Wallet and reward economics
 
@@ -113,7 +113,7 @@ Stripe explicitly does not provide legal escrow services or escrow accounts. Saf
 
 Points are purchase discounts, not withdrawable cash. Defaults: one point per merchandise dollar on a completed eligible purchase; one cent per point when redemption is enabled; maximum 10% of purchase subtotal, further capped by the platform commission. Taxes/shipping are excluded from accrual. Failed/refunded orders restore redemptions and reverse earned points; points already spent can create points debt and prevent further redemption. Listing points default to zero; the optional version requires human review, a daily cap and one lifetime claim per physical copy to deter repost farming.
 
-Illustrative configured economics, not a revenue forecast: a $100 merchandise sale at an 8% platform fee yields $92 seller proceeds before separately agreed costs. A $1 loyalty discount can come from the $8 platform fee without reducing seller proceeds. Processor fees, operations, insurance, disputes and taxes still affect actual profit. Additional revenue options are paid SafeTrade inspection/handling, seller tools subscriptions and clearly labeled promotions. Each should have transparent terms; paid placement must never alter editorial key verification or inspection outcomes.
+Illustrative configured economics, not a revenue forecast: a $100 merchandise sale at an 8% platform fee yields $92 seller proceeds before separately agreed costs. A $1 loyalty discount can come from the $8 platform fee without reducing seller proceeds. Processor fees, operations, insurance, disputes and taxes still affect actual profit. Additional revenue options are paid SafePurchase inspection/handling, seller tools subscriptions and clearly labeled promotions. Each should have transparent terms; paid placement must never alter editorial key verification or inspection outcomes.
 
 ## Module 4: scanner and listing AI
 
@@ -192,7 +192,7 @@ A single physical copy listed simultaneously on eBay and the platform cannot be 
 ```ts
 const handler = platformApi({pool, publicOrigin, authenticate, rateLimit,
   wallet: walletConfiguration, rewards: rewardsPolicy,
-  safetrade: safetradeConfiguration, stripeWebhookSecret, carrierVerifier});
+  safepurchase: safepurchaseConfiguration, stripeWebhookSecret, carrierVerifier});
 // Framework route: return handler(request).
 // Authenticated catalog/scan/order/eBay orchestration calls the corresponding
 // domain services after the same session, Origin and rate-limit checks.

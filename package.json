@@ -19,7 +19,8 @@
     "test:catalog-covers": "node --import tsx --test checks/gcd-snapshot-covers.test.ts",
     "test:catalog-seed": "node --import tsx --test checks/gcd-postgres-seed.test.ts",
     "test:postgres": "node --import tsx --test checks/postgres-migration.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:business": "node --import tsx --test checks/marketplace-business.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -9,7 +9,7 @@ See [Deployment and verification](DEPLOYMENT.md) for setup, migration behavior a
 - `app/`, `lib/`, `components/`: actual application and its APIs.
 - `db/`: native PostgreSQL schema, database pool and versioned migrations.
 - `mobile/`: original React Native application source.
-- `architecture/`: SafeTrade, wallet, comps, photo AI and cross-listing service blueprints.
+- `architecture/`: SafePurchase, wallet, comps, photo AI and cross-listing service blueprints.
 - `public/`: original brand, covers, recognition index and mobile assets.
 
 No database passwords, hosting tokens or provider secrets are included.

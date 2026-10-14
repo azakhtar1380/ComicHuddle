@@ -4,10 +4,10 @@ import {boundedJson,requireOrigin,persistVerifiedWebhook} from './security';
 import {requestWithdrawal,type WalletConfig} from './wallet';
 import {redeemPoints,type RewardPolicy} from './rewards';
 import {recordSellerShipment,type CarrierVerifier} from './fulfillment';
-import {transitionSafeTrade,type SafeTradeConfig,type SafeTradeEvent} from './escrow';
+import {transitionSafePurchase,type SafePurchaseConfig,type SafePurchaseEvent} from './escrow';
 export type VerifiedSession={userId:string;browserSessionId:string};
 export type ApiDependencies={pool:SqlPool;publicOrigin:string;authenticate:(r:Request)=>Promise<VerifiedSession|null>;rateLimit:(userId:string,action:string)=>Promise<boolean>;
- wallet:WalletConfig;rewards:RewardPolicy;safetrade:SafeTradeConfig;stripeWebhookSecret?:string;carrierVerifier?:CarrierVerifier};
+ wallet:WalletConfig;rewards:RewardPolicy;safepurchase:SafePurchaseConfig;stripeWebhookSecret?:string;carrierVerifier?:CarrierVerifier};
 const keySchema=z.string().min(8).max(180),moneySchema=z.string().regex(/^[1-9]\d{0,15}$/);
 const userEvent=z.discriminatedUnion('type',[
  z.object({type:z.literal('seller_dispatched'),tracking:z.string().min(5).max(100),carrier:z.string().min(2).max(40),acceptanceScanVerified:z.literal(true)}).strict(),
@@ -40,17 +40,17 @@ export function platformApi(d:ApiDependencies){return async(request:Request):Pro
    const v=z.object({orderId:z.string().uuid(),points:moneySchema,idempotencyKey:keySchema}).strict().parse(body);
    return json(await redeemPoints(d.pool,session.userId,v.orderId,v.points,v.idempotencyKey,d.rewards));
   }
-  if(url.pathname==='/api/platform/safetrade/shipment'){
+  if(url.pathname==='/api/platform/safepurchase/shipment'){
    const v=z.object({transactionId:z.string().uuid(),tracking:z.string().min(5).max(100),carrier:z.string().min(2).max(40),idempotencyKey:keySchema}).strict().parse(body);
    if(!d.carrierVerifier)throw new DomainError('carrier_unconfigured','Carrier verification is not configured.',503);
-   return json(await recordSellerShipment(d.pool,session.userId,v.transactionId,v.tracking,v.carrier,v.idempotencyKey,d.carrierVerifier,d.safetrade));
+   return json(await recordSellerShipment(d.pool,session.userId,v.transactionId,v.tracking,v.carrier,v.idempotencyKey,d.carrierVerifier,d.safepurchase));
   }
-  if(url.pathname==='/api/platform/safetrade/event'){
+  if(url.pathname==='/api/platform/safepurchase/event'){
    const v=z.object({transactionId:z.string().uuid(),event:userEvent,idempotencyKey:keySchema}).strict().parse(body);
    // Carrier acceptance is not a self-authenticating boolean. The fulfillment
    // adapter must verify the carrier receipt before this seller action.
    if(v.event.type==='seller_dispatched')throw new DomainError('carrier_receipt_required','Use the server-verified shipment route.',409);
-   return json(await transitionSafeTrade(d.pool,v.transactionId,{kind:'user',userId:session.userId},v.event as SafeTradeEvent,v.idempotencyKey,d.safetrade));
+   return json(await transitionSafePurchase(d.pool,v.transactionId,{kind:'user',userId:session.userId},v.event as SafePurchaseEvent,v.idempotencyKey,d.safepurchase));
   }
   throw new DomainError('route_missing','Route not found.',404);
  }catch(error){

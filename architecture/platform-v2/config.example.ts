@@ -1,4 +1,4 @@
-import {defaultSafeTrade} from './src/escrow';
+import {defaultSafePurchase} from './src/escrow';
 import {defaultWallet} from './src/wallet';
 import {defaultRewards} from './src/rewards';
 import {defaultSources} from './src/fmv';
@@ -8,7 +8,7 @@ export const platformConfiguration={
  launchCountry:'US' as const,
  paymentsEnabled:false,
  platformFeeBps:800,
- safetrade:{...defaultSafeTrade,thresholdCents:'50000',inclusive:true},
+ safepurchase:{...defaultSafePurchase,thresholdCents:'50000',inclusive:true},
  wallet:{...defaultWallet},
  rewards:{...defaultRewards,pointsPerDollar:1,centsPerPoint:1,maxDiscountBps:1000,listingPoints:0},
  sources:defaultSources,

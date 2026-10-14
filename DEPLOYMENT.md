@@ -45,14 +45,13 @@ from an unverified email; set `COMICHUDDLE_OWNER_USER_ID` after an owner review.
 The directory, collections, profile, listings, auction proposals, messages and
 Comic Workshop use the actual original application APIs. Browser scanner matching
 uses the existing cover reference index; it is not an authenticity guarantee.
-SafeTrade, rewards and FMV remain marked as planned where they were planned in
+SafePurchase opt-in, private service requests, Sold Items and the wallet receipt ledger are active.
+Rewards and FMV remain marked as planned where they were planned in
 the original app. No live payments, physical inspection or invented AI grades are
 enabled. Stripe test checkout still requires the original documented Stripe
-sandbox settings. Weekly Cron remains authenticated and skips ingestion while
-provider authorization and migration review are missing; previously paused GCD
-and Metron tasks remain paused.
+sandbox settings. Weekly Cron runs the permitted current/previous-week GCD release sweep and resumes its bounded checkpoint. It imports metadata and exact cover references only, honors owner pauses and quotas, and does not restart the previously paused private Site or Metron tasks.
 
-Run `npm run build`, `npm run typecheck`, and `npm run test:postgres`. The latter
+Run `npm run build`, `npm run typecheck`, and `npm run test:postgres`, and `npm run test:business`. The latter
 executes the original PostgreSQL migration and account/catalog/listing/rollback
 checks in a local PostgreSQL engine. `/health` verifies actual RDS access after
 deployment. Cloud browser QA must also verify desktop/mobile original UI and

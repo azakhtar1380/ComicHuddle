@@ -347,7 +347,7 @@ function text(node) {if (typeof node === 'string' || typeof node === 'number') r
 await test('Redesigned collector home renders existing destinations without invented market activity', async () => {
   const home = (await load('app/collector-home.tsx')).default;
   const html = renderToStaticMarkup(React.createElement(home, {go() {}, onScan() {}, onProfile() {}, onProvider() {}, onOpenComic() {}, onValueCollection() {}}));
-  for (const label of ['Know the book.', 'Scan a Book', 'Value Collection', 'Browse Keys', 'SafeTrade', 'Coming soon', 'Find a specialist', 'List my pressing studio']) assert.ok(html.includes(label), label);
+  for (const label of ['Know the book.', 'Scan a Book', 'Value Collection', 'Browse Keys', 'SafePurchase', 'Coming soon', 'Find a specialist', 'List my pressing studio']) assert.ok(html.includes(label), label);
   assert.ok(html.includes('Verified sales and FMV updates are coming soon.'));
   assert.ok(!html.includes('$0.00'));assert.equal(outbound, 0);
   const hub = await readFile('app/hub.tsx', 'utf8');
