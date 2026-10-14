@@ -39,7 +39,7 @@ function configuredOrigin(value: unknown): string | null {
   } catch { return null; }
 }
 function testKey(value: unknown): value is string {
-  return typeof value === 'string' && /^sk_test_[A-Za-z0-9]{16,}$/.test(value);
+  return typeof value === 'string' && /^(sk|rk)_test_[A-Za-z0-9]{16,}$/.test(value);
 }
 function webhookKey(value: unknown): value is string {
   return typeof value === 'string' && /^whsec_[A-Za-z0-9]{16,}$/.test(value);

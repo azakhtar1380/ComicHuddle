@@ -67,3 +67,5 @@
  .shared-directory .sd-browser .sd-more>svg{flex-shrink:0}
 }
 @media(prefers-reduced-motion:reduce){.shared-directory .sd-card{transition:none}}
+
+.sd-pagination{flex-wrap:wrap}.sd-page-jump{display:flex;align-items:center;gap:8px}.sd-page-jump label{font-size:11px}.sd-page-jump input{width:100px;padding:8px;border:1px solid var(--line);border-radius:6px}.sd-page-jump button{padding:8px 12px}

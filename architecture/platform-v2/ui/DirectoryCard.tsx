@@ -3,10 +3,11 @@ import {useState} from 'react';
 import {ArrowUpRight,BookOpen,ShieldCheck} from 'lucide-react';
 import type {ComicCardRecord} from './types';
 import {cgcLinks} from './cgc-links';
+import ComicCoverPlaceholder from '../../../components/comic-cover-placeholder';
 export function DirectoryCard({comic,onOpen}:{comic:ComicCardRecord;onOpen:(id:string)=>void;onSave?:(id:string)=>void;onBuy?:(id:string)=>void}){
  const [failed,setFailed]=useState<string|null>(null);
  return <article className="v2-card"><button type="button" className="v2-card-open" onClick={()=>onOpen(comic.id)} aria-haspopup="dialog" aria-label={'More info about '+comic.title+' #'+comic.issueNumber}>
-  <span className="v2-card-art">{comic.coverUrl&&failed!==comic.coverUrl?<img src={comic.coverUrl} onError={()=>setFailed(comic.coverUrl!)} alt={comic.title+' #'+comic.issueNumber+' cover'} loading="lazy" decoding="async"/>:<span className="comic-image-missing" role="img" aria-label="Cover unavailable"><BookOpen size={30}/><small>Cover unavailable</small></span>}</span>
+  <span className="v2-card-art">{comic.coverUrl&&failed!==comic.coverUrl?<img src={comic.coverUrl} onError={()=>setFailed(comic.coverUrl!)} alt={comic.title+' #'+comic.issueNumber+' cover'} loading="lazy" decoding="async"/>:<ComicCoverPlaceholder title={comic.title} issue={comic.issueNumber}/>}</span>
   {comic.coverUrl&&failed!==comic.coverUrl&&comic.coverCredit&&<span className="v2-cover-credit">{comic.coverCredit.includes('Wikimedia')?'Cover: Wikimedia Commons · US public domain':comic.coverCredit}</span>}
   <span className="v2-card-copy"><strong>{comic.title} <span>#{comic.issueNumber}</span></strong><small>{comic.publisher}</small><span className="v2-more-info">More info <ArrowUpRight size={13}/></span></span>
  </button></article>;

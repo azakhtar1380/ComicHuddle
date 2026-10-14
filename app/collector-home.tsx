@@ -1,7 +1,7 @@
 'use client';
 import {useCallback,useEffect,useState} from 'react';
 import Homepage from '../architecture/platform-v2/ui/Homepage';
-import type {ComicCardRecord,HomeFeed} from '../architecture/platform-v2/ui/types';
+import type {ComicCardRecord,HomeFeed,MarketTick} from '../architecture/platform-v2/ui/types';
 import {catalog,type Issue} from '../lib/catalog';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import './platform-v2.css';
@@ -20,6 +20,7 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
   setLoading(true);setError('');
   try{const response=await fetch('/api/catalog?'+new URLSearchParams({ids:[...catalog.filter(issue=>issue.cover?.startsWith('/covers/')).map(issue=>issue.id),0,3,7,10].join(',')}),{signal,cache:'no-store'});if(!response.ok)throw Error();
    const page=parseCatalogSearchPage(await response.json());if(!signal.aborted)setFeed({...emptyFeed,items:[...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id).map(homeComic),indexedCount:page.issueCount,asOf:new Date().toISOString()});
+   try{const extra=await fetch('/api/home-feed',{signal,cache:'no-store'});if(extra.ok){const payload=await extra.json();if(!signal.aborted&&Array.isArray(payload.market)&&Array.isArray(payload.upcoming))setFeed(current=>({...current,market:payload.market as MarketTick[],upcoming:payload.upcoming.map(homeComic)}))}}catch{/* The directory remains usable if the optional market feed is unavailable. */}
   }catch(e){if(!signal.aborted)setError('The directory could not load. Open the directory or retry below.');}
   finally{if(!signal.aborted)setLoading(false);}
  },[]);

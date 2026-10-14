@@ -5,8 +5,16 @@ import type { Issue } from './catalog';
 
 /** Only URLs supplied for an exact GCD issue, never guessed cover IDs. */
 export function gcdThumbnailUrl(value: unknown): string | null {
-  return typeof value === 'string' && value.length <= 400 &&
-    /^https:\/\/files[0-9]+\.comics\.org\/+img\/gcd\/covers_by_id\/[0-9]+\/w400\/[0-9]+\.jpg$/.test(value) ? value : null;
+  if(typeof value!=='string'||value.length>1024||/[\u0000-\u0020\u007f\\]/.test(value))return null;
+  try{
+    const url=new URL(value.startsWith('//')?'https:'+value:value,'https://www.comics.org');
+    if(url.username||url.password||url.port)return null;
+    const host=url.hostname;
+    if(!(host==='www.comics.org'||/^files[0-9]+\.comics\.org$/.test(host)))return null;
+    if(!/^\/(?:covers|img|images)\//.test(url.pathname))return null;
+    if(!['http:','https:'].includes(url.protocol))return null;
+    url.protocol='https:';return url.href;
+  }catch{return null;}
 }
 
 export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise<Issue[]> {

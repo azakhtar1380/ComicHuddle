@@ -8,6 +8,7 @@ import './shared-directory.css';
 import CatalogFmv from './catalog-fmv';
 import ComicPicker from './comic-picker';
 import DirectoryTree from './directory-tree';
+import ComicCoverPlaceholder from '../components/comic-cover-placeholder';
 
 type CatalogPage = {
   issues: Issue[]; total: number; limit: number; offset: number; hasMore: boolean;
@@ -23,8 +24,8 @@ function DirectoryIssueCard({issue,onOpen}:{issue:Issue;onOpen:(issue:Issue)=>vo
   const [coverFailed,setCoverFailed]=useState(false);
   useEffect(()=>setCoverFailed(false),[issue.cover]);
   return <button type="button" className="sd-card" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}>
-    <span className="sd-art">{issue.cover&&!coverFailed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>:<span className="sd-cover-empty" role="img" aria-label="Cover unavailable"><BookOpen size={36} aria-hidden="true"/><small>Cover unavailable</small></span>}</span>
-    {issue.cover&&<span className="sd-cover-credit">{issue.gcdId?'Cover image source: Grand Comics Database (GCD) / Publisher':'Cover: Wikimedia Commons · US public domain'}</span>}
+    <span className="sd-art">{issue.cover&&!coverFailed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>:<ComicCoverPlaceholder title={issue.title} issue={issue.number}/>}</span>
+    {(issue.cover||issue.gcdId)&&<span className="sd-cover-credit">{issue.gcdId?'Cover image source: Grand Comics Database (GCD) / Publisher':'Cover: Wikimedia Commons · US public domain'}</span>}
     <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><CatalogFmv issueId={issue.id}/><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span>
   </button>;
 }
@@ -58,6 +59,7 @@ export default function SharedDirectory({onOpen}: Props) {
   const [publisher, setPublisher] = useState(''), [era, setEra] = useState(''), [kind, setKind] = useState(''), [sort, setSort] = useState('featured');
   const [offset, setOffset] = useState(0), [list, setList] = useState(false), [retry, setRetry] = useState(0);
   const [data, setData] = useState<CatalogPage | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState('');
+  const cursors=useRef(new Map<number,number>());
   const generation = useRef(0), controller = useRef<AbortController | null>(null);
   function invalidate() {generation.current++; controller.current?.abort(); setLoading(true); setError('');}
   function changeQuery(value: string) {if (value === query) return; invalidate(); setQuery(value); setOffset(0);}
@@ -74,7 +76,9 @@ export default function SharedDirectory({onOpen}: Props) {
     const request = ++generation.current, abort = new AbortController();
     controller.current = abort;
     const current = () => generation.current === request && !abort.signal.aborted;
+    if(offset===0)cursors.current.clear();
     const params = new URLSearchParams({q: debouncedQuery.trim(), limit: String(pageSize), offset: String(offset), sort});
+    if(sort==='featured'&&offset>0&&cursors.current.has(offset))params.set('after',String(cursors.current.get(offset)));
     if (publisher) params.set('publisher', publisher);
     if (series) params.set('series',series);
     if (era) params.set('era', era);
@@ -89,6 +93,7 @@ export default function SharedDirectory({onOpen}: Props) {
         const page = catalogPage(body);
         if (page.offset !== offset) throw Error('The directory returned another page. Please retry.');
         setData(page);
+        if(page.hasMore&&page.issues.length)cursors.current.set(page.offset+page.limit,page.issues[page.issues.length-1].id);
       } catch (problem) {
         if (current()) setError(problem instanceof Error ? problem.message : 'The directory is unavailable. Please retry.');
       } finally {if (current()) setLoading(false);}
@@ -101,7 +106,7 @@ export default function SharedDirectory({onOpen}: Props) {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   return <section className="shared-directory directory-page">
     <div className="page-intro"><div><div className="eyebrow">THE SHARED COMIC DIRECTORY</div><h1>FIND THE ISSUE.<br/><span>FOLLOW THE STORY.</span></h1><p>Search series, issue numbers, characters, publishers and creators. One directory for every collector.</p></div><div className="index-stamp"><strong>{data ? data.issueCount.toLocaleString('en-US') : '—'}</strong><span>INDEXED ISSUES<br/>{data ? data.scope === 'shared' ? 'SHARED CATALOG' : 'STARTER BIBLIOGRAPHY' : 'CHECKING COVERAGE'}</span></div></div>
-    <div className="sd-coverage" aria-live="polite"><BookOpen size={19}/><div>{data ? <><strong>{data.scope === 'shared' ? 'A growing shared index' : 'The starter bibliography'}</strong><p>{data.issueCount.toLocaleString('en-US')} indexed records · {data.syncedIssueCount.toLocaleString('en-US')} from Metron{data.gcdIssueCount!==undefined&&<> · {data.gcdIssueCount.toLocaleString('en-US')} imported from GCD</>}. {data.syncedIssueCount > 0 ? 'Last completed Metron import: ' + syncedDate(data.lastSyncedAt) + '. ' : ''}{data.gcdIssueCount&&data.lastGcdSyncedAt?'Latest GCD record update: '+syncedDate(data.lastGcdSyncedAt)+'. ':''}{(data.gcdIndexIssueCount||0)>0&&<>{data.gcdIndexIssueCount!.toLocaleString('en-US')} entries have issue and edition identifiers; publication and story details await enrichment. </>}Coverage is still growing; this is not a complete comic catalog.</p></> : <><strong>Checking catalog coverage</strong><p>Coverage and record counts load from the shared directory.</p></>}</div></div>
+    <div className="sd-coverage" aria-live="polite"><BookOpen size={19}/><div>{data ? <><strong>{data.scope === 'shared' ? 'A growing shared index' : 'The starter bibliography'}</strong><p>{data.issueCount.toLocaleString('en-US')} indexed records · {data.syncedIssueCount.toLocaleString('en-US')} from Metron{data.gcdIssueCount!==undefined&&<> · {data.gcdIssueCount.toLocaleString('en-US')} imported from GCD</>}. {data.syncedIssueCount > 0 ? 'Last completed Metron import: ' + syncedDate(data.lastSyncedAt) + '. ' : ''}{data.gcdIssueCount&&data.lastGcdSyncedAt?'Latest GCD record update: '+syncedDate(data.lastGcdSyncedAt)+'. ':''}{(data.gcdIndexIssueCount||0)>0&&<>{data.gcdIndexIssueCount!.toLocaleString('en-US')} entries have issue and edition identifiers; publication and story details await enrichment. </>}All active issues in the loaded native snapshot are accessible. Unresolved series and images are labeled while metadata is completed.</p></> : <><strong>Checking catalog coverage</strong><p>Coverage and record counts load from the shared directory.</p></>}</div></div>
     <div className="sd-quick-find"><ComicPicker key={publisher+'|'+series} value={matched} label="Search the comic directory" onQueryChange={changeQuery} onChange={issue=>{setMatched(issue);if(issue)onOpen(issue)}}/></div>
     <div className="sd-browser"><DirectoryTree key={publisher} publishers={publisherOptions} publisher={publisher} series={series} onPublisher={value=>{invalidate();setPublisher(value);setSeries('');setQuery('');setMatched(null);setOffset(0)}} onSeries={value=>{invalidate();setSeries(value);setQuery('');setMatched(null);setOffset(0)}}/><div className="sd-browser-main">
     <div className="sd-filters">
@@ -117,7 +122,7 @@ export default function SharedDirectory({onOpen}: Props) {
         {data.issues.map(issue=><DirectoryIssueCard key={issue.id} issue={issue} onOpen={onOpen}/>)}
       </div> : <div className="sd-state"><Search size={32}/><h2>{data?.issueCount === 0 ? 'The shared shelves are waiting.' : 'No match in the stored index.'}</h2><p>{data?.issueCount === 0 ? 'No bibliography has been loaded yet. Catalog coverage will appear here after an owner import.' : 'Try another series, creator or filter. You can still enter an unindexed comic manually in My collection.'}</p>{data && data.issueCount > 0 && <button type="button" className="button outline" onClick={resetFilters}>Clear search and filters</button>}</div>}
     </div>
-    {!loading && !error && data && data.total > data.limit && <nav className="sd-pagination" aria-label="Directory pages"><button type="button" disabled={data.offset === 0} onClick={() => {invalidate(); setOffset(Math.max(0, data.offset - data.limit));}}><ChevronLeft size={18}/> Previous</button><span>Page {pageNumber} of {totalPages.toLocaleString('en-US')}</span><button type="button" disabled={!data.hasMore} onClick={() => {invalidate(); setOffset(data.offset + data.limit);}}>Next <ChevronRight size={18}/></button></nav>}
+    {!loading && !error && data && data.total > data.limit && <nav className="sd-pagination" aria-label="Directory pages"><button type="button" disabled={data.offset === 0} onClick={() => {invalidate(); setOffset(Math.max(0, data.offset - data.limit));}}><ChevronLeft size={18}/> Previous</button><span>Page {pageNumber.toLocaleString('en-US')} of {totalPages.toLocaleString('en-US')}</span><form className="sd-page-jump" onSubmit={event=>{event.preventDefault();const value=Number(new FormData(event.currentTarget).get('page'));if(Number.isInteger(value)&&value>=1&&value<=totalPages){invalidate();setOffset((value-1)*data.limit)}}}><label htmlFor="directory-page-jump">Go to page</label><input id="directory-page-jump" name="page" type="number" min="1" max={totalPages} required inputMode="numeric" defaultValue={pageNumber}/><button type="submit">Go</button></form><button type="button" disabled={!data.hasMore} onClick={() => {invalidate(); setOffset(data.offset + data.limit);}}>Next <ChevronRight size={18}/></button></nav>}
     </div></div>
     <div className="sd-attribution"><BookOpen size={20}/><div>{data && data.syncedIssueCount > 0 && <p>Comic metadata adapted from <a href="https://metron.cloud/" target="_blank" rel="noreferrer">Metron</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted Metron metadata retains that license.</p>}{data && (data.gcdIssueCount||0)>0&&<p>Comic metadata adapted from the <a href="https://www.comics.org/" target="_blank" rel="noreferrer">Grand Comics Database</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted GCD metadata retains that license.</p>}<p>Cover thumbnails identify the indexed edition. Artwork © the respective publishers and artists; the metadata license does not include artwork. Starter records retain their individual source credits. {data?.coverIssueCount!==undefined&&<>{data.coverIssueCount.toLocaleString('en-US')} records have a cover reference; source availability varies.</>}</p></div></div>
   </section>;

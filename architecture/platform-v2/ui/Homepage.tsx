@@ -4,8 +4,17 @@ import {ArrowRight,ArrowUpRight,BookOpen,Camera,ChevronRight,Gift,Layers,Search,
 import {DirectoryCard} from './DirectoryCard';
 import type {ComicCardRecord,HomeFeed,MarketTick} from './types';
 export type HomepageProps={feed:HomeFeed;loading?:boolean;search:(query:string,signal:AbortSignal)=>Promise<ComicCardRecord[]>;onOpenComic:(id:string)=>void;onScan:()=>void;onValueCollection:()=>void;onBrowseKeys:()=>void;onMarketplace:()=>void;onProfile:()=>void;onWorkshop:()=>void;onUpcoming:()=>void;safepurchaseEnabled?:boolean;rewardsEnabled?:boolean};
-function MarketTicker({ticks,onUpcoming}:{ticks:MarketTick[];onUpcoming:()=>void}){
- return <div className="v2-market-strip flex min-w-0 items-center gap-4 overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="Market updates"><span className="flex shrink-0 items-center gap-2 border-r border-slate-200 pr-4 text-[10px] font-extrabold uppercase tracking-wide"><TrendingUp size={15}/> Market pulse</span>{ticks.length?<div className="v2-ticker flex min-w-0 flex-1 gap-7 overflow-x-auto">{ticks.map(t=><div key={t.id} className="flex shrink-0 items-center gap-2 text-xs"><strong>{t.title}</strong><span>{t.gradeLabel}</span><span className={t.deltaBps>=0?'text-emerald-700':'text-red-700'}>{t.deltaBps>=0?'+':''}{(t.deltaBps/100).toFixed(1)}%</span><span title={t.sourceName+' · '+t.asOf}>{new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(t.valueCents)/100)}</span></div>)}</div>:<button onClick={onUpcoming} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left text-xs text-slate-500"><span>Verified sales and FMV updates are coming soon.</span><ChevronRight size={15}/></button>}</div>;
+function MarketTicker({ticks,onOpen,onBrowse}:{ticks:MarketTick[];onOpen:(id:string)=>void;onBrowse:()=>void}){
+ return <div className="v2-market-strip" aria-label="Market pulse: seven-day comparable price changes">
+  <span className="v2-pulse-label"><TrendingUp size={16}/> Market pulse <small>7 days</small></span>
+  <div className="v2-ticker-window"><div className={'v2-ticker-track '+(ticks.length?'has-quotes':'')}>
+   {ticks.length?ticks.map(t=><button className="v2-ticker-item" key={t.id} onClick={()=>onOpen(t.comicId)} title={t.sourceName+' · '+t.asOf}>
+    <strong>{t.title}</strong><small>{t.gradeLabel}</small><b>{new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(t.valueCents)/100)}</b>
+    <span className={t.deltaBps===null?'pulse-unknown':t.deltaBps>=0?'pulse-up':'pulse-down'}>{t.deltaBps===null?'7d history pending':(t.deltaBps>=0?'+':'')+(t.deltaBps/100).toFixed(1)+'% '+(t.deltaBps>=0?'▲':'▼')}</span>
+   </button>):<button className="v2-ticker-item" onClick={onBrowse}><strong>Follow your next grail</strong><span>Raw &amp; graded prices · Verified sold comps only</span><small>Connect an authorized sales feed to publish current values</small><ArrowUpRight size={14}/></button>}
+  </div></div>
+
+ </div>;
 }
 export default function Homepage(p:HomepageProps){
  const [query,setQuery]=useState(''),[results,setResults]=useState<ComicCardRecord[]>([]),[searching,setSearching]=useState(false),[error,setError]=useState(''),[focused,setFocused]=useState(false),[active,setActive]=useState(-1),[feedTab,setFeedTab]=useState<'keys'|'film'|'variants'>('keys');
@@ -18,7 +27,7 @@ export default function Homepage(p:HomepageProps){
  const items=feedTab==='film'?p.feed.filmKeys:feedTab==='variants'?p.feed.ratioVariants:p.feed.items;
  function open(id:string){setFocused(false);setQuery('');p.onOpenComic(id)}
  return <div className="platform-v2 min-w-0 py-5 sm:py-7">
-  <MarketTicker ticks={p.feed.market} onUpcoming={p.onUpcoming}/>
+  <MarketTicker ticks={p.feed.market} onOpen={p.onOpenComic} onBrowse={p.onBrowseKeys}/>
   <section className="v2-hero relative mt-5 grid min-w-0 gap-8 overflow-hidden rounded-[28px] border border-slate-200 bg-[#f9f6ee] px-5 py-9 sm:px-9 lg:grid-cols-[1.12fr_1fr] lg:gap-6 lg:px-12 lg:py-14">
    <div className="relative z-10 min-w-0"><span className="inline-flex items-center gap-2 rounded-full border border-[#d9c995] bg-[#fff0b9] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.12em]"><Sparkles size={13}/> A universe worth collecting</span>
     <h1 className="v2-hero-title mb-5 mt-6 text-[52px] font-black uppercase leading-[.93] tracking-[-.035em] sm:text-[74px] lg:text-[83px]">Know the book.<br/><span className="text-[#c83e30]">Own the story.</span></h1>
@@ -41,5 +50,8 @@ export default function Homepage(p:HomepageProps){
    <article className="rounded-3xl border border-[#e2d4a7] bg-[#f7e9bd] p-6 sm:p-8"><div className="mb-6 flex items-center justify-between"><span className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest"><Gift size={20}/> Collector rewards</span><span className="rounded-full bg-white/70 px-3 py-1 text-[10px] font-bold">On-site rewards</span></div><h2 className="mb-4 text-4xl font-black leading-none sm:text-5xl">Build your shelf.<br/><span className="text-[#c83e30]">Unlock more.</span></h2><p className="text-sm leading-7 text-slate-700">Earn points on eligible completed purchases. Use them toward your next comic. Convert points into store credit for comics and workshop bookings.</p><div className="my-5 grid grid-cols-3 gap-2"><div className="rounded-xl bg-white/70 p-3"><BookOpen size={20}/><strong className="mt-2 block text-xs">Collect</strong></div><div className="rounded-xl bg-white/70 p-3"><Gift size={20}/><strong className="mt-2 block text-xs">Earn points</strong></div><div className="rounded-xl bg-white/70 p-3"><Wallet size={20}/><strong className="mt-2 block text-xs">Your wallet</strong></div></div><a href="/wallet" className="min-h-11 text-xs font-bold">Explore Wallet <ArrowRight className="inline" size={16}/></a><p className="mb-0 mt-2 text-[10px] leading-5 text-slate-600">100 points = $1 in store credit. Credit stays on ComicHuddle and cannot be withdrawn. Test purchases earn test rewards only.</p></article>
   </section>
   <section className="v2-workshop-cta mt-8 flex flex-col items-start justify-between gap-5 rounded-2xl border border-slate-200 bg-white p-6 sm:flex-row sm:items-center"><div className="flex items-center gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#e0ece7]"><Wrench size={23}/></span><div><h3 className="mb-1 text-2xl font-bold">Good books. Careful hands.</h3><p className="mb-0 text-xs">Find pressing and cleaning specialists in Comic Workshop.</p></div></div><button onClick={p.onWorkshop} className="v2-workshop-action min-h-11 shrink-0 rounded-xl border border-slate-200 bg-[#faf8f2] px-4 text-xs font-bold">Find a specialist <ArrowUpRight className="inline" size={16}/></button></section>
+  <section className="v2-upcoming-drops"><div className="v2-upcoming-heading"><div><span className="v2-drop-eyebrow">THE NEXT CHAPTER</span><h2>Upcoming Drops &amp; Releases</h2><p>Announced dates from the loaded GCD catalog. Release dates can change.</p></div><button onClick={p.onUpcoming}>Explore the roadmap <ArrowUpRight size={16}/></button></div>
+   {p.feed.upcoming?.length?<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">{p.feed.upcoming.map(c=><DirectoryCard key={c.id} comic={c} onOpen={p.onOpenComic}/>)}</div>:<div className="v2-release-empty"><BookOpen size={22}/><p>No upcoming on-sale dates are recorded in the loaded snapshot yet.</p><button onClick={p.onBrowseKeys}>Browse the full directory <ArrowRight size={16}/></button></div>}
+  </section>
  </div>;
 }
