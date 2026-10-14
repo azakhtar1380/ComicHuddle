@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-10-14T18:58:33.013469+00:00",
+  "url": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app",
+  "passed": 20,
+  "checks": [
+    "live collector signup and authenticated profile creation",
+    "live payments remain disabled; QA cannot move real funds",
+    "owned QA image upload persists in RDS",
+    "another collector cannot access an unshared image",
+    "live collection persists with optimistic version control",
+    "cross-account collection reads remain isolated",
+    "opted-in inspection request opens a private conversation",
+    "live PostgreSQL radius search finds exact QA listings",
+    "SafePurchase opt-in is optional for a high-value collection",
+    "selected service does not falsely claim completed inspection",
+    "listing responses omit private ZIP and coordinates",
+    "other collector cannot mark a seller listing sold",
+    "foreign-origin writes are rejected",
+    "both sale-source options immediately move listings to Sold Items",
+    "sold inventory disappears from active seller listings",
+    "manual platform and cash reports cannot mint wallet money",
+    "live specialist registration stores city/ZIP and private intake",
+    "hidden QA studio is excluded from the workshop directory",
+    "invalid radius search fails with a clear client error",
+    "QA creates no fabricated directory issues"
+  ],
+  "error": null,
+  "cleanup": [
+    {
+      "role": "seller",
+      "applicationRecordsRemoved": true
+    },
+    {
+      "role": "buyer",
+      "applicationRecordsRemoved": true
+    }
+  ],
+  "realPaymentsAttempted": false,
+  "realProviderTransactionsTested": false,
+  "authenticationUsers": "Two clearly named QA authentication users remain for operator-managed retention; passwords and sessions were not saved."
+}

@@ -1,0 +1,100 @@
+{
+  "verifiedAt": "2026-10-14T19:02:02.047786+00:00",
+  "publicUrl": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "productionDeployment": "dpl_9LbtJVHY1zgKsiqenMs2MMwZgjSj",
+  "applicationCommit": "b75b4d8bbcf82fe87e7e72f61f21a8f61f69d3c0",
+  "vercelReadyState": "READY",
+  "database": "AWS RDS PostgreSQL with verified TLS",
+  "migrationsAppliedBySuccessfulProductionBuild": [
+    "001_original_comichuddle.sql",
+    "002_runtime.sql",
+    "003_catalog_ingestion.sql",
+    "004_catalog_cover_references.sql",
+    "005_gcd_snapshot_import.sql",
+    "006_marketplace_wallet_safepurchase.sql",
+    "007_us_postal_centroids.sql",
+    "008_safepurchase_retention.sql"
+  ],
+  "locationRecordsVerifiedBySQLDuringBuild": 40977,
+  "catalog": {
+    "indexed": 6826,
+    "gcd": 6783,
+    "metron": 0,
+    "indexOnlyAwaitingEnrichment": 5642,
+    "coverReferences": 2094,
+    "completeCatalog": false
+  },
+  "features": {
+    "SafePurchase": "Optional on single and collection listings. Requests persist in private messages. Selection and completed inspection have separate badges; a manual sale cannot verify payment.",
+    "wallet": "Own-account pending/available proceeds and history from confirmed processor receipts. Separate sandbox balances. Cash and manual sold reports never credit funds.",
+    "buyerSellerProtectionCard": [
+      "Verified Tracking",
+      "48-Hour Inspection Window",
+      "Automated Payout"
+    ],
+    "soldItems": "Seller-only platform/cash modal closes inventory immediately and moves it to Sold Items; active orders/custody block unsafe manual changes.",
+    "marketplaceLocation": "Server-side PostgreSQL bounding box and haversine distance, 5/15/30/50 miles or Nationwide. Local pickups prioritized; only city/state disclosed.",
+    "comicWorkshop": "Compact specialist cards, actual ratings and services, studio photos, distance search, private inquiry and quote-backed booking.",
+    "upcomingNavigation": "Preserved"
+  },
+  "checks": {
+    "newPostgreSQLBusinessTests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "originalAccountListingAuctionTests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "referencePlatformIntegration": {
+      "passed": 42,
+      "failed": 0,
+      "providers": "Fixtures only; no real financial or external publishing operations"
+    },
+    "liveAPI": {
+      "passed": 20,
+      "failed": 0,
+      "detailsFile": "LIVE-BUSINESS-VERIFICATION-2026-10-14.json"
+    },
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "browser": [
+      "New SafePurchase homepage copy",
+      "Marketplace protection card and location/radius controls",
+      "Live GeoNames ZIP suggestion and radius selection",
+      "No horizontal marketplace overflow at the observed desktop viewport",
+      "Simplified Comic Workshop and preserved Upcoming navigation"
+    ]
+  },
+  "weeklyReleaseSync": {
+    "configuredInVercelProduction": true,
+    "scheduleUTC": "0 9 * * 1",
+    "checkpointResumeUTC": "0 10 * * *",
+    "scope": "Current/previous-week GCD releases only; resume job does not start another import",
+    "unauthorizedRequestStatus": 401,
+    "honors": "Owner pause, provider quotas and durable checkpoints"
+  },
+  "snapshotImporter": {
+    "isolatedTestRecords": 50000,
+    "testPassed": true,
+    "realFullSnapshotProvided": false,
+    "syntheticTestRecordsLoadedIntoRDS": false
+  },
+  "remaining": {
+    "completeCatalog": "Requires an official GCD snapshot archive. Current live directory contains 6,826 real records.",
+    "coverDisplay": "2,094 source references are stored; GCD image requests failed in this test browser. Reliable modern covers need an accessible authorized image source. Existing six local public-domain covers work.",
+    "realPaymentsAndVault": "No live processor, carrier confirmation or physical inspection/custody service is connected. Real charges, withdrawals and verified-inspection claims stay disabled.",
+    "liveProviderTransactionTesting": "Not performed because payment/provider credentials are absent. Processor workflows were tested with isolated receipts and fixtures.",
+    "QAAuthenticationUsers": "Two clearly named QA authentication users remain for operator-managed retention; passwords and sessions were not saved."
+  },
+  "qaApplicationFixturesRemoved": [
+    {
+      "role": "seller",
+      "applicationRecordsRemoved": true
+    },
+    {
+      "role": "buyer",
+      "applicationRecordsRemoved": true
+    }
+  ]
+}
