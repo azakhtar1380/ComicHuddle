@@ -15,6 +15,7 @@
 .scan-status-badge.matched{background:#cde9ce;color:#18331b;border-color:#18331b}.scan-status-badge.permission_denied,.scan-status-badge.index_unavailable{background:#f6d6cd;color:#8d211b;border-color:#8d211b}
 .scan-spin{animation:scan-spin 1.1s linear infinite}@keyframes scan-spin{to{transform:rotate(360deg)}}
 .scan-upload{cursor:pointer}
+.comic-scan input[hidden]{display:none!important}
 .scan-error{padding:10px;background:#f6d6cd;color:#8d211b}
 .scan-hint{padding:12px;border:1px solid var(--line);background:var(--cream);font-size:12px;line-height:1.5;min-height:58px}
 .scan-confirm{display:flex;align-items:flex-start;flex-wrap:wrap;gap:13px;background:#dcebdd;border:1px solid var(--ink);padding:15px;margin-top:18px}
