@@ -125,3 +125,34 @@ test('a newly imported GCD issue can link an owned copy and marketplace listing 
   assert.equal(listing.issueId, issue.id); assert.ok(listing.issueId! > 2_147_483_647);
   assert.equal(JSON.parse(listing.items)[0].externalCatalog.id, issue.gcdId);
 });
+test('real series indexes reconcile with original response witnesses and preserve richer records', async () => {
+  const indexFile = resolve('db/gcd-series-index-seed.jsonl'), indexManifestFile = resolve('db/gcd-series-index-seed.manifest.json');
+  const indexManifest = validateSeedManifest(JSON.parse(await readFile(indexManifestFile, 'utf8')));
+  const reviewed = await preflightSeed(indexFile, indexManifest);
+  assert.equal(reviewed.count, 6635);
+  const index = new Map((await readFile(indexFile, 'utf8')).trimEnd().split('\n').map(line => JSON.parse(line))
+    .map(entry => [entry.record.api_url, entry.record]));
+  for (const entry of raw) {
+    const witness = index.get(entry.record.api_url); assert.ok(witness);
+    assert.equal(witness.descriptor, entry.record.descriptor);
+  }
+  const before = await engine.query<{ data: string }>('SELECT data FROM ch_web.catalog_issues WHERE gcd_id=$1', [seedRecord(raw[1], manifest).gcd_id]);
+  const result = await importGcdSeed(pool, indexFile, indexManifestFile);
+  assert.equal(Number(result.accepted_records), 6635); assert.equal(Number(result.retained_records), 993);
+  assert.equal(Number(result.inserted_records), 5642); assert.equal(Number(result.indexed), 6678);
+  const after = await engine.query<{ data: string }>('SELECT data FROM ch_web.catalog_issues WHERE gcd_id=$1', [seedRecord(raw[1], manifest).gcd_id]);
+  assert.equal(after.rows[0].data, before.rows[0].data);
+  const overview = await catalogOverview(getDb()); assert.equal(overview.gcdIndexIssueCount, 5642);
+  const result2 = await importGcdSeed(pool, indexFile, indexManifestFile);
+  assert.equal(Number(result2.indexed), Number(result.indexed));
+  const hellboy = await searchSharedCatalog(getDb(), { q: 'Hellboy', publisher: 'Dark Horse', limit: 12, offset: 0 });
+  assert.equal(hellboy.total, 4);
+  const variant = await searchSharedCatalog(getDb(), { q: 'Amazing Spider-Man British', limit: 12, offset: 0 });
+  assert.ok(variant.total > 20);
+  assert.ok(variant.issues.every(issue => !issue.bibliography && !issue.cover));
+});
+test('edited upstream witness bytes or fabricated rows fail preflight before database writes', async () => {
+  const indexManifest = validateSeedManifest(JSON.parse(await readFile('db/gcd-series-index-seed.manifest.json', 'utf8')));
+  const bad = { ...indexManifest, sources: indexManifest.sources.map((source, index) => index === 0 ? { ...source, responseSha256: '0'.repeat(64) } : source) };
+  await assert.rejects(preflightSeed(resolve('db/gcd-series-index-seed.jsonl'), bad), /witness failed/);
+});

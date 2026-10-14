@@ -12,7 +12,7 @@ type CatalogPage = {
   issues: Issue[]; total: number; limit: number; offset: number; hasMore: boolean;
   issueCount: number; scope: 'starter' | 'shared'; syncedIssueCount: number;
   lastSyncedAt: string | null; publishers: string[];
-  gcdIssueCount?: number; lastGcdSyncedAt?: string | null;
+  gcdIssueCount?: number; gcdIndexIssueCount?: number; lastGcdSyncedAt?: string | null;
 };
 type Props = {onOpen: (issue: Issue) => void; onWant: (issue: Issue) => void; onCollect:(issue:Issue,entry?:CollectionEntry,requestId?:string)=>Promise<void>|void; beforeCollection?:()=>boolean; activeListingCounts?:Record<number,number>|null; onFind:(issue:Issue)=>void; ownedIds:number[]; wantedIds: number[]; saving: boolean};
 const pageSize = 12;
@@ -39,6 +39,7 @@ function catalogPage(value: unknown): CatalogPage {
       !data.limit || data.limit > 30 || data.issues.length > data.limit || typeof data.hasMore !== 'boolean' ||
       (data.scope !== 'starter' && data.scope !== 'shared') || (data.lastSyncedAt !== null && typeof data.lastSyncedAt !== 'string') ||
       (data.gcdIssueCount !== undefined && (!Number.isSafeInteger(data.gcdIssueCount) || data.gcdIssueCount < 0)) ||
+      (data.gcdIndexIssueCount !== undefined && (!Number.isSafeInteger(data.gcdIndexIssueCount) || data.gcdIndexIssueCount < 0 || data.gcdIndexIssueCount > (data.gcdIssueCount || 0))) ||
       (data.lastGcdSyncedAt !== undefined && data.lastGcdSyncedAt !== null && typeof data.lastGcdSyncedAt !== 'string') ||
       data.publishers.some(name => typeof name !== 'string') ||
       data.issues.some(issue => !issue || !Number.isSafeInteger(issue.id) || issue.id < 0 || !Number.isInteger(issue.year) ||
@@ -97,7 +98,7 @@ export default function SharedDirectory({onOpen}: Props) {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   return <section className="shared-directory directory-page">
     <div className="page-intro"><div><div className="eyebrow">THE SHARED COMIC DIRECTORY</div><h1>FIND THE ISSUE.<br/><span>FOLLOW THE STORY.</span></h1><p>Search series, issue numbers, characters, publishers and creators. One directory for every collector.</p></div><div className="index-stamp"><strong>{data ? data.issueCount.toLocaleString('en-US') : '—'}</strong><span>INDEXED ISSUES<br/>{data ? data.scope === 'shared' ? 'SHARED CATALOG' : 'STARTER BIBLIOGRAPHY' : 'CHECKING COVERAGE'}</span></div></div>
-    <div className="sd-coverage" aria-live="polite"><BookOpen size={19}/><div>{data ? <><strong>{data.scope === 'shared' ? 'A growing shared index' : 'The starter bibliography'}</strong><p>{data.issueCount.toLocaleString('en-US')} indexed records · {data.syncedIssueCount.toLocaleString('en-US')} from Metron{data.gcdIssueCount!==undefined&&<> · {data.gcdIssueCount.toLocaleString('en-US')} imported from GCD</>}. {data.syncedIssueCount > 0 ? 'Last completed Metron import: ' + syncedDate(data.lastSyncedAt) + '. ' : ''}{data.gcdIssueCount&&data.lastGcdSyncedAt?'Latest GCD record update: '+syncedDate(data.lastGcdSyncedAt)+'. ':''}Coverage is still growing; this is not a complete comic catalog.</p></> : <><strong>Checking catalog coverage</strong><p>Coverage and record counts load from the shared directory.</p></>}</div></div>
+    <div className="sd-coverage" aria-live="polite"><BookOpen size={19}/><div>{data ? <><strong>{data.scope === 'shared' ? 'A growing shared index' : 'The starter bibliography'}</strong><p>{data.issueCount.toLocaleString('en-US')} indexed records · {data.syncedIssueCount.toLocaleString('en-US')} from Metron{data.gcdIssueCount!==undefined&&<> · {data.gcdIssueCount.toLocaleString('en-US')} imported from GCD</>}. {data.syncedIssueCount > 0 ? 'Last completed Metron import: ' + syncedDate(data.lastSyncedAt) + '. ' : ''}{data.gcdIssueCount&&data.lastGcdSyncedAt?'Latest GCD record update: '+syncedDate(data.lastGcdSyncedAt)+'. ':''}{(data.gcdIndexIssueCount||0)>0&&<>{data.gcdIndexIssueCount!.toLocaleString('en-US')} entries have issue and edition identifiers; publication and story details await enrichment. </>}Coverage is still growing; this is not a complete comic catalog.</p></> : <><strong>Checking catalog coverage</strong><p>Coverage and record counts load from the shared directory.</p></>}</div></div>
     <div className="sd-quick-find"><ComicPicker key={publisher+'|'+series} value={matched} label="Search the comic directory" onQueryChange={changeQuery} onChange={issue=>{setMatched(issue);if(issue)onOpen(issue)}}/></div>
     <div className="sd-browser"><DirectoryTree key={publisher} publishers={publisherOptions} publisher={publisher} series={series} onPublisher={value=>{invalidate();setPublisher(value);setSeries('');setQuery('');setMatched(null);setOffset(0)}} onSeries={value=>{invalidate();setSeries(value);setQuery('');setMatched(null);setOffset(0)}}/><div className="sd-browser-main">
     <div className="sd-filters">

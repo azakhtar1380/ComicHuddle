@@ -27,7 +27,7 @@ export function plainCatalogText(value:unknown,max=500):string{
  if(typeof value!=='string')return '';
  return value.replace(/<[^>]*>/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 }
-export function catalogSearchText(issue:Issue){return [issue.title,issue.number,issue.publisher,String(issue.year),issue.writer,issue.artist,issue.coverArtist||'',issue.kind,issue.note,...issue.characters].join(' ').normalize('NFKD').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ')}
+export function catalogSearchText(issue:Issue,includeEdition=false){return [issue.title,issue.number,issue.publisher,String(issue.year),issue.writer,issue.artist,issue.coverArtist||'',issue.kind,...(includeEdition?[issue.variant]:[]),issue.note,...issue.characters].join(' ').normalize('NFKD').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ')}
 export function issueIdentity(issue:Issue){
  if(issue.metronId!==undefined&&issue.gcdId!==undefined)throw new Error('Choose one provider identity.');
  const external=sharedProviderIdentity(issue.id);

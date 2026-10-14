@@ -1,14 +1,17 @@
 import { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { dirname, resolve } from 'node:path';
 import type { Pool, PoolClient } from 'pg';
 import { GCD_LICENSE, GCD_ORIGIN, normalizeGcdIssue } from './gcd-catalog';
-import { catalogSearchText } from './shared-catalog';
+import { catalogSearchText, plainCatalogText } from './shared-catalog';
+import { seriesIndexEnvelopes } from './gcd-series-index';
 
-type SourcePage = { url: string; seriesId: number; page: number; rows: number; fetchedAt: string; responseSha256: string };
+type SourcePage = { url: string; seriesId: number; page: number; rows: number; fetchedAt: string; responseSha256: string;
+  queryName?: string; queryYear?: number; responseFile?: string; publisherFile?: string; publisherSha256?: string };
 export type GcdSeedManifest = {
-  schemaVersion: 'gcd-rds-seed/v1'; provider: 'GCD';
-  scope: 'selected_series_main_story_overviews'; catalogComplete: false;
+  schemaVersion: 'gcd-rds-seed/v1' | 'gcd-rds-series-index/v1'; provider: 'GCD';
+  scope: 'selected_series_main_story_overviews' | 'selected_series_issue_indexes'; catalogComplete: false;
   license: string; expectedRecords: number; datasetSha256: string;
   sources: SourcePage[]; series: unknown[];
   artworkImported: false; valuationImported: false;
@@ -18,8 +21,9 @@ const hashValid = (value: unknown): value is string => typeof value === 'string'
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 export function validateSeedManifest(value: unknown): GcdSeedManifest {
-  if (!object(value) || value.schemaVersion !== 'gcd-rds-seed/v1' || value.provider !== 'GCD' ||
-      value.scope !== 'selected_series_main_story_overviews' || value.catalogComplete !== false ||
+  const index = object(value) && value.schemaVersion === 'gcd-rds-series-index/v1' && value.scope === 'selected_series_issue_indexes';
+  if (!object(value) || (!index && (value.schemaVersion !== 'gcd-rds-seed/v1' || value.scope !== 'selected_series_main_story_overviews')) || value.provider !== 'GCD' ||
+      value.catalogComplete !== false ||
       value.license !== GCD_LICENSE || value.artworkImported !== false || value.valuationImported !== false ||
       !hashValid(value.datasetSha256) || !Number.isSafeInteger(value.expectedRecords) ||
       Number(value.expectedRecords) < 1 || Number(value.expectedRecords) > 10_000_000 ||
@@ -31,12 +35,21 @@ export function validateSeedManifest(value: unknown): GcdSeedManifest {
     if (!object(source) || typeof source.url !== 'string' || urls.has(source.url) ||
         !Number.isSafeInteger(source.seriesId) || Number(source.seriesId) < 1 ||
         !Number.isSafeInteger(source.page) || Number(source.page) < 1 ||
-        !Number.isSafeInteger(source.rows) || Number(source.rows) < 0 || Number(source.rows) > 50 ||
+        !Number.isSafeInteger(source.rows) || Number(source.rows) < 0 || Number(source.rows) > (index ? 100_000 : 50) ||
         !hashValid(source.responseSha256) || typeof source.fetchedAt !== 'string' ||
         !Number.isFinite(Date.parse(source.fetchedAt)) || Date.parse(source.fetchedAt) > Date.now()) {
       throw new Error('Invalid GCD seed source receipt.');
     }
-    const expected = `${GCD_ORIGIN}/api/series/${source.seriesId}/overview/` + (source.page === 1 ? '' : `?page=${source.page}`);
+    let expected = `${GCD_ORIGIN}/api/series/${source.seriesId}/overview/` + (source.page === 1 ? '' : `?page=${source.page}`);
+    if (index) {
+      expected = `${GCD_ORIGIN}/api/series/${source.seriesId}/`;
+      if (source.queryName !== undefined) {
+        if (typeof source.queryName !== 'string' || source.queryName.length > 160 || !Number.isInteger(source.queryYear) || Number(source.queryYear) < 1800 || Number(source.queryYear) > 9999) throw Error('Invalid GCD index search source.');
+        expected = `${GCD_ORIGIN}/api/series/name/${encodeURIComponent(source.queryName)}/year/${source.queryYear}/`;
+      }
+      if (source.page !== 1 || typeof source.responseFile !== 'string' || !/^gcd-series-sources\/[a-z0-9-]+\.json$/.test(source.responseFile) ||
+          typeof source.publisherFile !== 'string' || !/^gcd-series-sources\/publisher-[1-9]\d*\.json$/.test(source.publisherFile) || !hashValid(source.publisherSha256)) throw Error('Invalid GCD index witness path.');
+    }
     if (source.url !== expected) throw new Error('GCD seed source cannot change provider, path or page.');
     total += Number(source.rows); urls.add(source.url);
   }
@@ -64,7 +77,7 @@ const allowed = new Set(['api_url', 'series', 'series_name', 'publisher_name', '
 export function seedRecord(value: unknown, manifest: GcdSeedManifest) {
   if (!object(value) || Object.keys(value).some(key => !['sourcePage', 'fetchedAt', 'record'].includes(key)) ||
       typeof value.sourcePage !== 'string' || typeof value.fetchedAt !== 'string' || !object(value.record) ||
-      Object.keys(value.record).some(key => !allowed.has(key)) || value.record.variant_of !== null ||
+      Object.keys(value.record).some(key => !allowed.has(key) && !(manifest.schemaVersion === 'gcd-rds-series-index/v1' && key === 'variant_name')) || value.record.variant_of !== null ||
       !Array.isArray(value.record.story_set) || value.record.story_set.length > 1 ||
       Buffer.byteLength(JSON.stringify(value.record)) > 180_000) throw new Error('Unsafe or unsupported GCD overview record.');
   const source = manifest.sources.find(source => source.url === value.sourcePage);
@@ -76,11 +89,16 @@ export function seedRecord(value: unknown, manifest: GcdSeedManifest) {
   const normalized = normalizeGcdIssue(value.record, value.fetchedAt);
   const issue = normalized.issue;
   issue.dataCredit = 'Bibliographic base issue and longest comic story from the Grand Comics Database; selected and formatted by ComicHuddle. Full issue fields and variants are incomplete.';
+  if (manifest.schemaVersion === 'gcd-rds-series-index/v1') {
+    delete issue.bibliography;
+    issue.variant = plainCatalogText(value.record.descriptor, 2000);
+    issue.dataCredit = 'Issue identity and complete edition descriptor from the Grand Comics Database series index; selected and formatted by ComicHuddle. The displayed numeric issue label is extracted from that descriptor. Raw issue numbers and variant relationships require full issue details; dates, stories, credits, artwork and valuations are not inferred.';
+  }
   const metadata = JSON.parse(normalized.rawMetadata) as Record<string, unknown>;
   return {
     id: issue.id, gcd_id: issue.gcdId!, title: issue.title, number: issue.number,
     publisher: issue.publisher, year: issue.year, era: issue.era, kind: issue.kind,
-    search_text: catalogSearchText(issue), data: JSON.stringify(issue), fetched_at: normalized.stamp,
+    search_text: catalogSearchText(issue, manifest.schemaVersion === 'gcd-rds-series-index/v1'), data: JSON.stringify(issue), fetched_at: normalized.stamp,
     raw_metadata: JSON.stringify({ ...metadata, metadataScope: manifest.scope, sourcePage: source.url, responseSha256: source.responseSha256 }),
   };
 }
@@ -89,8 +107,25 @@ type SeedRow = ReturnType<typeof seedRecord>;
 export async function preflightSeed(file: string, manifest: GcdSeedManifest) {
   const digest = createHash('sha256'), bySource = new Map<string, number>(), batchHashes: string[] = [];
   let count = 0, last = 0, batch: SeedRow[] = [];
+  const witnessed = new Map<number, unknown>();
+  if (manifest.schemaVersion === 'gcd-rds-series-index/v1') {
+    for (const source of manifest.sources) {
+      const responseBytes = await readFile(resolve(dirname(file), source.responseFile!));
+      const publisherBytes = await readFile(resolve(dirname(file), source.publisherFile!));
+      if (responseBytes.length > 6_000_000 || publisherBytes.length > 100_000 || sha256(responseBytes) !== source.responseSha256 || sha256(publisherBytes) !== source.publisherSha256) throw Error('GCD source witness failed its recorded checksum.');
+      const index = seriesIndexEnvelopes(JSON.parse(responseBytes.toString('utf8')), source.seriesId, JSON.parse(publisherBytes.toString('utf8')),
+        { url: source.url, fetchedAt: source.fetchedAt, sha256: source.responseSha256, bytes: responseBytes.length, httpStatus: 200 });
+      if (index.records.length !== source.rows) throw Error('GCD source witness does not reconcile with the accepted issue count.');
+      for (const record of index.records) {
+        const id = Number(record.record.api_url.match(/\/([1-9]\d*)\/$/)![1]);
+        if (witnessed.has(id)) throw Error('GCD source witnesses repeat an issue identity.');
+        witnessed.set(id, record);
+      }
+    }
+  }
   for await (const raw of lines(file, bytes => digest.update(bytes))) {
     const row = seedRecord(raw, manifest);
+    if (manifest.schemaVersion === 'gcd-rds-series-index/v1' && JSON.stringify(raw) !== JSON.stringify(witnessed.get(row.gcd_id))) throw Error('GCD index row differs from its actual provider source witness.');
     if (row.gcd_id <= last) throw new Error('GCD seed identities must be unique and ascending.');
     last = row.gcd_id; count++;
     batch.push(row);
@@ -168,7 +203,7 @@ export async function importGcdSeed(pool: Pool, file: string, manifestFile: stri
       WHERE id=$1 AND accepted_records=expected_records RETURNING accepted_records,inserted_records,retained_records,completed_at`, [id]);
     if (!completed.rows[0]) throw new Error('GCD seed did not meet its declared record count.');
     const totals = await client.query('SELECT count(*) AS indexed, count(gcd_id) AS gcd, count(metron_id) AS metron FROM ch_web.catalog_issues');
-    return { importId: id, catalogComplete: false, source: 'Official GCD selected-series main-story overviews',
+    return { importId: id, catalogComplete: false, source: manifest.schemaVersion === 'gcd-rds-series-index/v1' ? 'Official GCD selected-series issue indexes' : 'Official GCD selected-series main-story overviews',
       ...completed.rows[0], ...totals.rows[0], scope: manifest.series };
   } finally {
     if (locked) await client.query("SELECT pg_advisory_unlock(hashtext('comichuddle-gcd-seed'))");

@@ -8,6 +8,48 @@ does not change the stored directory.
 
 ## Current source scope
 
+The second dataset, `db/gcd-series-index-seed.jsonl`, contains **6,635 real
+GCD issue/edition identities** across eight selected US series, captured from
+the official API on October 14, 2026. It contains zero synthetic records.
+Original response bytes and publisher responses are retained in
+`db/gcd-series-sources/`; every checksum, issue ID and descriptor is reconciled
+against these source witnesses before PostgreSQL writes.
+
+| Series | Accepted issue/edition entries |
+| --- | ---: |
+| The Amazing Spider-Man, 1963 | 967 |
+| Batman, 1940 | 1,365 |
+| Spawn, 1992 | 748 |
+| X-Men, 1991 | 306 |
+| Detective Comics, 1937 | 1,413 |
+| Fantastic Four, 1961 | 920 |
+| The Avengers, 1963 | 912 |
+| Hellboy: Seed of Destruction, 1994 | 4 |
+
+Four ambiguous descriptors are excluded and their IDs are recorded in the
+manifest. The published GCD serializer obtains issue URLs and descriptors
+from the same ordered `active_issues()` relation. The complete descriptor is
+retained; the numeric label displayed in ComicHuddle is extracted from it.
+It is not asserted to be the raw GCD `number` field: known provider records
+occasionally embed an edition label inside that field. Variant names and
+relationships are not inferred from brackets. Publication year, individual
+story summaries, creators, prices and covers are not invented. Series notes,
+where provided, are labeled as series context. Existing richer issue records
+are retained unchanged.
+
+All 993 prior overview issue IDs/descriptors were independently reconciled
+with the indexes. This second dataset contributes **5,642 new GCD records**;
+the projected total before cloud execution is **6,826 stored records**,
+including 6,783 GCD entries and 43 independently entered starter records.
+Cloud SQL and the public API establish the actual count after import. These
+are selected series, not the complete GCD database or full field coverage.
+
+`scripts/build-gcd-series-seed.ts` produces the reviewed input from captured
+official responses/HTTP receipts. It performs no provider requests and makes
+no records up. `scripts/seed-real-data.ts` loads both reviewed datasets with
+the existing atomic 100-record batches and durable receipts. Replays neither
+duplicate records nor replace richer metadata with index-only fields.
+
 `db/gcd-overview-seed.jsonl` contains 993 genuine GCD base-issue records captured
 on October 14, 2026 from the official series overview API. The manifest records
 the exact response hashes, capture timestamps, scope and row counts:

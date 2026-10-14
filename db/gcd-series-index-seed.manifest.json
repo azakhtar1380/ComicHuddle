@@ -1,0 +1,207 @@
+{
+  "schemaVersion": "gcd-rds-series-index/v1",
+  "provider": "GCD",
+  "scope": "selected_series_issue_indexes",
+  "catalogComplete": false,
+  "license": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "expectedRecords": 6635,
+  "datasetSha256": "141303e2a2c9edbde0615521001d2cb385c05902d4f724aef0fad29bd6f18d6b",
+  "sources": [
+    {
+      "url": "https://www.comics.org/api/series/1570/",
+      "seriesId": 1570,
+      "page": 1,
+      "rows": 967,
+      "fetchedAt": "2026-10-14T15:46:23.329426+00:00",
+      "responseSha256": "1b09ca07b1869aab47dbddcd26c63cbf3e426e8e059b44f61fb4387f76f405aa",
+      "responseFile": "gcd-series-sources/series-1570.json",
+      "publisherFile": "gcd-series-sources/publisher-78.json",
+      "publisherSha256": "9d9c9ea029b39f4ebfed59741dea476a5ad360bdd42891d4ff86fc1863befa64"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/Batman/year/1940/",
+      "seriesId": 141,
+      "page": 1,
+      "rows": 1365,
+      "fetchedAt": "2026-10-14T15:46:28.618717+00:00",
+      "responseSha256": "22fe46535b988bf768ca68f3542489f43bd481f92141a7199ca0f5db6d5eb40d",
+      "queryName": "Batman",
+      "queryYear": 1940,
+      "responseFile": "gcd-series-sources/batman-1940-search.json",
+      "publisherFile": "gcd-series-sources/publisher-54.json",
+      "publisherSha256": "8d3d95879e968a946a3891b0ebe50c4c018b08eeae841a3d6c993f41b702a8bf"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/Spawn/year/1992/",
+      "seriesId": 4611,
+      "page": 1,
+      "rows": 748,
+      "fetchedAt": "2026-10-14T15:46:40.133385+00:00",
+      "responseSha256": "8527613b52e1d1f06795646d16a7bf95d06bb8b431b5fdddc1b810b341074b7f",
+      "queryName": "Spawn",
+      "queryYear": 1992,
+      "responseFile": "gcd-series-sources/spawn-1992-search.json",
+      "publisherFile": "gcd-series-sources/publisher-709.json",
+      "publisherSha256": "810b42a9156a9c47a13060200143af8051d44fbb7cc975a03d3efbfbff9c87da"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/X-Men/year/1991/",
+      "seriesId": 4254,
+      "page": 1,
+      "rows": 306,
+      "fetchedAt": "2026-10-14T16:38:52.322116+00:00",
+      "responseSha256": "b7dbce74914f134d1232162edd241b8ffdb69f53c5c94d8b95975b6c5fc6ac57",
+      "queryName": "X-Men",
+      "queryYear": 1991,
+      "responseFile": "gcd-series-sources/xmen-1991-search.json",
+      "publisherFile": "gcd-series-sources/publisher-78.json",
+      "publisherSha256": "9d9c9ea029b39f4ebfed59741dea476a5ad360bdd42891d4ff86fc1863befa64"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/Detective%20Comics/year/1937/",
+      "seriesId": 87,
+      "page": 1,
+      "rows": 1413,
+      "fetchedAt": "2026-10-14T16:38:58.595122+00:00",
+      "responseSha256": "3bd5576e903aaa056f2398042d324b8848163835a7273eb8440957cd18672771",
+      "queryName": "Detective Comics",
+      "queryYear": 1937,
+      "responseFile": "gcd-series-sources/detective-1937-search.json",
+      "publisherFile": "gcd-series-sources/publisher-54.json",
+      "publisherSha256": "8d3d95879e968a946a3891b0ebe50c4c018b08eeae841a3d6c993f41b702a8bf"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/Fantastic%20Four/year/1961/",
+      "seriesId": 1482,
+      "page": 1,
+      "rows": 920,
+      "fetchedAt": "2026-10-14T16:44:06.148438+00:00",
+      "responseSha256": "db1a6877209503e1a5b4b0afd6a9d5308a096c6729bf36d98519173e32ae4ca7",
+      "queryName": "Fantastic Four",
+      "queryYear": 1961,
+      "responseFile": "gcd-series-sources/fantastic-four-1961-search.json",
+      "publisherFile": "gcd-series-sources/publisher-78.json",
+      "publisherSha256": "9d9c9ea029b39f4ebfed59741dea476a5ad360bdd42891d4ff86fc1863befa64"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/Avengers/year/1963/",
+      "seriesId": 1571,
+      "page": 1,
+      "rows": 912,
+      "fetchedAt": "2026-10-14T16:44:11.384465+00:00",
+      "responseSha256": "77995db70e1812d1ff81f054390877bc06e2291381d0ebd8ece86cc787d26f08",
+      "queryName": "Avengers",
+      "queryYear": 1963,
+      "responseFile": "gcd-series-sources/avengers-1963-search.json",
+      "publisherFile": "gcd-series-sources/publisher-78.json",
+      "publisherSha256": "9d9c9ea029b39f4ebfed59741dea476a5ad360bdd42891d4ff86fc1863befa64"
+    },
+    {
+      "url": "https://www.comics.org/api/series/name/Hellboy%3A%20Seed%20of%20Destruction/year/1994/",
+      "seriesId": 5109,
+      "page": 1,
+      "rows": 4,
+      "fetchedAt": "2026-10-14T16:49:14.709352+00:00",
+      "responseSha256": "44bcb5a721dcaf95587dc79f450e65f52d25bf10ffc9a70c5dabd2551fd9fddc",
+      "queryName": "Hellboy: Seed of Destruction",
+      "queryYear": 1994,
+      "responseFile": "gcd-series-sources/hellboy-seed-1994-search.json",
+      "publisherFile": "gcd-series-sources/publisher-512.json",
+      "publisherSha256": "e0d9283d895334e730f645edb90a3c8a3de768e7dd14dedfe4b3ffd059bdcfa1"
+    }
+  ],
+  "series": [
+    {
+      "gcdSeriesId": 1570,
+      "title": "The Amazing Spider-Man",
+      "publisher": "Marvel",
+      "providerIssueCount": 967,
+      "acceptedIssueCount": 967,
+      "excludedAmbiguousIds": [],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 141,
+      "title": "Batman",
+      "publisher": "DC",
+      "providerIssueCount": 1367,
+      "acceptedIssueCount": 1365,
+      "excludedAmbiguousIds": [
+        62302,
+        2002586
+      ],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 4611,
+      "title": "Spawn",
+      "publisher": "Image",
+      "providerIssueCount": 748,
+      "acceptedIssueCount": 748,
+      "excludedAmbiguousIds": [],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 4254,
+      "title": "X-Men",
+      "publisher": "Marvel",
+      "providerIssueCount": 306,
+      "acceptedIssueCount": 306,
+      "excludedAmbiguousIds": [],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 87,
+      "title": "Detective Comics",
+      "publisher": "DC",
+      "providerIssueCount": 1415,
+      "acceptedIssueCount": 1413,
+      "excludedAmbiguousIds": [
+        62269,
+        1201217
+      ],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 1482,
+      "title": "Fantastic Four",
+      "publisher": "Marvel",
+      "providerIssueCount": 920,
+      "acceptedIssueCount": 920,
+      "excludedAmbiguousIds": [],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 1571,
+      "title": "The Avengers",
+      "publisher": "Marvel",
+      "providerIssueCount": 912,
+      "acceptedIssueCount": 912,
+      "excludedAmbiguousIds": [],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    },
+    {
+      "gcdSeriesId": 5109,
+      "title": "Hellboy: Seed of Destruction",
+      "publisher": "Dark Horse",
+      "providerIssueCount": 4,
+      "acceptedIssueCount": 4,
+      "excludedAmbiguousIds": [],
+      "metadataLevel": "SERIES_ISSUE_INDEX",
+      "fullIssueDetails": false
+    }
+  ],
+  "artworkImported": false,
+  "valuationImported": false,
+  "syntheticRecords": 0,
+  "attribution": "Grand Comics Database. Actual issue IDs and descriptors selected/formatted by ComicHuddle under CC BY-SA 4.0.",
+  "serializerSource": "https://github.com/GrandComicsDatabase/gcd-django/blob/beta/apps/api/serializers.py",
+  "fieldCoverage": "Series, publisher, issue identity and edition descriptor only. Individual publication dates, credits, story descriptions, artwork and valuations are not inferred."
+}
