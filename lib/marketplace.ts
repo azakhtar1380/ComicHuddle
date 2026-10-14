@@ -69,8 +69,8 @@ export function listingItems(row:ListingRow):ListingItem[]{
 export function listingValuation(items:ListingItem[],values:Map<string,MarketRow|null>,stamp=Date.now()):ListingValuation{
  let knownTotal=0,pricedCount=0,asOf:string|null=null;const sources=new Set<string>();
  for(const item of items){
-  if(!linkedCatalogIssue(item)||item.catalogId===undefined||!item.condition)continue;
-  const row=values.get(marketKey({issueId:item.catalogId,...item.condition}));
+  const directoryId=listingDirectoryId(item);if(directoryId===null||!item.condition||(!item.externalCatalog&&!linkedCatalogIssue(item)))continue;
+  const row=values.get(marketKey({issueId:directoryId,...item.condition}));
   if(!row||!row.licenseReference||!Number.isFinite(Date.parse(row.rightsExpiresAt))||Date.parse(row.rightsExpiresAt)<=stamp||!freshValue(row.updatedAt)||!Number.isFinite(row.fmv)||row.fmv<=0)continue;
   const amount=Math.round(row.fmv*100);if(!Number.isSafeInteger(amount)||amount<=0)continue;
   knownTotal+=amount;pricedCount++;sources.add(row.sourceName);if(!asOf||row.updatedAt<asOf)asOf=row.updatedAt;
@@ -88,10 +88,12 @@ export function auctionView(row:ListingRow,viewerId?:string,ownBid?:Bid,stamp=Da
 export type ListingContext={values:Map<string,MarketRow|null>;ownBids:Map<string,Bid>;stamp:number};
 export async function listingContext(db:Db,rows:ListingRow[],viewerId?:string):Promise<ListingContext>{
  const stamp=Date.now(),values=new Map<string,MarketRow|null>(),ownBids=new Map<string,Bid>();
- const issueIds=[...new Set(rows.flatMap(row=>listingItems(row).flatMap(item=>item.catalogId===undefined?[]:[item.catalogId])))];
+ const issueIds=[...new Set(rows.flatMap(row=>listingItems(row).flatMap(item=>{const id=listingDirectoryId(item);return id===null?[]:[id]})))];
  for(const batch of chunks(issueIds)){
   const candidates=await db.select().from(marketValues).where(and(inArray(marketValues.issueId,batch),gt(marketValues.rightsExpiresAt,new Date(stamp).toISOString()),gte(marketValues.updatedAt,new Date(stamp-30*86400000).toISOString()),lte(marketValues.updatedAt,new Date(stamp).toISOString())));
   for(const row of candidates){const key=marketKey(row);values.set(key,values.has(key)?null:row)}
+  const sourced=await db.execute(sql`SELECT issue_id,mode,grade,label,printing,fmv_price,low_price,high_price,sample_size,window_days,last_updated,source_name,source_url,valid_until FROM gcd.fmv_records WHERE issue_id IN (${sql.join(batch.map(id=>sql`${id}`),sql`, `)}) AND valid_until>now()`);
+  for(const record of sourced.rows){const row:MarketRow={id:[record.issue_id,record.mode,record.grade,record.label,record.printing].join('|'),issueId:Number(record.issue_id),mode:String(record.mode),grade:String(record.grade),label:String(record.label),printing:String(record.printing),fmv:Number(record.fmv_price),low:Number(record.low_price),high:Number(record.high_price),sales:Number(record.sample_size),windowDays:Number(record.window_days),updatedAt:new Date(String(record.last_updated)).toISOString(),sourceName:String(record.source_name),sourceUrl:String(record.source_url),licenseReference:'Verified completed comps; each source carries active redistribution provenance',rightsExpiresAt:new Date(String(record.valid_until)).toISOString(),importedAt:new Date(String(record.last_updated)).toISOString()};values.set(marketKey(row),row)}
  }
  if(viewerId){for(const batch of chunks(rows.filter(row=>row.saleType==='auction').map(row=>row.id))){
   const own=await db.select().from(auctionBids).where(inArray(auctionBids.id,db.select({id:sql<string>`(SELECT own.id FROM auction_bids own WHERE own.listing_id = ${sql.raw('listings.id')} AND own.bidder_id = ${viewerId} AND own.status IN ('leading','outbid') ORDER BY own.sequence DESC LIMIT 1)`}).from(listings).where(inArray(listings.id,batch))));
@@ -164,8 +166,9 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  const copies=selected.map(id=>owned.get(id)!),items=copies.map(copy=>snapshot(copy,value.conditions[copy.id]));
  const externalIds=[...new Set(copies.flatMap(copy=>{const id=copy.externalCatalog?listingDirectoryId(copy):null;return id===null?[]:[id]}))],externalRows=new Map<number,{id:number;metronId:number|null;gcdId:number|null;title:string;number:string}>();
  for(const batch of chunks(externalIds)){const rows=await db.select({id:directoryIssues.id,metronId:directoryIssues.metronId,gcdId:directoryIssues.gcdId,title:directoryIssues.title,number:directoryIssues.number}).from(directoryIssues).where(inArray(directoryIssues.id,batch));for(const row of rows)externalRows.set(row.id,row)}
+ const legacyAliases=new Map<number,string>();for(const batch of chunks(externalIds)){const aliases=await db.execute(sql`SELECT id,title FROM ch_web.catalog_issues WHERE id IN (${sql.join(batch.map(id=>sql`${id}`),sql`, `)})`);for(const alias of aliases.rows)legacyAliases.set(Number(alias.id),String(alias.title))}
  const numberKey=(value:string)=>value.trim().replace(/^#\s*/,'').replace(/\s/g,'').toLowerCase();
- for(const copy of copies){if(!copy.externalCatalog)continue;const directoryId=listingDirectoryId(copy),record=directoryId===null?undefined:externalRows.get(directoryId),providerMatches=record&&(copy.externalCatalog.provider==='Metron'?record.metronId===copy.externalCatalog.id&&record.gcdId===null:record.gcdId===copy.externalCatalog.id&&record.metronId===null);if(!record||!providerMatches||normalize(record.title)!==normalize(copy.title)||numberKey(record.number)!==numberKey(copy.issue))throw new ApiRequestError('Correct the linked directory edition for each selected comic, or save it as an unlinked personal record before listing.',400)}
+ for(const copy of copies){if(!copy.externalCatalog)continue;const directoryId=listingDirectoryId(copy),record=directoryId===null?undefined:externalRows.get(directoryId),providerMatches=record&&(copy.externalCatalog.provider==='Metron'?record.metronId===copy.externalCatalog.id&&record.gcdId===null:record.gcdId===copy.externalCatalog.id&&record.metronId===null);if(!record||!providerMatches||(normalize(record.title)!==normalize(copy.title)&&normalize(legacyAliases.get(directoryId!)||'')!==normalize(copy.title))||numberKey(record.number)!==numberKey(copy.issue))throw new ApiRequestError('Correct the linked directory edition for each selected comic, or save it as an unlinked personal record before listing.',400)}
  const externalSnapshot=JSON.stringify([...externalRows.values()]);
  if(copies.some(copy=>copy.catalogId!==undefined&&!linkedCatalogIssue(copy)))throw new ApiRequestError('Correct the directory issue for each selected comic before publishing, or unlink it as a personal record.',400);
  await ownPhotos(db,me.userId,[...value.photos,...items.flatMap(item=>item.photoId?[item.photoId]:[])]);

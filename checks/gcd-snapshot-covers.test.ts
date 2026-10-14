@@ -1,3 +1,4 @@
+import {nativeGcdFixture} from './native-gcd-fixture';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
@@ -15,8 +16,8 @@ import { GET as weeklyGet } from '../app/api/cron/new-releases/route';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 async function engine() {
-  const database = new PGlite(); await database.exec('CREATE SCHEMA ch_web;');
-  for (const name of ['001_original_comichuddle.sql','002_runtime.sql','003_catalog_ingestion.sql','004_catalog_cover_references.sql','005_gcd_snapshot_import.sql']) {
+  const database = new PGlite();await nativeGcdFixture(database); await database.exec('CREATE SCHEMA ch_web;');
+  for (const name of ['001_original_comichuddle.sql','002_runtime.sql','003_catalog_ingestion.sql','004_catalog_cover_references.sql','005_gcd_snapshot_import.sql','010_native_gcd_directory.sql','013_native_directory_join.sql']) {
     await database.exec(await readFile('db/postgres-migrations/' + name,'utf8'));
   }
   await database.exec('SET search_path TO ch_web,public;');
