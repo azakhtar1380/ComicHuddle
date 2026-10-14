@@ -92,24 +92,23 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
 
 // A bounded publisher > series tree. Never download the entire catalog to a browser.
 export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q:string;limit:number;offset:number}){
- const readCatalog=await readableCatalog(db);
- const [stored]=await db.select({n:sql<number>`count(*)`}).from(readCatalog);
- if(!Number(stored?.n)){
-  const byTitle=new Map<string,{title:string;publisher:string;count:number;firstYear:number;lastYear:number}>();
-  for(const issue of catalog){
-   if(issue.publisher!==filter.publisher||!issue.title.toLowerCase().includes(filter.q.toLowerCase()))continue;
-   const previous=byTitle.get(issue.title);
-   if(previous){previous.count++;previous.firstYear=Math.min(previous.firstYear,issue.year);previous.lastYear=Math.max(previous.lastYear,issue.year);}
-   else byTitle.set(issue.title,{title:issue.title,publisher:issue.publisher,count:1,firstYear:issue.year,lastYear:issue.year});
-  }
-  const series=[...byTitle.values()].sort((a,b)=>a.title.localeCompare(b.title));
-  return {series:series.slice(filter.offset,filter.offset+filter.limit),total:series.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<series.length};
- }
- const where=and(eq(readCatalog.publisher,filter.publisher),filter.q?ilike(readCatalog.title,'%'+filter.q+'%'):undefined);
- const [total]=await db.select({n:sql<number>`count(distinct ${readCatalog.title})`}).from(readCatalog).where(where);
- const series=await db.select({title:readCatalog.title,publisher:readCatalog.publisher,count:sql<number>`count(*)`,firstYear:sql<number>`min(${readCatalog.year})`,lastYear:sql<number>`max(${readCatalog.year})`}).from(readCatalog).where(where).groupBy(readCatalog.title,readCatalog.publisher).orderBy(asc(readCatalog.title)).limit(filter.limit).offset(filter.offset);
- return {series,total:Number(total?.n||0),limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<Number(total?.n||0)};
+ const rows=await db.execute(sql`WITH native_series AS (
+  SELECT s.name AS title,p.name AS publisher,
+   CASE WHEN COALESCE(to_jsonb(s)->>'issue_count','') ~ '^[0-9]+$' THEN (to_jsonb(s)->>'issue_count')::bigint ELSE 0 END AS count,
+   CASE WHEN COALESCE(to_jsonb(s)->>'year_began','') ~ '^[0-9]{4}$' THEN (to_jsonb(s)->>'year_began')::integer ELSE 0 END AS first_year,
+   CASE WHEN COALESCE(to_jsonb(s)->>'year_ended','') ~ '^[0-9]{4}$' THEN (to_jsonb(s)->>'year_ended')::integer ELSE 0 END AS last_year
+  FROM gcd.gcd_series s JOIN gcd.gcd_publisher p ON p.id=s.publisher_id WHERE COALESCE(s.deleted,0)=0
+ ), retained AS (
+  SELECT c.title,c.publisher,count(*)::bigint AS count,min(c.year)::integer AS first_year,max(c.year)::integer AS last_year
+  FROM ch_web.catalog_issues c WHERE c.publisher=${filter.publisher} AND NOT EXISTS(SELECT 1 FROM native_series n WHERE n.title=c.title AND n.publisher=c.publisher)
+  GROUP BY c.title,c.publisher
+ ), available AS(SELECT * FROM native_series UNION ALL SELECT * FROM retained)
+ SELECT title,publisher,count,first_year,last_year,count(*) OVER()::bigint AS total
+ FROM available WHERE publisher=${filter.publisher} AND title ILIKE ${'%'+filter.q+'%'} ORDER BY title LIMIT ${filter.limit} OFFSET ${filter.offset}`);
+ const series=rows.rows.map(row=>({title:String(row.title),publisher:String(row.publisher),count:Number(row.count),firstYear:Number(row.first_year),lastYear:Number(row.last_year)}));
+ return {series,total:Number(rows.rows[0]?.total||0),limit:filter.limit,offset:filter.offset,hasMore:filter.offset+series.length<Number(rows.rows[0]?.total||0)};
 }
+
 export function seedStarterStatements(db:CatalogDb,stamp:string){
  return catalog.map(issue=>db.insert(catalogIssues).values({id:issue.id,title:issue.title,number:issue.number,publisher:issue.publisher,year:issue.year,era:issue.era,kind:issue.kind,searchText:catalogSearchText(issue),data:JSON.stringify(issue),fetchedAt:stamp}).onConflictDoNothing());
 }
