@@ -34,4 +34,4 @@ export async function importSoldComps(db:CatalogDb,comps:SoldComp[],rightsRefere
  }
  return {accepted:comps.length,updated,method:'ROLLING_MEDIAN_IQR',minSamples:3};
 }
-export function ebaySoldSearch(title:string,number:string){return 'https://www.ebay.com/sch/i.html?'+new URLSearchParams({_nkw:`${title} ${number} comic`,LH_Complete:'1',LH_Sold:'1'}).toString()}
+export {ebaySoldSearch} from './sold-search-links';
