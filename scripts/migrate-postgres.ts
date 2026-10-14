@@ -11,6 +11,7 @@ import type { Issue } from '../lib/catalog';
 
 const pool = getPool(), client = await pool.connect();
 try {
+  await client.query("SET statement_timeout='120s'; SET lock_timeout='30s'");
   await client.query("SELECT pg_advisory_lock(hashtext('comichuddle-original-migration'))");
   await client.query('CREATE SCHEMA IF NOT EXISTS ch_web');
   await client.query('CREATE TABLE IF NOT EXISTS ch_web.schema_migrations (name text PRIMARY KEY, sha256 text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
@@ -22,6 +23,7 @@ try {
     if (applied.rows[0]) { if (applied.rows[0].sha256 !== hash) throw Error('Applied database migration was modified.'); continue; }
     await client.query('BEGIN');
     try {
+      console.log('Applying PostgreSQL migration: '+name);
       await client.query(source);
       await client.query('INSERT INTO ch_web.schema_migrations(name,sha256) VALUES ($1,$2)', [name, hash]);
       await client.query('COMMIT');

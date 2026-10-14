@@ -14,6 +14,8 @@ if (process.env.COMICHUDDLE_INSPECT_GCD === 'true') {
 if (process.env.MIGRATE_ON_BUILD === 'true' && (!process.env.VERCEL || process.env.VERCEL_ENV === 'production')) {
   const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/migrate-postgres.ts'], { stdio: 'inherit' });
   if (result.status !== 0) throw new Error('ComicHuddle database migration failed.');
+  const indexes = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/ensure-gcd-indexes.ts'], { stdio: 'inherit' });
+  if (indexes.status !== 0) throw new Error('Concurrent GCD index setup failed; existing records retained.');
   const qa = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/isolate-interrupted-qa.ts'], { stdio: 'inherit' });
   if (qa.status !== 0) throw new Error('Interrupted ComicHuddle QA profile isolation failed.');
   const seed = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/seed-real-data.ts'], { stdio: 'inherit' });

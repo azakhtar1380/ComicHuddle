@@ -7,11 +7,6 @@ BEGIN
   RAISE EXCEPTION 'Native GCD issue, series and publisher tables must be loaded before this migration';
  END IF;
 END $migration$;
-CREATE INDEX IF NOT EXISTS comichuddle_gcd_issue_id ON gcd.gcd_issue(id);
-CREATE INDEX IF NOT EXISTS comichuddle_gcd_issue_series_number ON gcd.gcd_issue(series_id,number,id);
-CREATE INDEX IF NOT EXISTS comichuddle_gcd_series_id ON gcd.gcd_series(id);
-CREATE INDEX IF NOT EXISTS comichuddle_gcd_series_publisher ON gcd.gcd_series(publisher_id,id);
-CREATE INDEX IF NOT EXISTS comichuddle_gcd_publisher_id ON gcd.gcd_publisher(id);
 -- Explicit operator-sourced cover references. A metadata dump without gcd_cover
 -- does not contain artwork or sufficient information to invent a cover URL.
 CREATE OR REPLACE VIEW gcd.comichuddle_cover_references AS
