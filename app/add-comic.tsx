@@ -8,26 +8,30 @@ import {issueIdentity,listingDirectoryId} from '../lib/shared-catalog';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import {collectionGrade,ownershipFromForm,rawConditions,collectionGrades,slabLabels} from '../lib/collection-entry';
 
-type Props={vault:Vault;commit:(vault:Vault)=>Promise<boolean>;saving:boolean;onSaved:()=>void};
+type Props={vault:Vault;commit:(vault:Vault)=>Promise<boolean>;saving:boolean;onSaved:()=>void;allowMultiple?:boolean};
 function EntryMode({manual,setManual,disabled}:{manual:boolean;setManual:(value:boolean)=>void;disabled:boolean}){
  return <div className="comic-entry-mode" role="group" aria-label="Comic entry method"><button type="button" aria-pressed={!manual} disabled={disabled} className={!manual?'selected':''} onClick={()=>setManual(false)}><Search size={15}/> Find in directory</button><button type="button" aria-pressed={manual} disabled={disabled} className={manual?'selected':''} onClick={()=>setManual(true)}><BookOpen size={15}/> Unlisted comic</button></div>;
 }
 function ManualFields({title='',issue=''}:{title?:string;issue?:string}){return <div className="manual-comic-fields"><p className="picker-manual-note">A personal record. You can link the exact directory issue later; no FMV match is inferred.</p><label>Series title<input name="title" defaultValue={title} placeholder="e.g. Amazing Spider-Man" maxLength={160} required/></label><label>Issue / edition<input name="issue" defaultValue={issue} placeholder="e.g. #300 · second printing" maxLength={40} required/></label></div>}
 
-export default function AddComicForm({vault,commit,saving,onSaved}:Props){
+export default function AddComicForm({vault,commit,saving,onSaved,allowMultiple=false}:Props){
  const [selected,setSelected]=useState<Issue|null>(null),[manual,setManual]=useState(false),[error,setError]=useState('');
+ const copyId=useRef<string|null>(null),[savedCount,setSavedCount]=useState(0);
  return <div className="form-dialog collection-comic-form"><div className="eyebrow">YOUR PERSONAL LONGBOX</div><h2>ADD YOUR<br/><span>NEXT CHAPTER.</span></h2><form onSubmit={async event=>{
   event.preventDefault();setError('');if(!manual&&!selected){setError('Choose an issue from the directory, or select Unlisted comic.');return}
-  const data=new FormData(event.currentTarget),id=crypto.randomUUID();
+  const form=event.currentTarget,data=new FormData(form),id=copyId.current||crypto.randomUUID();copyId.current=id;
+  const keepAdding=allowMultiple&&(event.nativeEvent as SubmitEvent|undefined)?.submitter?.getAttribute('value')==='another';
   const copy={id,title:manual?String(data.get('title')).trim():selected!.title,issue:manual?String(data.get('issue')).trim():'#'+selected!.number,grade:String(data.get('grade')||'').trim(),price:Number(data.get('price')),...(!manual?issueIdentity(selected!):{})};
-  if(await commit({...vault,books:[...vault.books,copy],tradeBookIds:data.get('trade')?[...vault.tradeBookIds,id]:vault.tradeBookIds}))onSaved();
+  const books=vault.books.some(book=>book.id===id)?vault.books.map(book=>book.id===id?copy:book):[...vault.books,copy];
+  if(await commit({...vault,books,tradeBookIds:data.get('trade')?[...new Set([...vault.tradeBookIds,id])]:vault.tradeBookIds})){copyId.current=null;if(keepAdding){setSavedCount(count=>count+1);setSelected(null);setError('');form.reset()}else onSaved()}
  }}><fieldset className="comic-form-fields" disabled={saving}>
   <EntryMode manual={manual} disabled={saving} setManual={value=>{setManual(value);setSelected(null);setError('')}}/>
   {manual?<ManualFields/>:<ComicPicker value={selected} disabled={saving} onChange={issue=>{setSelected(issue);setError('')}}/>}
   <label>Condition / grading<input name="grade" placeholder="e.g. Raw VF or CGC 9.8 Universal" maxLength={80}/></label>
   <label>Your own estimated value (USD)<input name="price" type="number" min="0" max="10000000" step="0.01" defaultValue="0" required/></label>
   <label className="check-label"><input type="checkbox" name="trade" disabled={saving}/> I would consider trading this comic</label><p className="data-caption">Your estimate is private and is not used as FMV. Each saved entry represents one physical copy.</p>
-  {error&&<p className="comic-entry-error" role="alert">{error}</p>}<button className="button red" disabled={saving||!manual&&!selected}>Save to my collection <Check size={16}/></button>
+  {savedCount>0&&<p role="status" className="comic-entry-success">{savedCount} comic{savedCount===1?'':'s'} saved. Add the next issue, or return to your listing.</p>}
+  {error&&<p className="comic-entry-error" role="alert">{error}</p>}<div className="comic-save-actions"><button className="button red" disabled={saving||!manual&&!selected}>{allowMultiple?'Save & return to listing':'Save to my collection'} <Check size={16}/></button>{allowMultiple&&<button type="submit" value="another" className="button outline" disabled={saving||!manual&&!selected}>Save & add another</button>}</div>
  </fieldset></form></div>;
 }
 

@@ -102,6 +102,15 @@ try:
         'wants': [], 'posts': [], 'likes': [], 'tradeBookIds': [], 'clubs': [], 'watchlist': [], 'tradeDrafts': []}
     response = call(seller, 'POST', '/api/vault', vault, headers={'If-Match': existing.headers['ETag']})
     check('live collection persists with optimistic version control', response.status_code == 200)
+    revision = response.headers.get('X-ComicHuddle-Vault-Version')
+    check('application collection revision survives HTTP compression', bool(revision) and revision == response.headers['ETag'].removeprefix('W/'))
+    stale = call(seller, 'POST', '/api/vault', vault,
+                 headers={'If-Match': existing.headers['ETag']})
+    check('stale collection writes are rejected without overwriting owned copies', stale.status_code == 409)
+    refreshed = call(seller, 'GET', '/api/vault')
+    weak_retry = call(seller, 'POST', '/api/vault', vault,
+                      headers={'If-Match': 'W/' + refreshed.headers['X-ComicHuddle-Vault-Version']})
+    check('a weak proxy ETag can retry successfully after reconnecting', weak_retry.status_code == 200)
     check('cross-account collection reads remain isolated', call(buyer, 'GET', '/api/vault').json() is None)
     stage = 'listing creation'
     fixture = {'action': 'listing', 'description': 'TEMPORARY QA FIXTURE. Not an actual comic offering. No payment will be accepted.',

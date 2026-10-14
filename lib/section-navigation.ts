@@ -6,7 +6,7 @@ export function resolveSection(value:string|null):string|null{
  if(value==='FMV'||value==='Community'||value==='GrailMatch')return 'Upcoming';
  if(value==='My Profile'||value==='Collectors')return 'Collectors';
  if(value==='Comic Workshop'||value==='Pressing')return 'Pressing';
- return value&&(activeNavigation.includes(value)||value==='Messages'||value==='Account')?value:null;
+ return value&&(activeNavigation.includes(value)||value==='Messages'||value==='Orders'||value==='Account')?value:null;
 }
 export function publicSection(value:string):string{
  const section=resolveSection(value);

@@ -44,7 +44,9 @@ await report.test('Actual grid returns only compact local cards with exact full 
   assert.equal(f.calls.requests.length,1);
   for(const node of cards(f)){
     const c=cardFixture(node.props.issue,node.props.onOpen);await c.flush();
-    assert.equal(normalized(c.snapshot()),node.props.issue.title+' #'+node.props.issue.number+node.props.issue.publisher+'More info');
+    const label=node.props.issue.title+' #'+node.props.issue.number+node.props.issue.publisher+'More info';
+    assert.ok(normalized(c.snapshot()).endsWith(label));
+    if(node.props.issue.cover)assert.match(c.snapshot(),/Cover: Wikimedia Commons · US public domain/);
     assert.equal(c.nodes().filter(child=>child.type==='button').length,1);
     assert.equal(c.nodes().some(child=>['a','input','select','form','dialog'].includes(child.type)),false);
     assert.equal(c.find(child=>child.type==='button').props['aria-haspopup'],'dialog');

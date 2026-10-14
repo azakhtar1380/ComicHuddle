@@ -52,7 +52,7 @@ function fixture(){
   function cardProps(){
     const jsx=(type,props,key)=>({type,props:{...props,key}});
     Object.assign(context,{exports:{},require:specifier=>{assert.equal(specifier,'react/jsx-runtime');return {jsx,jsxs:jsx,Fragment:'fragment'};},
-      ComicProductCard:'actual-product-card',ArchiveCard:'actual-archive-card',Bookmark:'Bookmark'});
+      ComicProductCard:'actual-product-card',ArchiveCard:'actual-archive-card',ComicCover:'actual-comic-cover',Bookmark:'Bookmark'});
     vm.runInContext('(function(){'+compile('globalThis.current='+current.initializer.getText(ast)+';globalThis.detailCard='+card.getText(ast)+';',true)+'})()',context);
     return context.detailCard.props;
   }
@@ -82,8 +82,15 @@ await report.test('Reversed GCD detail completion cannot replace the newer selec
   await f.respond(page(full(50)),0);assert.equal(f.context.detail,4000000051);assert.equal(f.context.sharedDetail.gcdId,51);assert.equal(f.context.detailState,'');
   assert.equal(f.context.directoryRecords.current.get(4000000050).bibliography,undefined,'Obsolete detail response upgraded a superseded record');
 });
-await report.test('Failed, wrong-ID, missing and malformed bibliography responses retain the clicked issue and an actionable retry',async()=>{
-  const invalid=[{body:{error:'Provider unavailable'},ok:false},{body:page(full(51)),ok:true},{body:page(summary(50)),ok:true},
+await report.test('Index-only records show available metadata without falsely reporting a loading failure',async()=>{
+  const f=fixture();f.open(summary(50));await f.respond(page(summary(50)));
+  assert.equal(f.context.detail,4000000050);assert.match(f.context.detailState,/Basic catalog record/);
+  assert.ok(!f.context.detailState.includes('could not'));
+  const c=createScannerFixture({componentFile:'architecture/postgres/ui/ComicProductCard.tsx',props:f.cardProps()});await c.flush();
+  assert.ok(!c.snapshot().includes('Retry details'));assert.match(c.snapshot(),/not been imported/);c.unmount();
+});
+await report.test('Failed, wrong-ID and malformed bibliography responses retain the clicked issue and an actionable retry',async()=>{
+  const invalid=[{body:{error:'Provider unavailable'},ok:false},{body:page(full(51)),ok:true},
     {body:page({...full(50),bibliography:{...bibliography,originalCoverPrice:{kind:'FMV',text:'9999 USD'}}}),ok:true}];
   for(const response of invalid){
     const f=fixture();f.open(summary(50));await f.respond(response.body,0,response.ok);

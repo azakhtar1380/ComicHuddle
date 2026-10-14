@@ -1,0 +1,44 @@
+/* Shared corrections stay scoped to the existing ComicHuddle theme. */
+.comic-image{height:100%;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.comic-image>img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 3px 8px #20201f20}
+.comic-image-missing{display:flex;height:100%;width:100%;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#928c7f}
+.comic-image-missing small{font-family:'DM Sans',Arial,sans-serif;font-size:11px;letter-spacing:0;text-transform:none}
+body .site-header{gap:22px;padding-inline:clamp(16px,3vw,48px)}
+body .site-header nav{flex:1;justify-content:space-evenly;gap:clamp(12px,1.5vw,28px)}
+body .site-header nav>button{font-size:13px;min-height:44px;padding:8px 5px;white-space:nowrap}
+body .site-header .brand{margin-right:4px}
+body .site-header .header-inbox,body .site-header .account-button{flex-shrink:0}
+.orders-page{padding-block:32px;min-width:0}
+.orders-page>.section-head{margin-bottom:24px}
+.orders-page h1{font-size:42px;line-height:1.05;margin:8px 0 0}
+.collection-reconnect{background:#f4cc62;color:#202631;border:0;border-radius:6px;padding:10px 14px;font-size:12px;font-weight:700}
+.comic-save-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.comic-entry-success{font-size:12px;color:#24654e;background:#e7f0e7;padding:10px;border-radius:6px}
+body footer{padding-top:28px;padding-bottom:30px;margin-top:24px}
+body .footer-top{display:grid;grid-template-columns:230px minmax(0,1fr);align-items:center;gap:28px}
+body .footer-top .brand{width:90px;height:76px;margin:0}
+body .footer-top .brand-artwork{width:90px;max-height:76px;object-fit:contain}
+body .footer-top p{font-size:11px;line-height:1.6;margin-top:8px}
+body .footer-top>div:last-child{display:flex;justify-content:flex-start;flex-wrap:wrap;gap:10px;max-width:none}
+body .footer-top button:not(.brand){font-size:12px;min-height:40px;padding:8px 12px;border-radius:6px;background:#e9e3d4}
+body .footer-bottom{margin-top:24px;padding-top:18px;font-size:10px;color:#746e61}
+body .footer-bottom button{font-size:10px}
+body .operator-line,body .directory-attribution{font-size:10px;line-height:1.7;color:#746e61;max-width:100%;margin-block:10px 0}
+.platform-v2 .v2-card{min-width:0;overflow:hidden;border:1px solid #ded8cd;border-radius:12px;background:#fffdf8;box-shadow:0 2px 3px #20201f08}
+.platform-v2 .v2-card-open{display:flex;flex-direction:column;text-align:left;width:100%;padding:0;background:transparent;border:0;color:var(--ink)}
+.platform-v2 .v2-card-art{display:flex;align-items:center;justify-content:center;width:100%;height:220px;padding:14px;background:#eee9dd;overflow:hidden}
+.platform-v2 .v2-card-art>img{display:block;object-fit:contain;max-height:100%;max-width:100%;width:auto;height:auto;box-shadow:0 3px 8px #20201f20}
+.platform-v2 .v2-card-copy{display:flex;flex-direction:column;width:100%;padding:14px;gap:7px;min-width:0}
+.platform-v2 .v2-card-copy>strong{font-family:'Barlow Condensed',Impact,sans-serif;font-size:22px;line-height:1.15;font-weight:800;overflow-wrap:anywhere}
+.platform-v2 .v2-card-copy>strong>span{color:var(--red)}
+.platform-v2 .v2-card-copy>small{font-size:11px;color:#746e61;line-height:1.4}
+.platform-v2 .v2-more-info{display:flex;align-items:center;gap:4px;min-height:24px;margin-top:3px;color:#345a6a;font-size:11px;font-weight:700}
+.platform-v2 .v2-feed-tabs{gap:10px;margin-block:18px 22px}
+.platform-v2 .v2-feed-tabs>button{padding:11px 18px;min-height:44px;font-size:12px;white-space:nowrap}
+.platform-v2 .v2-workshop-cta{padding:24px;gap:24px;align-items:center;min-height:110px}
+.platform-v2 .v2-workshop-cta>div{min-width:0}
+.platform-v2 .v2-workshop-cta p{font-size:13px;line-height:1.6}
+.platform-v2 .v2-workshop-action{display:flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:12px 20px;background:#e0ece7;color:#245945;border:0;border-radius:10px;font-size:13px;font-weight:700}
+@media(min-width:901px) and (max-width:1120px){body .site-header{gap:12px;padding-inline:20px}body .site-header nav{gap:8px}body .site-header nav>button{font-size:11px;padding-inline:3px}}
+@media(max-width:900px){body .site-header{gap:12px;padding-inline:20px}body .site-header .account-button{margin-left:auto}body .footer-top{grid-template-columns:1fr}body .footer-top>div:last-child{display:none}}
+@media(max-width:600px){body .site-header{gap:8px;padding-inline:12px}.platform-v2 .v2-card-art{height:195px;padding:12px}.platform-v2 .v2-card-copy{padding:12px;gap:6px}.platform-v2 .v2-card-copy>strong{font-size:19px}.platform-v2 .v2-workshop-cta{align-items:stretch;gap:18px;padding:20px}.platform-v2 .v2-workshop-action{width:100%}.orders-page h1{font-size:32px}body .footer-bottom{gap:12px}}

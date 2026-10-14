@@ -39,7 +39,7 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  if(filter.kind)terms.push(eq(catalogIssues.kind,filter.kind));
  const where=terms.length?and(...terms):undefined;
  const [count]=await db.select({n:sql<number>`count(*)`}).from(catalogIssues).where(where);
- const coverRank=sql`CASE WHEN EXISTS (SELECT 1 FROM ${catalogCoverReferences} WHERE ${catalogCoverReferences.issueId}=${catalogIssues.id} AND ${catalogCoverReferences.status}='active') THEN 0 WHEN (${catalogIssues.data}::jsonb->>'cover') IS NOT NULL THEN 1 ELSE 2 END`;
+ const coverRank=sql`CASE WHEN (${catalogIssues.data}::jsonb->>'cover') LIKE '/covers/%' THEN 0 WHEN EXISTS (SELECT 1 FROM ${catalogCoverReferences} WHERE ${catalogCoverReferences.issueId}=${catalogIssues.id} AND ${catalogCoverReferences.status}='active') THEN 1 WHEN (${catalogIssues.data}::jsonb->>'cover') IS NOT NULL THEN 1 ELSE 2 END`;
  const order=filter.sort==='title'?[asc(catalogIssues.title),asc(catalogIssues.id)]:filter.sort==='oldest'?[asc(catalogIssues.year),asc(catalogIssues.id)]:filter.sort==='newest'?[desc(catalogIssues.year),asc(catalogIssues.id)]:[asc(coverRank),asc(catalogIssues.id)];
  if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
  const rows=await db.select({data:catalogIssues.data}).from(catalogIssues).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);

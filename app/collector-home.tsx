@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import Homepage from '../architecture/platform-v2/ui/Homepage';
 import type {ComicCardRecord,HomeFeed} from '../architecture/platform-v2/ui/types';
-import type {Issue} from '../lib/catalog';
+import {catalog,type Issue} from '../lib/catalog';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import './platform-v2.css';
 
@@ -18,8 +18,8 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
  const [feed,setFeed]=useState<HomeFeed>(emptyFeed),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const reload=useCallback(async(signal:AbortSignal)=>{
   setLoading(true);setError('');
-  try{const response=await fetch('/api/catalog?limit=10&offset=0&sort=featured',{signal});if(!response.ok)throw Error();
-   const page=parseCatalogSearchPage(await response.json());if(!signal.aborted)setFeed({...emptyFeed,items:page.issues.map(homeComic),indexedCount:page.issueCount,asOf:new Date().toISOString()});
+  try{const response=await fetch('/api/catalog?'+new URLSearchParams({ids:[...catalog.filter(issue=>issue.cover?.startsWith('/covers/')).map(issue=>issue.id),0,3,7,10].join(',')}),{signal,cache:'no-store'});if(!response.ok)throw Error();
+   const page=parseCatalogSearchPage(await response.json());if(!signal.aborted)setFeed({...emptyFeed,items:[...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id).map(homeComic),indexedCount:page.issueCount,asOf:new Date().toISOString()});
   }catch(e){if(!signal.aborted)setError('The directory could not load. Open the directory or retry below.');}
   finally{if(!signal.aborted)setLoading(false);}
  },[]);

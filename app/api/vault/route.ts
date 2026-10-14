@@ -6,6 +6,7 @@ import {vaultSchema,vaultSaveSchema} from '../../../lib/vault';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject,chunks} from '../../../lib/api-security';
 import {previewRulesVersion} from '../../../lib/community';
 import {sharedProviderIdentity,listingDirectoryId} from '../../../lib/shared-catalog';
+import {vaultVersionHeader} from '../../../lib/vault-client';
 
 async function etag(row:typeof collections.$inferSelect|undefined){
  if(!row)return '"empty"';
@@ -18,7 +19,8 @@ async function etag(row:typeof collections.$inferSelect|undefined){
 export async function GET(){try{
  const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in required.'},401);
  const [row]=await getDb().select().from(collections).where(eq(collections.userId,user.userId));
- return privateJson(row?vaultSchema.parse(JSON.parse(row.data)):null,200,{ETag:await etag(row)});
+ const version=await etag(row);
+ return privateJson(row?vaultSchema.parse(JSON.parse(row.data)):null,200,{ETag:version,[vaultVersionHeader]:version});
 }catch{return privateJson({error:'Could not load your collection. Please retry.'},500)}}
 
 export async function POST(req:Request){try{
@@ -40,7 +42,7 @@ export async function POST(req:Request){try{
  for(const book of data.books){if(!book.externalCatalog)continue;const directoryId=listingDirectoryId(book),record=directoryId===null?undefined:externalRecords.get(directoryId);if(!record&&book.externalCatalog.provider==='GCD')return privateJson({error:'Select a GCD issue already imported into the shared directory.'},400);if(record){book.title=record.title;book.issue='#'+record.number}}
  const ids=[...new Set(data.books.flatMap(b=>b.photoId?[b.photoId]:[]))];
  for(const batch of chunks(ids)){const assets=await db.select().from(media).where(inArray(media.id,batch));if(assets.length!==batch.length||assets.some(m=>m.userId!==user.userId))return privateJson({error:'Only your own photos may be saved.'},403)}
- const expected=req.headers.get('if-match');
+ const expected=(req.headers.get(vaultVersionHeader)||req.headers.get('if-match'))?.trim().replace(/^W\//,'');
  if(!expected)return privateJson({error:'Reload your collection before saving so the latest changes are preserved.'},428);
  const [current]=await db.select().from(collections).where(eq(collections.userId,user.userId));
  if(expected!==await etag(current))return privateJson({error:'Your collection changed in another tab or device. Reload it before saving.'},409);
@@ -49,5 +51,6 @@ export async function POST(req:Request){try{
   ?await db.update(collections).set({data:serialized,revision}).where(and(eq(collections.userId,user.userId),eq(collections.revision,current.revision))).returning({userId:collections.userId})
   :await db.insert(collections).values({userId:user.userId,data:serialized,revision}).onConflictDoNothing().returning({userId:collections.userId});
  if(!changed.length)return privateJson({error:'Your collection changed while saving. Reload it before trying again.'},409);
- return privateJson({saved:true},200,{ETag:'"'+revision+'"'});
+ const version='"'+revision+'"';
+ return privateJson({saved:true},200,{ETag:version,[vaultVersionHeader]:version});
 }catch(error){if(error instanceof ApiRequestError)return privateJson({error:error.message},error.status);return privateJson({error:'Could not save your collection. Please retry.'},500)}}
