@@ -42,7 +42,7 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
   event.preventDefault();if(inFlight.current||!available)return;
   const token=generation.current,form=new FormData(event.currentTarget),shippingAddress={name:String(form.get('name')||'').trim(),line1:String(form.get('line1')||'').trim(),line2:String(form.get('line2')||'').trim(),city:String(form.get('city')||'').trim(),state:String(form.get('state')||'').toUpperCase().trim(),postalCode:String(form.get('postalCode')||'').trim(),country:'US'};
   const storeCreditCents=Math.round(Number(credit)*100);if(!Number.isSafeInteger(storeCreditCents)||storeCreditCents<0||storeCreditCents>creditBalance){setError('Choose an amount within your available store credit.');return}
-  const checkoutUiMode=data?.paymentElementEnabled?'custom':'hosted_page';const key=JSON.stringify({listingId,shippingAddress,storeCreditCents,checkoutUiMode});if(intent.current?.key!==key)intent.current={key,id:crypto.randomUUID()};
+  const checkoutUiMode=data?.paymentElementEnabled?'elements':'hosted_page';const key=JSON.stringify({listingId,shippingAddress,storeCreditCents,checkoutUiMode});if(intent.current?.key!==key)intent.current={key,id:crypto.randomUUID()};
   inFlight.current=true;setBusy(true);setError('');
   try{
    const response=await fetch('/api/commerce',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'checkout',listingId,requestId:intent.current.id,sandboxAcknowledged:form.get('sandbox')==='on',shippingAddress,storeCreditCents,checkoutUiMode})});

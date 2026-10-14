@@ -16,7 +16,7 @@ export type StripeBinding = {orderId: string; amountCents: number; paymentIntent
 export type StripeSellerBinding = {profileId: string; userId: string};
 export type StripeCheckoutInput = {
   orderId: string; amountCents: number; title: string; successUrl: string; cancelUrl: string;
-  uiMode?: 'hosted_page'|'custom';
+  uiMode?: 'hosted_page'|'elements';
   buyerEmail?: string; itemAmountCents?: number; shippingCents?: number; taxCents?: number;
 };
 export class StripeSandboxError extends Error {
@@ -275,9 +275,9 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
       cents(item, 0); cents(shipping, 0); cents(tax, 0);
       if (item + shipping + tax !== input.amountCents) fail('invalid_amount', 'Order breakdown does not match the total.');
       const fields: Record<string, string> = {
-        mode: 'payment', ui_mode: input.uiMode==='custom'?'custom':'hosted_page',
+        mode: 'payment', ui_mode: input.uiMode==='elements'?'elements':'hosted_page',
         client_reference_id: input.orderId,
-        ...(input.uiMode==='custom'?{return_url:returnUrl(input.successUrl,origin!)}:{success_url:returnUrl(input.successUrl,origin!),cancel_url:returnUrl(input.cancelUrl,origin!)}),
+        ...(input.uiMode==='elements'?{return_url:returnUrl(input.successUrl,origin!)}:{success_url:returnUrl(input.successUrl,origin!),cancel_url:returnUrl(input.cancelUrl,origin!)}),
         // Fulfillment uses the route's immutable, buyer-confirmed US address.
         // Do not collect a second shipping address that could contradict it.
         'billing_address_collection': 'required',
@@ -299,7 +299,7 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
       }
       const session = responseObject(await request('POST', 'checkout/sessions', fields, key), 'checkout.session');
       stripeId(session.id, 'cs_test_');
-      if(input.uiMode==='custom'){if(typeof session.client_secret!=='string'||!session.client_secret.startsWith(String(session.id)+'_secret_')||session.client_secret.length>512)fail('stripe_order_mismatch','Embedded checkout secret does not match this session.',502)}else providerUrl(session.url, 'checkout.stripe.com');
+      if(input.uiMode==='elements'){if(typeof session.client_secret!=='string'||!session.client_secret.startsWith(String(session.id)+'_secret_')||session.client_secret.length>512)fail('stripe_order_mismatch','Embedded checkout secret does not match this session.',502)}else providerUrl(session.url, 'checkout.stripe.com');
       if (session.currency !== 'usd' || session.amount_total !== input.amountCents || session.mode !== 'payment' ||
         session.status !== 'open' || session.payment_status !== 'unpaid' || session.client_reference_id !== input.orderId)
         fail('stripe_order_mismatch', 'Checkout does not match this order.', 502);

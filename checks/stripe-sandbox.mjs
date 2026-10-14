@@ -444,5 +444,14 @@ await test('Signature validation can precede the integration review without enab
   assert.equal(sandboxConfiguration(config).checkoutEnabled, false);
 });
 
+await test('Embedded Payment Element sessions use the exact bound secret and return URL without hosted redirects',async()=>{
+ const requests=[];const client=stripeSandbox(env,{fetch:async(url,options)=>{requests.push(new URLSearchParams(options.body));return Response.json({...checkout,url:null,client_secret:ids.session+'_secret_SYNTHETICSESSION0001'})}});
+ const result=await client.createCheckout({...checkoutInput,uiMode:'elements'},randomKey);
+ assert.equal(result.client_secret,ids.session+'_secret_SYNTHETICSESSION0001');assert.equal(requests[0].get('ui_mode'),'elements');assert.equal(requests[0].get('return_url'),checkoutInput.successUrl);assert.equal(requests[0].has('success_url'),false);assert.equal(requests[0].has('cancel_url'),false);
+});
+await test('A borrowed embedded client secret cannot authorize a different order session',async()=>{
+ const client=stripeSandbox(env,{fetch:async()=>Response.json({...checkout,url:null,client_secret:'cs_test_OTHER_secret_SYNTHETICSESSION0001'})});await rejectsCode(()=>client.createCheckout({...checkoutInput,uiMode:'elements'},randomKey),'stripe_order_mismatch');
+});
+
 console.log(`Stripe sandbox adapter: ${passed} named groups passed; ${failures.length} failed. Synthetic HTTP/signature tests only; actual Stripe sandbox transactions not run.`);
 if (failures.length) process.exitCode = 1;

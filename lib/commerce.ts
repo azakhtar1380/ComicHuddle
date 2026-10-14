@@ -25,7 +25,7 @@ const uuid=z.string().uuid();
 const line=(max:number)=>z.string().trim().min(1).max(max).refine(s=>!/[\u0000-\u001f\u007f]/.test(s));
 const states=new Set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split(' '));
 const addressSchema=z.object({name:line(100),line1:line(160),line2:z.string().trim().max(160).default(''),city:line(100),state:z.string().refine(v=>states.has(v)),postalCode:z.string().regex(/^\d{5}(?:-\d{4})?$/),country:z.literal('US')}).strict();
-export const commerceCheckoutSchema=z.object({action:z.literal('checkout'),listingId:id,requestId:uuid,sandboxAcknowledged:z.literal(true),shippingAddress:addressSchema,storeCreditCents:z.number().int().min(0).max(100000000).default(0),checkoutUiMode:z.enum(['hosted_page','custom']).default('hosted_page')}).strict();
+export const commerceCheckoutSchema=z.object({action:z.literal('checkout'),listingId:id,requestId:uuid,sandboxAcknowledged:z.literal(true),shippingAddress:addressSchema,storeCreditCents:z.number().int().min(0).max(100000000).default(0),checkoutUiMode:z.enum(['hosted_page','elements']).default('hosted_page')}).strict();
 export const commerceTrackingSchema=z.object({action:z.literal('submit_tracking'),orderId:id,carrier:z.enum(['USPS','UPS','FedEx','DHL']),trackingNumber:z.string().trim().min(6).max(60).regex(/^[A-Za-z0-9 -]+$/)}).strict();
 export const commerceRefundSchema=z.object({action:z.literal('request_refund'),orderId:id,requestId:uuid,reason:line(200)}).strict();
 export const commerceOwnerRefundSchema=z.object({action:z.literal('owner_refund'),orderId:id,requestId:uuid,approveIssue:z.literal(true).optional()}).strict();
@@ -33,7 +33,7 @@ export const commerceOnboardSchema=z.object({action:z.literal('seller_onboard'),
 export const commerceSweepSchema=z.object({action:z.literal('owner_sweep'),sandboxAcknowledged:z.literal(true)}).strict();
 export const commerceReconcileSchema=z.object({action:z.literal('owner_reconcile'),orderId:id}).strict();
 
-type Snapshot={storeCreditCents?:number;checkoutUiMode?:'hosted_page'|'custom';title:string;kind:'single'|'collection';fulfillment:'shipping';itemCount:number;items:ReturnType<typeof listingItems>;photoIds:string[];itemAmountCents:number;shippingCents:number;taxCents:0;totalCents:number;currency:'USD';sellerTransferCents:number;platformFeeCents:0;shippingAddress:z.infer<typeof addressSchema>;policyVersion:string};
+type Snapshot={storeCreditCents?:number;checkoutUiMode?:'hosted_page'|'elements';title:string;kind:'single'|'collection';fulfillment:'shipping';itemCount:number;items:ReturnType<typeof listingItems>;photoIds:string[];itemAmountCents:number;shippingCents:number;taxCents:0;totalCents:number;currency:'USD';sellerTransferCents:number;platformFeeCents:0;shippingAddress:z.infer<typeof addressSchema>;policyVersion:string};
 function stateOf(row:Row):State{
  let value:State;try{value=JSON.parse(row.state)}catch{throw new ApiRequestError('Order requires operator reconciliation.',409)}
  const snapshot=snapshotOf(row);
@@ -106,7 +106,7 @@ async function boundSeller(db:Db,seller:Profile,processor:Processor){
  return record.stripeAccountId;
 }
 export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
- const input=commerceCheckoutSchema.parse(raw);needReady(environment);if(input.checkoutUiMode==='custom'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid test publishable key. No payment was started.',503);const processor=stripeSandbox(environment);
+ const input=commerceCheckoutSchema.parse(raw);needReady(environment);if(input.checkoutUiMode==='elements'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid test publishable key. No payment was started.',503);const processor=stripeSandbox(environment);
  const [previous]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.buyerUserId,profile.userId),eq(commerceOrders.requestId,input.requestId)));
  let row:Row;
  if(previous){const snapshot=snapshotOf(previous);if(previous.listingId!==input.listingId||JSON.stringify(snapshot.shippingAddress)!==JSON.stringify(input.shippingAddress)||(snapshot.storeCreditCents??0)!==input.storeCreditCents||(snapshot.checkoutUiMode??'hosted_page')!==input.checkoutUiMode)throw new ApiRequestError('This checkout request was already used for a different order.',409);row=previous}
@@ -150,7 +150,7 @@ export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Re
  if(!row.checkoutSessionId){const check=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM commerce_orders o WHERE o.id = ${row.id} AND (o.checkout_session_id IS NULL OR o.checkout_session_id = ${sessionId}) AND o.sandbox = 1)`);try{await db.batch([check.start,db.update(commerceOrders).set({checkoutSessionId:sessionId,updatedAt:now()}).where(eq(commerceOrders.id,row.id)),check.finish])}catch(error){if(operationGuardFailed(error))throw new ApiRequestError('Sandbox checkout requires reconciliation.',409);throw error}}
  row=(await db.select().from(commerceOrders).where(eq(commerceOrders.id,row.id)))[0];
  const clientSecret=typeof session.client_secret==='string'&&session.client_secret.startsWith(String(sessionId)+'_secret_')?session.client_secret:null;
- return {clientSecret:snapshot.checkoutUiMode==='custom'&&row.status==='awaiting_payment'&&session.status==='open'?clientSecret:null,publishableKey:commerceSetup(environment).publishableKey,sandbox:true,order:commerceOrderDto(row,profile.userId),checkoutUrl:row.status==='awaiting_payment'&&session.status==='open'&&session.payment_status==='unpaid'?url:null,note:'Use test cards only. Payment is confirmed solely by a signed provider event.'};
+ return {clientSecret:snapshot.checkoutUiMode==='elements'&&row.status==='awaiting_payment'&&session.status==='open'?clientSecret:null,publishableKey:commerceSetup(environment).publishableKey,sandbox:true,order:commerceOrderDto(row,profile.userId),checkoutUrl:row.status==='awaiting_payment'&&session.status==='open'&&session.payment_status==='unpaid'?url:null,note:'Use test cards only. Payment is confirmed solely by a signed provider event.'};
 }
 export async function commerceOnboard(db:Db,profile:Profile,email:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
  commerceOnboardSchema.parse(raw);needReady(environment);const processor=stripeSandbox(environment),stamp=now();
