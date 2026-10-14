@@ -23,7 +23,7 @@ export async function GET(req:Request){
   const db=getDb(),rows=await db.select({id:catalogIssues.id,data:catalogIssues.data}).from(catalogIssues).where(inArray(catalogIssues.id,ids));
   const byId=new Map(rows.map(row=>[row.id,JSON.parse(row.data) as Issue]));
   const issues=await withCatalogCovers(db,ids.flatMap(id=>{const issue=byId.get(id)||catalog.find(i=>i.id===id);return issue?[issue]:[]}));
-  return json({...await catalogOverview(db),issues:issues.map(issue=>catalogSearchDto(issue))});
+  return json({...await catalogOverview(db),issues:issues.map(issue=>catalogSearchDto(issue)),total:issues.length,limit:Math.max(1,ids.length),offset:0,hasMore:false});
  }
  if(params.has('id')){
   if(allowed.filter(n=>n!=='id').some(name=>params.has(name)))return json({error:'Use either an exact directory ID or search parameters.'},400);

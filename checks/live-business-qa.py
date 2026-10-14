@@ -165,7 +165,7 @@ try:
     stage = 'catalog invariance'
     check('QA creates no fabricated directory issues', call(seller, 'GET', '/api/catalog?limit=1').json()['total'] >= 6826)
 except Exception as problem:
-    error = stage + ' — ' + type(problem).__name__
+    error = stage + ' — ' + type(problem).__name__ + (': ' + str(problem.reason) if isinstance(problem, urllib.error.URLError) else '')
     print('FAIL: ' + error, flush=True)
 finally:
     cleanup = []

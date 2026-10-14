@@ -15,6 +15,8 @@ import { createListing, placeBid, retractBid } from '../lib/marketplace';
 import { collections, profiles, media, groups, auctionBids } from '../db/schema';
 import { emptyVault } from '../lib/vault';
 import { previewRulesVersion } from '../lib/community';
+import { GET as catalogGET } from '../app/api/catalog/route';
+import { parseCatalogSearchPage } from '../lib/catalog-picker-client';
 
 let engine: PGlite;
 const pool = new Pool();
@@ -41,6 +43,15 @@ test('original schema and central directory survive native PostgreSQL queries', 
   assert.ok(overview.issueCount > 40);
   const result = await searchSharedCatalog(db, { q: 'Amazing Spider-Man', limit: 12, offset: 0 });
   assert.ok(result.total > 1); assert.ok(result.issues.some(issue => issue.title === 'Amazing Spider-Man'));
+});
+test('the actual catalog ID endpoint returns parser-compatible pages and real starter cover identities',async()=>{
+ const response=await catalogGET(new Request('https://comichuddle.test/api/catalog?ids=24,25,26,27,28,29,0,3,7,10'));
+ assert.equal(response.status,200);const page=parseCatalogSearchPage(await response.json());
+ assert.equal(page.total,10);assert.equal(page.limit,10);assert.equal(page.offset,0);assert.equal(page.hasMore,false);
+ assert.deepEqual(page.issues.slice(0,6).map(issue=>issue.number),['12','21','27','42','53','55']);
+ assert.ok(page.issues.slice(0,6).every(issue=>issue.cover?.startsWith('/covers/')));
+ const empty=await catalogGET(new Request('https://comichuddle.test/api/catalog?ids=999999'));
+ assert.equal(parseCatalogSearchPage(await empty.json()).total,0);
 });
 test('guarded multi-statement writes roll back every statement on failed validation', async () => {
   const db = getDb(), guard = conditionalGuard(db, sql`false`);

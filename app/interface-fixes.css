@@ -29,6 +29,7 @@ body .operator-line,body .directory-attribution{font-size:10px;line-height:1.7;c
 .platform-v2 .v2-card-art{display:flex;align-items:center;justify-content:center;width:100%;height:220px;padding:14px;background:#eee9dd;overflow:hidden}
 .platform-v2 .v2-card-art>img{display:block;object-fit:contain;max-height:100%;max-width:100%;width:auto;height:auto;box-shadow:0 3px 8px #20201f20}
 .platform-v2 .v2-card-copy{display:flex;flex-direction:column;width:100%;padding:14px;gap:7px;min-width:0}
+.platform-v2 .v2-cover-credit{display:block;width:100%;font-size:9px;line-height:1.4;color:#746e61;padding:7px 12px 0;text-align:left;overflow-wrap:anywhere}
 .platform-v2 .v2-card-copy>strong{font-family:'Barlow Condensed',Impact,sans-serif;font-size:22px;line-height:1.15;font-weight:800;overflow-wrap:anywhere}
 .platform-v2 .v2-card-copy>strong>span{color:var(--red)}
 .platform-v2 .v2-card-copy>small{font-size:11px;color:#746e61;line-height:1.4}

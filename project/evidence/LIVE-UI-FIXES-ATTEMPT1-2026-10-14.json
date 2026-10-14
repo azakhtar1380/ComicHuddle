@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-14T19:42:30.102482+00:00",
+  "url": "https://comichuddle-d3e38bvl0-abdul-aziz-akhtars-projects.vercel.app",
+  "passed": 0,
+  "checks": [],
+  "error": "buyer profile \u2014 URLError",
+  "cleanup": [
+    {
+      "role": "seller",
+      "applicationRecordsRemoved": false
+    }
+  ],
+  "realPaymentsAttempted": false,
+  "realProviderTransactionsTested": false,
+  "authenticationUsers": "Two clearly named QA authentication users remain for operator-managed retention; passwords and sessions were not saved."
+}
