@@ -39,9 +39,9 @@ are retained unchanged.
 
 All 993 prior overview issue IDs/descriptors were independently reconciled
 with the indexes. This second dataset contributes **5,642 new GCD records**;
-the projected total before cloud execution is **6,826 stored records**,
-including 6,783 GCD entries and 43 independently entered starter records.
-Cloud SQL and the public API establish the actual count after import. These
+the cloud import completed on October 14, 2026 at **17:01:16 UTC**.
+AWS RDS SQL and the public API confirm **6,826 stored records**, including
+6,783 GCD entries and 43 independently entered starter records. These
 are selected series, not the complete GCD database or full field coverage.
 
 `scripts/build-gcd-series-seed.ts` produces the reviewed input from captured
@@ -67,7 +67,7 @@ issue records are retained when their GCD IDs already exist. The earlier
 approved seed contains 191 stored records, including 148 GCD issues. Its GCD
 IDs do not overlap this new dataset. The production import completed on
 October 14, 2026 at 15:59:06 UTC with all 993 new records inserted. AWS RDS,
-the live catalog API and the browser directory show **1,184 indexed records**,
+the live catalog API and the browser directory initially showed **1,184 indexed records**,
 including **1,141 GCD records**, **0 Metron records** and 43 starter records.
 This total is the actual stored-record count, not proof of full catalog coverage.
 

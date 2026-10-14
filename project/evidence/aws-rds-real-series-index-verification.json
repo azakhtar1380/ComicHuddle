@@ -1,0 +1,200 @@
+{
+  "checkedAt": "2026-10-14T17:04:24.345480+00:00",
+  "deploymentId": "dpl_DdfWNgUv3eTGo2wkzL5KwCo1JKjq",
+  "applicationCommit": "da6630e",
+  "importCompletedAt": "2026-10-14T17:01:16.258Z",
+  "sourceSeedRecords": 6635,
+  "newRecords": 5642,
+  "retainedRicherRecords": 993,
+  "indexedRecords": 6826,
+  "gcdRecords": 6783,
+  "metronRecords": 0,
+  "syntheticRecords": 0,
+  "catalogComplete": false,
+  "checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "cacheControl": "no-store",
+      "response": {
+        "status": "ok",
+        "application": "ComicHuddle original app",
+        "database": "AWS RDS PostgreSQL"
+      }
+    },
+    {
+      "path": "/api/catalog?limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 6826,
+      "gcd": 6783,
+      "issueIndexEntries": 5642,
+      "matched": 6826,
+      "returned": 12,
+      "hasMore": true,
+      "examples": [
+        {
+          "id": 0,
+          "title": "Amazing Spider-Man",
+          "number": "300",
+          "publisher": "Marvel",
+          "edition": "Original issue \u00b7 printing to be confirmed"
+        },
+        {
+          "id": 1,
+          "title": "Batman",
+          "number": "423",
+          "publisher": "DC",
+          "edition": "Original issue \u00b7 printing to be confirmed"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?limit=12&offset=6816",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 6826,
+      "gcd": 6783,
+      "issueIndexEntries": 5642,
+      "matched": 6826,
+      "returned": 10,
+      "hasMore": false,
+      "examples": [
+        {
+          "id": 4002873949,
+          "title": "Power Rangers Unlimited (2026 series)",
+          "number": "4",
+          "publisher": "Boom! Studios",
+          "edition": "Alessio Zonno Every Ranger Ever Cardstock Connecting Virgin Cover"
+        },
+        {
+          "id": 4002873950,
+          "title": "Power Rangers Unlimited (2026 series)",
+          "number": "4",
+          "publisher": "Boom! Studios",
+          "edition": "Cully Hamner Cover"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?q=Amazing%20Spider-Man%20British&limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 6826,
+      "gcd": 6783,
+      "issueIndexEntries": 5642,
+      "matched": 101,
+      "returned": 12,
+      "hasMore": true,
+      "examples": [
+        {
+          "id": 4000911950,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "number": "4",
+          "publisher": "Marvel",
+          "edition": "4 [British]"
+        },
+        {
+          "id": 4001116702,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "number": "5",
+          "publisher": "Marvel",
+          "edition": "5 [British]"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?q=Hellboy&publisher=Dark%20Horse&limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 6826,
+      "gcd": 6783,
+      "issueIndexEntries": 5642,
+      "matched": 4,
+      "returned": 4,
+      "hasMore": false,
+      "examples": [
+        {
+          "id": 4000054669,
+          "title": "Hellboy: Seed of Destruction (1994 series)",
+          "number": "1",
+          "publisher": "Dark Horse",
+          "edition": "1"
+        },
+        {
+          "id": 4000054835,
+          "title": "Hellboy: Seed of Destruction (1994 series)",
+          "number": "2",
+          "publisher": "Dark Horse",
+          "edition": "2"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?q=Fantastic%20Four&publisher=Marvel&limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 6826,
+      "gcd": 6783,
+      "issueIndexEntries": 5642,
+      "matched": 930,
+      "returned": 12,
+      "hasMore": true,
+      "examples": [
+        {
+          "id": 5,
+          "title": "Fantastic Four",
+          "number": "48",
+          "publisher": "Marvel",
+          "edition": "Original issue \u00b7 printing to be confirmed"
+        },
+        {
+          "id": 30,
+          "title": "Fantastic Four",
+          "number": "1",
+          "publisher": "Marvel",
+          "edition": "Original issue \u00b7 printing to be confirmed"
+        }
+      ]
+    },
+    {
+      "path": "/api/catalog?q=Amazing%20Spider-Man%20%2350&limit=12&offset=0",
+      "status": 200,
+      "cacheControl": "no-store",
+      "indexed": 6826,
+      "gcd": 6783,
+      "issueIndexEntries": 5642,
+      "matched": 2,
+      "returned": 2,
+      "hasMore": false,
+      "examples": [
+        {
+          "id": 4000021127,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "number": "50",
+          "publisher": "Marvel",
+          "edition": "Edition record \u00b7 printing must be confirmed"
+        },
+        {
+          "id": 4001609235,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "number": "50",
+          "publisher": "Marvel",
+          "edition": "50 [British]"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "catalogImporter": 8,
+    "postgresApplication": 6,
+    "typecheck": "passed",
+    "build": "passed"
+  },
+  "browserChecks": [
+    "Directory displays 6,826 indexed records and 6,783 GCD records",
+    "source quality shows 5,642 issue-index records awaiting richer details",
+    "live Hellboy search displays four sourced Dark Horse issues"
+  ],
+  "screenshot": "comichuddle-real-catalog-1791997777502.jpg"
+}
