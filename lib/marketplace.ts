@@ -1,3 +1,4 @@
+import {readableCatalog} from './catalog-store';
 import {resolveLocation} from './location-search';
 import {and,asc,desc,eq,gt,gte,inArray,lt,lte,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
@@ -164,8 +165,9 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  if(selected.some(id=>!owned.has(id)))throw new ApiRequestError('Only copies in your own current collection may be listed.',400);
  if(Object.keys(value.conditions).some(id=>!selected.includes(id)))throw new ApiRequestError('Set conditions only for the selected copies.',400);
  const copies=selected.map(id=>owned.get(id)!),items=copies.map(copy=>snapshot(copy,value.conditions[copy.id]));
+ const readCatalog=await readableCatalog(db);
  const externalIds=[...new Set(copies.flatMap(copy=>{const id=copy.externalCatalog?listingDirectoryId(copy):null;return id===null?[]:[id]}))],externalRows=new Map<number,{id:number;metronId:number|null;gcdId:number|null;title:string;number:string}>();
- for(const batch of chunks(externalIds)){const rows=await db.select({id:directoryIssues.id,metronId:directoryIssues.metronId,gcdId:directoryIssues.gcdId,title:directoryIssues.title,number:directoryIssues.number}).from(directoryIssues).where(inArray(directoryIssues.id,batch));for(const row of rows)externalRows.set(row.id,row)}
+ for(const batch of chunks(externalIds)){const rows=await db.select({id:readCatalog.id,metronId:readCatalog.metronId,gcdId:readCatalog.gcdId,title:readCatalog.title,number:readCatalog.number}).from(readCatalog).where(inArray(readCatalog.id,batch));for(const row of rows)externalRows.set(row.id,row)}
  const legacyAliases=new Map<number,string>();for(const batch of chunks(externalIds)){const aliases=await db.execute(sql`SELECT id,title FROM ch_web.catalog_issues WHERE id IN (${sql.join(batch.map(id=>sql`${id}`),sql`, `)})`);for(const alias of aliases.rows)legacyAliases.set(Number(alias.id),String(alias.title))}
  const numberKey=(value:string)=>value.trim().replace(/^#\s*/,'').replace(/\s/g,'').toLowerCase();
  for(const copy of copies){if(!copy.externalCatalog)continue;const directoryId=listingDirectoryId(copy),record=directoryId===null?undefined:externalRows.get(directoryId),providerMatches=record&&(copy.externalCatalog.provider==='Metron'?record.metronId===copy.externalCatalog.id&&record.gcdId===null:record.gcdId===copy.externalCatalog.id&&record.metronId===null);if(!record||!providerMatches||(normalize(record.title)!==normalize(copy.title)&&normalize(legacyAliases.get(directoryId!)||'')!==normalize(copy.title))||numberKey(record.number)!==numberKey(copy.issue))throw new ApiRequestError('Correct the linked directory edition for each selected comic, or save it as an unlinked personal record before listing.',400)}

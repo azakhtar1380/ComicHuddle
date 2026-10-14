@@ -1,6 +1,6 @@
 import {ilike,and,asc,desc,eq,inArray,isNotNull,like,sql} from 'drizzle-orm';
 import {getDb} from '../db';
-import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync,catalogCoverReferences,directoryIssues} from '../db/schema';
+import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync,catalogCoverReferences,directoryIssues,legacyDirectoryIssues} from '../db/schema';
 import {withCatalogCovers} from './catalog-covers';
 import {catalog,type Issue} from './catalog';
 import {catalogSearchDto,searchCatalog} from './catalog-search';
@@ -8,10 +8,15 @@ import {catalogSearchText,eraForYear,metronDirectoryId,plainCatalogText} from '.
 
 export type CatalogDb=ReturnType<typeof getDb>;
 export type CatalogFilters={q:string;limit:number;offset:number;publisher?:string;series?:string;era?:string;kind?:string;sort?:string};
+export async function readableCatalog(db:CatalogDb){
+ const ready=await db.execute(sql`SELECT EXISTS(SELECT 1 FROM gcd.gcd_series WHERE COALESCE(deleted,0)=0) AS ready`);
+ return ready.rows[0]?.ready===true?directoryIssues:legacyDirectoryIssues;
+}
 async function loadCatalogOverview(db:CatalogDb){
+ const readCatalog=await readableCatalog(db);
  const native=await db.execute(sql`SELECT GREATEST(0,reltuples)::bigint AS raw_count FROM pg_class WHERE oid='gcd.gcd_issue'::regclass`);const nativeIssueCountEstimate=Number(native.rows[0]?.raw_count||0);
- const [counts]=await db.select({total:sql<number>`count(*)`.as('total_count'),imported:sql<number>`coalesce(sum(case when ${directoryIssues.metronId} is not null then 1 else 0 end),0)`.as('metron_count'),gcd:sql<number>`coalesce(sum(case when ${directoryIssues.gcdId} is not null then 1 else 0 end),0)`.as('gcd_count'),index:sql<number>`coalesce(sum(case when ${directoryIssues.rawMetadata} like '%"metadataScope":"selected_series_issue_indexes"%' then 1 else 0 end),0)`.as('index_count'),lastGcd:sql<string|null>`max(case when ${directoryIssues.gcdId} is not null then ${directoryIssues.fetchedAt} else null end)`}).from(directoryIssues);
- const publishers=await db.selectDistinct({name:directoryIssues.publisher}).from(directoryIssues).orderBy(asc(directoryIssues.publisher)).limit(1000);
+ const [counts]=await db.select({total:sql<number>`count(*)`.as('total_count'),imported:sql<number>`coalesce(sum(case when ${readCatalog.metronId} is not null then 1 else 0 end),0)`.as('metron_count'),gcd:sql<number>`coalesce(sum(case when ${readCatalog.gcdId} is not null then 1 else 0 end),0)`.as('gcd_count'),index:sql<number>`coalesce(sum(case when ${readCatalog.rawMetadata} like '%"metadataScope":"selected_series_issue_indexes"%' then 1 else 0 end),0)`.as('index_count'),lastGcd:sql<string|null>`max(case when ${readCatalog.gcdId} is not null then ${readCatalog.fetchedAt} else null end)`}).from(readCatalog);
+ const publishers=await db.selectDistinct({name:readCatalog.publisher}).from(readCatalog).orderBy(asc(readCatalog.publisher)).limit(1000);
  const [sync]=await db.select({state:catalogSync.state}).from(catalogSync).where(eq(catalogSync.id,'metron'));
  let lastSyncedAt:string|null=null;if(sync){try{lastSyncedAt=JSON.parse(sync.state).lastCompletedAt||null}catch{}}
  const coverResult=await db.execute(sql`SELECT (SELECT count(*) FROM gcd.comichuddle_cover_references WHERE status='active')+(SELECT count(*) FROM ch_web.catalog_issues WHERE gcd_id IS NULL AND data LIKE '%/covers/%') AS n`);const covers=coverResult.rows[0] as {n:number};
@@ -30,11 +35,13 @@ function directoryIssueData(data:string):Issue{
  return issue;
 }
 export async function catalogIssue(db:CatalogDb,id:number):Promise<Issue|undefined>{
- const [row]=await db.select({data:directoryIssues.data}).from(directoryIssues).where(eq(directoryIssues.id,id));
+ const readCatalog=await readableCatalog(db);
+ const [row]=await db.select({data:readCatalog.data}).from(readCatalog).where(eq(readCatalog.id,id));
  const issue=row?directoryIssueData(row.data!):catalog.find(issue=>issue.id===id);
  return issue?(await withCatalogCovers(db,[issue]))[0]:undefined;
 }
 export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
+ const readCatalog=await readableCatalog(db);
  const meta=await catalogOverview(db);
  if(!meta.issueCount){
    const base=searchCatalog(filter.q,catalog.length,0).issues.filter(i=>(!filter.publisher||i.publisher===filter.publisher)&&(!filter.series||i.title===filter.series)&&(!filter.era||i.era===filter.era)&&(!filter.kind||i.kind===filter.kind));
@@ -43,24 +50,25 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  }
  const numbers=[...filter.q.matchAll(/#\s*([a-z0-9./-]+)/gi)].map(m=>m[1].toLowerCase());
  const words=filter.q.replace(/#\s*([a-z0-9./-]+)/gi,' ').normalize('NFKD').toLowerCase().match(/[a-z0-9]+/g)||[];
- const terms=[...numbers.map(n=>sql`lower(${directoryIssues.number}) = ${n}`),...words.map(w=>like(directoryIssues.searchText,'%'+w+'%'))];
- if(filter.publisher)terms.push(eq(directoryIssues.publisher,filter.publisher));
-  if(filter.series)terms.push(eq(directoryIssues.title,filter.series));
- if(filter.era)terms.push(eq(directoryIssues.era,filter.era));
- if(filter.kind)terms.push(eq(directoryIssues.kind,filter.kind));
+ const terms=[...numbers.map(n=>sql`lower(${readCatalog.number}) = ${n}`),...words.map(w=>like(readCatalog.searchText,'%'+w+'%'))];
+ if(filter.publisher)terms.push(eq(readCatalog.publisher,filter.publisher));
+  if(filter.series)terms.push(eq(readCatalog.title,filter.series));
+ if(filter.era)terms.push(eq(readCatalog.era,filter.era));
+ if(filter.kind)terms.push(eq(readCatalog.kind,filter.kind));
  const where=terms.length?and(...terms):undefined;
- const [count]=await db.select({n:sql<number>`count(*)`}).from(directoryIssues).where(where);
- const coverRank=directoryIssues.coverRank;
- const order=filter.sort==='title'?[asc(directoryIssues.title),asc(directoryIssues.id)]:filter.sort==='oldest'?[asc(directoryIssues.year),asc(directoryIssues.id)]:filter.sort==='newest'?[desc(directoryIssues.year),asc(directoryIssues.id)]:[asc(coverRank),asc(directoryIssues.id)];
+ const [count]=await db.select({n:sql<number>`count(*)`}).from(readCatalog).where(where);
+ const coverRank=readCatalog.coverRank;
+ const order=filter.sort==='title'?[asc(readCatalog.title),asc(readCatalog.id)]:filter.sort==='oldest'?[asc(readCatalog.year),asc(readCatalog.id)]:filter.sort==='newest'?[desc(readCatalog.year),asc(readCatalog.id)]:[asc(coverRank),asc(readCatalog.id)];
  if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
- const rows=await db.select({data:directoryIssues.data}).from(directoryIssues).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);
+ const rows=await db.select({data:readCatalog.data}).from(readCatalog).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);
  const total=Number(count?.n||0);
  const issues=await withCatalogCovers(db,rows.map(row=>directoryIssueData(row.data!)));
  return {...meta,issues:issues.map(issue=>catalogSearchDto(issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
 }
 // A bounded publisher > series tree. Never download the entire catalog to a browser.
 export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q:string;limit:number;offset:number}){
- const [stored]=await db.select({n:sql<number>`count(*)`}).from(directoryIssues);
+ const readCatalog=await readableCatalog(db);
+ const [stored]=await db.select({n:sql<number>`count(*)`}).from(readCatalog);
  if(!Number(stored?.n)){
   const byTitle=new Map<string,{title:string;publisher:string;count:number;firstYear:number;lastYear:number}>();
   for(const issue of catalog){
@@ -72,9 +80,9 @@ export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q
   const series=[...byTitle.values()].sort((a,b)=>a.title.localeCompare(b.title));
   return {series:series.slice(filter.offset,filter.offset+filter.limit),total:series.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<series.length};
  }
- const where=and(eq(directoryIssues.publisher,filter.publisher),filter.q?ilike(directoryIssues.title,'%'+filter.q+'%'):undefined);
- const [total]=await db.select({n:sql<number>`count(distinct ${directoryIssues.title})`}).from(directoryIssues).where(where);
- const series=await db.select({title:directoryIssues.title,publisher:directoryIssues.publisher,count:sql<number>`count(*)`,firstYear:sql<number>`min(${directoryIssues.year})`,lastYear:sql<number>`max(${directoryIssues.year})`}).from(directoryIssues).where(where).groupBy(directoryIssues.title,directoryIssues.publisher).orderBy(asc(directoryIssues.title)).limit(filter.limit).offset(filter.offset);
+ const where=and(eq(readCatalog.publisher,filter.publisher),filter.q?ilike(readCatalog.title,'%'+filter.q+'%'):undefined);
+ const [total]=await db.select({n:sql<number>`count(distinct ${readCatalog.title})`}).from(readCatalog).where(where);
+ const series=await db.select({title:readCatalog.title,publisher:readCatalog.publisher,count:sql<number>`count(*)`,firstYear:sql<number>`min(${readCatalog.year})`,lastYear:sql<number>`max(${readCatalog.year})`}).from(readCatalog).where(where).groupBy(readCatalog.title,readCatalog.publisher).orderBy(asc(readCatalog.title)).limit(filter.limit).offset(filter.offset);
  return {series,total:Number(total?.n||0),limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<Number(total?.n||0)};
 }
 export function seedStarterStatements(db:CatalogDb,stamp:string){

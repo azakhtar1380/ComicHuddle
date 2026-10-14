@@ -1,3 +1,5 @@
+import {createListing} from '../lib/marketplace';
+import {emptyVault} from '../lib/vault';
 import {before,after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,12 +10,12 @@ import {nativeGcdFixture} from './native-gcd-fixture';
 import {catalogIssue,catalogOverview,searchSharedCatalog,seedStarterStatements} from '../lib/catalog-store';
 import {rollingMedian,importSoldComps,type SoldComp} from '../lib/sold-comps';
 import {collectorRewards,convertPoints} from '../lib/collector-rewards';
-import {profiles,commerceOrders,commerceEvents,commerceMoneyRequests} from '../db/schema';
+import {profiles,collections,media,commerceOrders,commerceEvents,commerceMoneyRequests} from '../db/schema';
 import {previewRulesVersion} from '../lib/community';
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web');
- for(const file of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+file,'utf8'));
+ for(const file of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+file,'utf8'));
  await engine.exec('SET search_path TO ch_web,gcd,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);return {...result,rowCount:result.affectedRows,command:'',rows:typeof config!=='string'&&config.rowMode==='array'?result.rows.map(row=>result.fields.map(field=>row[field.name])):result.rows}};
  Object.assign(pool,{query,connect:async()=>({query,release(){}})});(globalThis as typeof globalThis&{comicHuddlePool:Pool}).comicHuddlePool=pool;await getDb().batch(seedStarterStatements(getDb(),new Date().toISOString()));
@@ -60,4 +62,11 @@ test('FMV cannot pool different grades or printings into a single price',()=>{as
 test('incomplete native issue import cannot hide a verified older directory record',async()=>{
  await engine.exec("INSERT INTO ch_web.catalog_issues(id,gcd_id,title,number,publisher,year,era,kind,search_text,data,source_modified,fetched_at,raw_metadata) VALUES(4000000777,777,'Verified retained comic','1','QA Publisher',2020,'Modern Age','Catalog issue','verified retained comic','{\"id\":4000000777,\"gcdId\":777,\"title\":\"Verified retained comic\",\"number\":\"1\",\"publisher\":\"QA Publisher\",\"year\":2020,\"era\":\"Modern Age\",\"kind\":\"Catalog issue\",\"characters\":[],\"writer\":\"Not recorded\",\"artist\":\"Not recorded\",\"variant\":\"First printing\",\"note\":\"Verified source\",\"source\":\"https://www.comics.org/issue/777/\"}','',now()::text,'{}');INSERT INTO gcd.gcd_issue(id,series_id,number,deleted) VALUES(777,999999,'1',0)");
  const issue=await catalogIssue(getDb(),4000000777);assert.equal(issue?.title,'Verified retained comic');
+});
+
+test('an owned native GCD copy can be listed without duplicating its master catalog record',async()=>{
+ const seller=await profile('nativeSeller'),book=crypto.randomUUID(),photo=crypto.randomUUID(),vault=emptyVault(seller.name);vault.books.push({id:book,title:'Exact Native Comic',issue:'#7',grade:'Raw 9.0',price:10,externalCatalog:{provider:'GCD',id:123,sourceUrl:'https://www.comics.org/issue/123/',license:'CC BY-SA 4.0'}});
+ await getDb().insert(collections).values({userId:seller.userId,data:JSON.stringify(vault),revision:crypto.randomUUID()});await getDb().insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});
+ const result=await createListing(getDb(),seller,{action:'listing',kind:'single',saleType:'fixed',bookIds:[book],description:'Owned native edition with seller photos.',price:1000,shipping:100,photos:[photo],attest:true,usaAttest:true});assert.ok(result.listingId);
+ assert.equal((await engine.query('SELECT count(*) AS n FROM ch_web.catalog_issues WHERE gcd_id=123')).rows[0].n,0);
 });

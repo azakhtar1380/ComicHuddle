@@ -116,6 +116,9 @@ export const catalogGcdBulkBatches=appTable('catalog_gcd_bulk_batches',{
 export const directoryIssues=pgSchema('gcd').view('comichuddle_directory',{
  id:integer('id').notNull(),coverRank:integer('cover_rank').notNull(),gcdId:integer('gcd_id'),metronId:integer('metron_id'),title:text('title').notNull(),number:text('number').notNull(),publisher:text('publisher').notNull(),year:integer('year').notNull(),era:text('era').notNull(),kind:text('kind').notNull(),searchText:text('search_text').notNull(),data:text('data').notNull(),fetchedAt:text('fetched_at').notNull(),rawMetadata:text('raw_metadata').notNull()
 }).existing();
+export const legacyDirectoryIssues=pgSchema('gcd').view('comichuddle_legacy_directory',{
+ id:integer('id').notNull(),coverRank:integer('cover_rank').notNull(),gcdId:integer('gcd_id'),metronId:integer('metron_id'),title:text('title').notNull(),number:text('number').notNull(),publisher:text('publisher').notNull(),year:integer('year').notNull(),era:text('era').notNull(),kind:text('kind').notNull(),searchText:text('search_text').notNull(),data:text('data').notNull(),fetchedAt:text('fetched_at').notNull(),rawMetadata:text('raw_metadata').notNull()
+}).existing();
 export const directoryCoverReferences=pgSchema('gcd').view('comichuddle_cover_references',{
  issueId:integer('issue_id'),gcdId:integer('gcd_id'),imageUrl:text('image_url'),sourceUrl:text('source_url'),attribution:text('attribution'),status:text('status'),fetchedAt:text('fetched_at')
 }).existing();
