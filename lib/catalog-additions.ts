@@ -1,0 +1,14 @@
+import type {Issue} from './catalog';
+// Selected factual metadata adapted and abbreviated from linked GCD records.
+// This metadata adaptation is CC BY-SA 4.0. Cover artwork is excluded.
+const credit={dataCredit:'Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08',dataLicense:'https://creativecommons.org/licenses/by-sa/4.0/'};
+export const catalogAdditions:Omit<Issue,'id'|'era'|'variant'>[]=[
+ {title:'Batman',number:'1',publisher:'DC',year:1940,characters:['Batman','Joker','Catwoman'],writer:'Bill Finger',artist:'Bob Kane and collaborators',note:'Batman’s solo title begins; introduces the Joker and Catwoman.',kind:'First appearance',source:'https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/'},
+ {...credit,title:'Tales of Suspense',number:'39',publisher:'Marvel',year:1963,characters:['Iron Man'],writer:'Stan Lee / Larry Lieber',artist:'Don Heck',note:'The first Iron Man story. Cover dated March 1963.',kind:'First appearance',source:'https://www.comics.org/issue/17575/'},
+ {...credit,title:'Incredible Hulk',number:'1',publisher:'Marvel',year:1962,characters:['Hulk','Bruce Banner'],writer:'Stan Lee',artist:'Jack Kirby',note:'The original Hulk series begins. Cover dated May 1962.',kind:'First appearance',source:'https://www.comics.org/issue/16935/'},
+ {...credit,title:'Fantastic Four',number:'5',publisher:'Marvel',year:1962,characters:['Fantastic Four','Doctor Doom'],writer:'Stan Lee',artist:'Jack Kirby',note:'Doctor Doom enters the Fantastic Four series. Cover dated July 1962.',kind:'First appearance',source:'https://www.comics.org/issue/17043/'},
+ {...credit,title:'Detective Comics',number:'33',publisher:'DC',year:1939,characters:['Batman'],writer:'Bill Finger and anthology contributors',artist:'Bob Kane and anthology contributors',note:'An early Batman origin story. Cover dated November 1939.',kind:'Key issue',source:'https://www.comics.org/issue/560/'},
+ {...credit,title:'All-American Comics',number:'16',publisher:'DC',year:1940,characters:['Green Lantern','Alan Scott'],writer:'Bill Finger and anthology contributors',artist:'Martin Nodell and anthology contributors',note:'Alan Scott’s Green Lantern debut. Cover dated July 1940.',kind:'First appearance',source:'https://www.comics.org/issue/878/'},
+ {...credit,title:'Daredevil',number:'1',publisher:'Marvel',year:1964,characters:['Daredevil','Matt Murdock'],writer:'Stan Lee',artist:'Bill Everett',note:'Daredevil’s original series begins. Cover dated April 1964.',kind:'First appearance',source:'https://www.comics.org/issue/18338/'},
+ {...credit,title:'Detective Comics',number:'38',publisher:'DC',year:1940,characters:['Batman','Robin','Dick Grayson'],writer:'Bill Finger and anthology contributors',artist:'Bob Kane and anthology contributors',note:'Robin joins Batman. Cover dated April 1940.',kind:'First appearance',source:'https://www.comics.org/issue/754/'}
+];

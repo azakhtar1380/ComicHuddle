@@ -1,0 +1,27 @@
+.comic-scan>.eyebrow{display:flex;align-items:center;gap:8px}
+.scan-capture{position:relative;min-height:270px;height:340px;max-height:440px;background:#202339;border:3px solid var(--ink);border-radius:9px;overflow:hidden;margin:22px 0 18px;display:flex;align-items:center;justify-content:center}
+.scan-capture>img,.scan-capture>video{display:block;width:100%;height:100%;object-fit:contain}
+.scan-capture>video{object-fit:cover}
+.scan-capture.has-photo>img{padding:8px 8px 38px}
+.scan-empty{display:grid;justify-items:center;text-align:center;gap:13px;padding:25px 25px 50px;color:#fffdf6}
+.scan-empty svg{color:var(--yellow)}
+.scan-empty strong{font:800 30px/1.06 'Barlow Condensed',Impact,sans-serif;letter-spacing:.6px}
+.scan-empty>span{font-size:11px;color:#c9c6bc}
+.scan-guide{position:absolute;left:50%;top:50%;width:46%;height:82%;transform:translate(-50%,-50%);box-shadow:0 0 0 100vmax #0e11276b;pointer-events:none;border:1px solid #fff6}
+.scan-corner{position:absolute;width:25px;height:25px;border-color:var(--yellow);border-style:solid;pointer-events:none;filter:drop-shadow(0 1px 1px #000)}
+.scan-tl{left:-2px;top:-2px;border-width:4px 0 0 4px}.scan-tr{right:-2px;top:-2px;border-width:4px 4px 0 0}.scan-bl{left:-2px;bottom:-2px;border-width:0 0 4px 4px}.scan-br{right:-2px;bottom:-2px;border-width:0 4px 4px 0}
+.scan-guide-label{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;letter-spacing:.5px;font-weight:800;color:#fff;background:#151729c9;padding:5px 8px;border-radius:4px}
+.scan-status-badge{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);white-space:nowrap;display:flex;align-items:center;gap:6px;color:#fffdf6;background:#101326e8;border:1px solid #fff4;border-radius:4px;padding:6px 9px;font-size:9px;font-weight:800;letter-spacing:.45px;max-width:calc(100% - 16px)}
+.scan-status-badge.matched{background:#cde9ce;color:#18331b;border-color:#18331b}.scan-status-badge.permission_denied,.scan-status-badge.index_unavailable{background:#f6d6cd;color:#8d211b;border-color:#8d211b}
+.scan-spin{animation:scan-spin 1.1s linear infinite}@keyframes scan-spin{to{transform:rotate(360deg)}}
+.scan-upload{cursor:pointer}
+.scan-error{padding:10px;background:#f6d6cd;color:#8d211b}
+.scan-hint{padding:12px;border:1px solid var(--line);background:var(--cream);font-size:12px;line-height:1.5;min-height:58px}
+.scan-confirm{display:flex;align-items:flex-start;flex-wrap:wrap;gap:13px;background:#dcebdd;border:1px solid var(--ink);padding:15px;margin-top:18px}
+.scan-confirm>img{width:65px;max-height:102px;object-fit:contain;border:1px solid var(--ink);background:var(--cream)}
+.scan-confirm>div:not(.actions){flex:1;min-width:160px}.scan-confirm strong{display:block;font:800 25px/1.1 'Barlow Condensed',Impact,sans-serif}.scan-confirm p{margin:6px 0;font-size:12px;line-height:1.4}.scan-confirm small{font-size:10px;line-height:1.5}.scan-match-label{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:.5px;margin:0 0 7px}.scan-confirm .actions{width:100%;margin:0}.scan-confirm .actions .button{flex:1}.scan-match-credit{width:100%;color:#425440}
+.scan-secondary{display:flex;align-items:center;flex-wrap:wrap;gap:8px 15px;margin:20px 0 14px;padding-top:15px;border-top:1px solid var(--line)}
+.scan-secondary>button{border:0;padding:3px 0;background:transparent;color:var(--ink);font-size:11px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}.scan-secondary>button:disabled{opacity:.5;cursor:wait}.scan-secondary>.scan-manual-toggle{display:flex;gap:7px;align-items:center;font-weight:800;text-decoration:none}.scan-secondary>button:focus-visible{outline:2px solid var(--red);outline-offset:4px}
+.scan-privacy{display:flex;align-items:flex-start;gap:7px;font-size:10px;line-height:1.5;margin-top:20px}.scan-privacy>svg{flex-shrink:0}
+@media(max-width:760px){.scan-capture{height:min(52vh,430px);min-height:295px;margin-top:18px}.scan-empty strong{font-size:27px}.comic-scan>.actions{gap:8px}.comic-scan>.actions>.button{flex:1;justify-content:center;min-width:125px}.scan-status-badge{font-size:8px;letter-spacing:.25px}.scan-confirm{padding:12px}.scan-confirm strong{font-size:23px}}
+@media(prefers-reduced-motion:reduce){.scan-spin{animation:none}}

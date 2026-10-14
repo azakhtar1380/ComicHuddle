@@ -1,0 +1,191 @@
+{
+  "startedAt": "2026-10-13T21:49:31.029869+00:00",
+  "site": "https://comichuddle.aztooeasy.chatgpt.site",
+  "mode": "daily",
+  "genuineHostedCalls": true,
+  "fullHistoricalCoverage": false,
+  "browserDeviceTested": false,
+  "statusBefore": {
+    "httpStatus": 200,
+    "status": {
+      "provider": "GCD",
+      "accessMode": "anonymous",
+      "lastSuccessfulRequestAt": "2026-10-13T21:35:28.535Z",
+      "importedIssueCount": 13,
+      "lastGcdSyncedAt": "2026-10-13T21:35:28.535Z",
+      "pausedByOwner": false,
+      "error": "GCD provider limit reached. Retry-After and the checkpoint are preserved.",
+      "retryAfter": 0,
+      "requestsLastHour": 15,
+      "requestBudgetPerHour": 26,
+      "providerDefaultAnonRequestsPerHour": 30,
+      "daily": {
+        "stage": "importing",
+        "weeks": [
+          {
+            "year": 2026,
+            "week": 42
+          },
+          {
+            "year": 2026,
+            "week": 41
+          }
+        ],
+        "weekIndex": 0,
+        "page": 1,
+        "pending": 37,
+        "expectedCounts": [
+          175,
+          null
+        ],
+        "checked": 13,
+        "unavailable": 0,
+        "startedAt": "2026-10-13T21:35:06.381Z",
+        "lastCompletedAt": null
+      },
+      "backfill": {
+        "stage": "idle",
+        "page": 1,
+        "pendingSeries": 0,
+        "currentSeries": null,
+        "issueOffset": 0,
+        "expectedSeriesCount": null,
+        "observedSeriesCount": 0,
+        "processedSeriesCount": 0,
+        "checkedIssues": 0,
+        "unavailable": 0,
+        "lastPassCompletedAt": null,
+        "deferredForRecentRefresh": true
+      },
+      "historicalCoverageComplete": false,
+      "historicalRefresh": "No modified-since feed is provided by this API. Recent-release daily checks do not make the full historical archive current.",
+      "artworkImported": false,
+      "valuationImported": false
+    }
+  },
+  "run": {
+    "exitCode": 0,
+    "result": {
+      "outcome": "checkpointed-waiting-for-quota",
+      "steps": 4,
+      "importedIssueCount": 21,
+      "lastGcdSyncedAt": "2026-10-13T21:50:16.231Z",
+      "dailyStage": "importing",
+      "dailyLastCompletedAt": null,
+      "dailyPending": 29,
+      "dailyUnavailable": 0,
+      "backfillStage": "idle",
+      "backfillObservedSeriesCount": 0,
+      "backfillProcessedSeriesCount": 0,
+      "historicalCoverageComplete": false,
+      "retryAfter": 585
+    }
+  },
+  "statusAfter": {
+    "httpStatus": 200,
+    "status": {
+      "provider": "GCD",
+      "accessMode": "anonymous",
+      "lastSuccessfulRequestAt": "2026-10-13T21:50:16.231Z",
+      "importedIssueCount": 21,
+      "lastGcdSyncedAt": "2026-10-13T21:50:16.231Z",
+      "pausedByOwner": false,
+      "error": "GCD provider limit reached. Retry-After and the checkpoint are preserved.",
+      "retryAfter": 582,
+      "requestsLastHour": 25,
+      "requestBudgetPerHour": 26,
+      "providerDefaultAnonRequestsPerHour": 30,
+      "daily": {
+        "stage": "importing",
+        "weeks": [
+          {
+            "year": 2026,
+            "week": 42
+          },
+          {
+            "year": 2026,
+            "week": 41
+          }
+        ],
+        "weekIndex": 0,
+        "page": 1,
+        "pending": 29,
+        "expectedCounts": [
+          175,
+          null
+        ],
+        "checked": 21,
+        "unavailable": 0,
+        "startedAt": "2026-10-13T21:35:06.381Z",
+        "lastCompletedAt": null
+      },
+      "backfill": {
+        "stage": "idle",
+        "page": 1,
+        "pendingSeries": 0,
+        "currentSeries": null,
+        "issueOffset": 0,
+        "expectedSeriesCount": null,
+        "observedSeriesCount": 0,
+        "processedSeriesCount": 0,
+        "checkedIssues": 0,
+        "unavailable": 0,
+        "lastPassCompletedAt": null,
+        "deferredForRecentRefresh": true
+      },
+      "historicalCoverageComplete": false,
+      "historicalRefresh": "No modified-since feed is provided by this API. Recent-release daily checks do not make the full historical archive current.",
+      "artworkImported": false,
+      "valuationImported": false
+    }
+  },
+  "catalogReadback": {
+    "httpStatus": 200,
+    "issueCount": 64,
+    "syncedIssueCount": 0,
+    "gcdIssueCount": 21,
+    "lastGcdSyncedAt": "2026-10-13T21:50:16.231Z",
+    "lastSyncedAt": null,
+    "total": 64,
+    "limit": 12,
+    "offset": 0,
+    "hasMore": true,
+    "returnedIssues": 12,
+    "compactRowsOmitBibliography": true
+  },
+  "newestPage": {
+    "httpStatus": 200,
+    "issueCount": 64,
+    "syncedIssueCount": 0,
+    "gcdIssueCount": 21,
+    "lastGcdSyncedAt": "2026-10-13T21:50:16.231Z",
+    "lastSyncedAt": null,
+    "total": 64,
+    "limit": 30,
+    "offset": 0,
+    "hasMore": true,
+    "returnedGcdRows": 21
+  },
+  "exactGcdDetail": {
+    "httpStatus": 200,
+    "directoryId": 4002872321,
+    "gcdId": 2872321,
+    "title": "Barbara Gordon: Breakout (2026 series)",
+    "issue": "#6",
+    "publisher": "DC Comics",
+    "bibliographyPresent": true,
+    "storyCount": 0,
+    "coverImported": false,
+    "matchesCompactId": true
+  },
+  "starterIdentityReadback": {
+    "httpStatus": 200,
+    "ids": [
+      0,
+      24,
+      42
+    ]
+  },
+  "accepted": true,
+  "finishedAt": "2026-10-13T21:50:40.762583+00:00"
+}

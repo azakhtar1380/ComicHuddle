@@ -1,0 +1,17 @@
+{
+  "record": "GCD-DIRECTORY-NATIVE-READINESS-2026-10-13.json",
+  "verified_file_counts": {
+    "source_sha256": 14,
+    "raw_log_sha256": 3,
+    "exports_sha256": 31
+  },
+  "web_js_bundle_and_html_equal_across_exports": true,
+  "site_preview_bundle_matches": true,
+  "handler_groups": 22,
+  "modeled_geometry_cases": 7,
+  "physical_browser_device_oauth_executed": false,
+  "export_metadata_note": "Web-only and all-platform metadata manifests differ by their platform target set.",
+  "site_preview_entry_references_current_bundle": true,
+  "site_preview_asset_hashes_matched": 7,
+  "site_preview_referenced_asset_paths_resolve": 7
+}

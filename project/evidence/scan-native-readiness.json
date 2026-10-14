@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-13",
+  "owner": "native_scan",
+  "cwd": "/workspace/scratch/45922a1a6a9c/ComicHuddle-App",
+  "evidence_type": "Record of actual completed commands and exit codes observed in tool outputs; not a raw shell transcript. Hashes read after source freeze.",
+  "source_frozen": true,
+  "source_sha256": {
+    "NativeApp.tsx": "619c569377ad81b37a3eb06c55d96f4ac2040f2d8899ab7c06dfe1dc6c25f472",
+    "app-styles.ts": "08b39a2dcdc06864daba49cf7630980090488e1c7828dbbdaeb94fef60b593c6",
+    "art-layout.ts": "061c6ccd133453053674cf3bde1b4b3716ddae231bd5e6298434689ee5b48b8b",
+    "checks/native-journeys.mjs": "849af724750717d144b473b589231c0150383ea119cda3db85c6a475616cce08",
+    "checks/image-layout.mjs": "a8fa09e6026ac480626b76c7ddb054872ce90ea9de9a5602735f4ce2835e5853"
+  },
+  "executed_commands": [
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exit_code": 0,
+      "result": "Strict TypeScript passes; no diagnostic output"
+    },
+    {
+      "command": "node checks/native-journeys.mjs",
+      "exit_code": 0,
+      "groups_passed": 16,
+      "summary": "Native handler checks: 16 groups passed; browser/device/persistence journeys remain unverified."
+    },
+    {
+      "command": "node checks/image-layout.mjs",
+      "exit_code": 0,
+      "viewport_cases_passed": 7,
+      "summary": "Cover and centered navigation bounds passed for seven phone, tablet and landscape viewports."
+    },
+    {
+      "command": "CI=1 node node_modules/expo/bin/cli export --platform web --output-dir dist-scan-web",
+      "exit_code": 0,
+      "result": "Expo web export succeeded"
+    },
+    {
+      "command": "CI=1 node node_modules/expo/bin/cli export --platform all --output-dir dist-scan-all",
+      "exit_code": 0,
+      "result": "Expo web, Android and iOS exports succeeded"
+    }
+  ],
+  "viewports": [
+    [
+      320,
+      568
+    ],
+    [
+      375,
+      667
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      430,
+      932
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      844,
+      390
+    ]
+  ],
+  "exports_sha256": {
+    "dist-scan-web/index.html": "39594f1e8dbccb156276fce2915014aeed1e7bc9afd86cd6d22488fa1867a4bb",
+    "dist-scan-web/metadata.json": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991",
+    "dist-scan-web/_expo/static/js/web/index-b83a9f46b5e236603bb1771449732597.js": "884a0cf23e2131b788b6c4525dcb31e09f246afc340a317ce454cc661385cd77",
+    "dist-scan-all/index.html": "39594f1e8dbccb156276fce2915014aeed1e7bc9afd86cd6d22488fa1867a4bb",
+    "dist-scan-all/metadata.json": "f75365348e02d155937b9c5227c7cc0efb71a90464500de73a21e458a282605a",
+    "dist-scan-all/_expo/static/js/web/index-b83a9f46b5e236603bb1771449732597.js": "884a0cf23e2131b788b6c4525dcb31e09f246afc340a317ce454cc661385cd77",
+    "dist-scan-all/_expo/static/js/android/index-d36eedfe7fa0560a69162523185aa784.hbc": "9a50a5a8acdfc70203583a63eeeb1e7326a0ba46f6f7445e68cd33defa3b11d3",
+    "dist-scan-all/_expo/static/js/ios/index-8c4ad11b4b6ce125e115d0c7501afb48.hbc": "caeac3677230cbad98733ca9f4f3b02584b83e631d13d80ddbd4d08de6e6ba44"
+  },
+  "web_exports_byte_identical": true,
+  "limitations": [
+    "Handler checks execute the real TSX handlers with isolated native surfaces; geometry checks verify source-derived dimensions without rendering a browser or device.",
+    "Scan is a circular main action, not a tab, and opens the real web live scanner only after explicit press; no native camera-frame recognition implementation or mock was added.",
+    "Physical-device, simulator, browser camera recognition, browser authentication and persistence journeys remain unverified.",
+    "Exports are unsigned bundles, not signed APK/AAB/IPA builds or app-store submission evidence.",
+    "Existing unresolved upstream native build-tool advisories are not cleared by these exports."
+  ]
+}

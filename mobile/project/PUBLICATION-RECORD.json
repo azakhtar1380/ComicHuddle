@@ -1,0 +1,71 @@
+{
+  "project": "ComicHuddle \u2014 The collector\u2019s universe",
+  "version": 25,
+  "version_id": "appgprj_6ac716de731c8191bdff0d2478a4f9f2~appgver_310fb73a5ddc819199e260020a7b0df8",
+  "commit_sha": "b9b7a0459a8441ba56ca58f9bd31b92c5e064bf2",
+  "deployment_id": "appgdep_6aceaf402abc8191975a21b42841864e",
+  "status": "succeeded",
+  "url": "https://comichuddle.aztooeasy.chatgpt.site",
+  "app_preview_url": "https://comichuddle.aztooeasy.chatgpt.site/app-preview/index.html",
+  "published_at": "2026-10-13T22:23:11.940105+00:00",
+  "audience": "owner-private",
+  "external_visitors": 0,
+  "verification": {
+    "named_node_groups": 820,
+    "web_named_groups": 747,
+    "architecture_unit_cases": 13,
+    "actual_postgresql_wasm_cases": 60,
+    "python_tests": 28,
+    "native_handler_groups": 23,
+    "native_cover_dock_geometry_cases": 7,
+    "native_two_column_geometry_cases": 5,
+    "web_build": "passed",
+    "native_exports": [
+      "web",
+      "ios",
+      "android"
+    ],
+    "hosted_bulk_canary": "passed; accepted1/written0/retained1; exact retry and409 changed replay; issue/week/quota unchanged",
+    "actual_processor_transactions": 0,
+    "physical_browser_device_oauth": "unverified",
+    "postgresql_deployed": false
+  },
+  "catalog": {
+    "total_indexed": 65,
+    "gcd_imported": 22,
+    "metron_imported": 0,
+    "last_gcd_record_update": "2026-10-13T22:06:47.827Z",
+    "daily_stage": "importing",
+    "daily_completed_at": null,
+    "checkpoint": {
+      "iso_year": 2026,
+      "iso_week": 42,
+      "page": 1,
+      "pending_on_current_page": 28,
+      "current_week_expected_issues": 175,
+      "previous_week_pending": true
+    },
+    "full_historical_coverage": false,
+    "covers_imported": false,
+    "fmv_imported": false
+  },
+  "gcd_schedule": {
+    "id": "Automation_41dca7fec7ac8191a9a72b3ba4054594",
+    "title": "Refresh ComicHuddle\u2019s GCD catalog",
+    "is_enabled": true,
+    "schedule": "BEGIN:VEVENT\nDTSTART:20261013T170000\nRRULE:FREQ=HOURLY;INTERVAL=1;BYMINUTE=0;BYSECOND=0\nEND:VEVENT",
+    "timezone": "America/Chicago"
+  },
+  "metron_task_paused": true,
+  "release_notes": "Mobile root containment and two portrait columns; breadcrumb bar removed; mobile publisher/series strip removed. Full web and Expo source packages, public catalog CSV and safe bulk tools. GCD full authorized archive and artwork remain absent. Native is an unsigned prototype; FMV, Community and GrailMatch are Coming soon.",
+  "handoff_files": [
+    "ComicHuddle-Web-Source.zip",
+    "ComicHuddle-Mobile-App.zip"
+  ],
+  "evidence": [
+    "project/FINAL-HANDOFF-QA.md",
+    "project/evidence/FINAL-HOSTED-BULK-2026-10-13.json",
+    "project/evidence/TWO-COLUMN-NATIVE-READINESS-2026-10-13.json",
+    "data/CURRENT-CATALOG-EXPORT.json"
+  ]
+}

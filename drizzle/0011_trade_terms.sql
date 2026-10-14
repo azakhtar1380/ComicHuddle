@@ -1,0 +1,5 @@
+CREATE TABLE `trade_proposals` ( `id` text PRIMARY KEY NOT NULL, `thread_id` text NOT NULL, `listing_id` text NOT NULL, `buyer_id` text NOT NULL, `seller_id` text NOT NULL, `status` text DEFAULT 'pending' NOT NULL, `version` integer DEFAULT 0 NOT NULL, `request_body` text NOT NULL, `buyer_items` text NOT NULL, `seller_items` text NOT NULL, `listing_snapshot` text NOT NULL, `created_at` text NOT NULL, `updated_at` text NOT NULL, `decided_at` text, `decided_by` text, CONSTRAINT "trade_status_valid" CHECK("trade_proposals"."status" IN ('pending','accepted','declined','cancelled')), CONSTRAINT "trade_version_valid" CHECK("trade_proposals"."version" >= 0), CONSTRAINT "trade_distinct_participants" CHECK("trade_proposals"."buyer_id" != "trade_proposals"."seller_id") );--> statement-breakpoint
+CREATE INDEX `trade_thread_time` ON `trade_proposals` (`thread_id`,`created_at`,`id`);--> statement-breakpoint
+CREATE INDEX `trade_buyer` ON `trade_proposals` (`buyer_id`);--> statement-breakpoint
+CREATE INDEX `trade_seller` ON `trade_proposals` (`seller_id`);--> statement-breakpoint
+CREATE INDEX `trade_listing_state` ON `trade_proposals` (`listing_id`,`status`);

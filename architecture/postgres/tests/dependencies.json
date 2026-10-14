@@ -1,0 +1,17 @@
+{
+  "description": "Pinned, isolated QA tool dependency; do not add to Site package.json",
+  "package": "@electric-sql/pglite",
+  "version": "0.5.9",
+  "install": "npm install --prefix /tmp/comichuddle-pg-qa --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.5.9",
+  "run": "PGLITE_MODULE=/tmp/comichuddle-pg-qa/node_modules/@electric-sql/pglite/dist/index.js node architecture/postgres/tests/run.mjs",
+  "limits": [
+    "One PostgreSQL backend; separate-connection locks, MVCC races and deadlocks require server PostgreSQL",
+    "No production database, network connection, provider request or payment execution",
+    "RLS tests must SET LOCAL ROLE to a restricted non-superuser because postgres bypasses RLS"
+  ],
+  "optionalNativePackages": {
+    "@embedded-postgres/linux-x64": "18.4.0-beta.17",
+    "pg": "8.16.3"
+  },
+  "nativeStatus": "Prepared, not run here: namespace maps only UID/GID0; PostgreSQL requires a non-root identity."
+}

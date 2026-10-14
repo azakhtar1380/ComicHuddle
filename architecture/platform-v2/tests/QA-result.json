@@ -1,0 +1,9 @@
+{
+  "suite": "ComicHuddle platform v2 integration",
+  "passed": 42,
+  "failed": 0,
+  "failures": [],
+  "engine": "postgresql-wasm",
+  "providerTesting": "Fixtures only; no real Stripe/eBay payment or AI provider account was contacted.",
+  "browserTesting": "Not available in this environment."
+}

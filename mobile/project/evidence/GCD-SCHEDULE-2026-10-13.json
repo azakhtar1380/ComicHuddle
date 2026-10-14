@@ -1,0 +1,11 @@
+{
+  "id": "Automation_41dca7fec7ac8191a9a72b3ba4054594",
+  "title": "Refresh ComicHuddle\u2019s GCD catalog",
+  "is_enabled": true,
+  "schedule": "BEGIN:VEVENT\nDTSTART:20261013T170000\nRRULE:FREQ=HOURLY;INTERVAL=1;BYMINUTE=0;BYSECOND=0\nEND:VEVENT",
+  "timezone": "America/Chicago",
+  "saved_at": "2026-10-13T21:52:04.922503+00:00",
+  "scheduledExecutionVerified": false,
+  "initialHostedImporterVerified": true,
+  "metronTaskRemainsPaused": true
+}

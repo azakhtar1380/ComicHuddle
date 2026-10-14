@@ -1,0 +1,55 @@
+# ComicHuddle delivery backlog
+
+Priority P0 blocks its named release; P1 is required before wider use; P2 improves a functioning product. Status is evidence-based, not a promise of a calendar date. Detailed check results are in the QA and release reports.
+
+| ID | Priority / owner | Work | Acceptance / status |
+| --- | --- | --- | --- |
+| CH-101 | P1 / Developer + QA | Photo privacy after block, hidden profile/provider and listing withdrawal | Deny discovery photos while preserving each participant's own existing custody evidence; private no-store responses. Implemented; automated regression passed. |
+| CH-102 | P1 / Developer + QA | Collection integrity and concurrent devices | Reject empty/duplicate copy IDs and dangling trade IDs; stale If-Match save cannot overwrite a newer collection. Implemented; automated regression passed. |
+| CH-103 | P1 / Developer + QA | Withdrawn offers and concurrent state changes | A withdrawn listing cannot accept or receive new offers; closing pending offers is atomic. Implemented; automated regression passed. |
+| CH-104 | P1 / Developer + QA | Malformed/oversized requests and abuse | Bounded body reads, persisted atomic per-account/action budgets, useful 400/413/429 and Retry-After. Implemented; automated regression passed. |
+| CH-105 | P1 / Developer + QA | Report authorization and durable moderation | Only visible/accessible targets may be reported; restricted accounts/providers cannot republish or evade through deletion; owner can restore. Implemented; automated regression passed. |
+| CH-106 | P1 / Developer + lead + QA | Rules receipts and full account export | Explicit actual acceptance, version/date private to account; export contains owned records and private care data without unrelated users' records. Implemented; automated regression passed. |
+| CH-107 | P1 / Lead + QA | Client response ordering and first collection save | Late chat/group/profile data cannot overwrite current selection; drafts clear; null new-user collection adopts empty ETag. Implemented; 26 actual-function regression groups passed. |
+| CH-108 | P1 / Lead + QA | Native accessibility and short screens | Labeled icon action, larger touch controls, scrollable bounded account sheet, reduced-motion support and notices; exports/layout checks pass. Device verification pending. |
+| CH-109 | P1 / Developer + QA | Bounded list query costs | Dense fixture aggregations retain blocks/member visibility and private addresses. Passed: social 23/40, workshop 20/40, job detail 6/10 prepared queries. Hosted load and quotas unverified. |
+| CH-110 | P1 / Lead + QA | Dependency security | Compatible patches installed and lockfiles updated. Web production audit: zero findings. Native audit: 15 high graph entries representing two unresolved upstream build-tool advisories (braces/node-forge). Native security gate remains open. |
+| CH-111 | P1 / Developer + QA | Single-copy and whole-collection listings | Fixed immutable manifests up to 1,000 copies; one active reservation per copy, private costs excluded, owned photos retained. Implemented; inventory overlap/race/large-lot checks pass. |
+| CH-112 | P1 / Lead + Developer + QA | FMV on product cards | Exact current licensed Raw/CGC condition matches, physical-copy quantity, full total only with complete coverage; partial subtotal/coverage and unavailable states. Implemented; expiry/condition/privacy checks pass. |
+| CH-113 | P1 private preview / Lead + Developer + QA | Nonbinding auction workflow | Server cutoffs/increments, explicit consent, durable receipts, race/idempotency/retraction, no prior-bid revival, owner support cancellation, export/deletion history. Implemented; 49 marketplace regression groups pass. |
+| CH-201 | P0 public beta / Founder + analyst | Operator and contacts | Malik LLC, Minnesota/USA; maliktecks@gmail.com; USA-only scope supplied by the founder and added to preview contacts/rules. Mailbox operation, company/brand status and staffed moderation/backup still need operational verification. |
+| CH-202 | P0 public beta / Founder + lead + legal | Applicable published policies | Terms/privacy/community/copyright and retention/deletion/appeal process match actual behavior and operator; no placeholder contact. Operator/contact/scope supplied. Final applicable policies, retention, support and legal review remain open. |
+| CH-203 | P0 public beta / QA + founder | Actual browser/device journeys | iPhone Safari/PWA, Android Chrome, desktop Chrome/Edge/Safari/Firefox and native previews with keyboard, large text, offline/slow network, repeated drawers and sign-out. No supported device/browser access in this environment. |
+| CH-204 | P0 public beta / Developer + founder | Recovery and incident operations | Supported backup and restore rehearsal, error monitoring without message bodies, moderation cadence and incident contacts. Operational setup and rehearsal pending. |
+| CH-301 | P0 full data / Founder + analyst | Data/cover contracts | Authorized metadata + Raw/CGC values + cover rights for web/native/free/paid/territory; quote and sample. Commercial access pending. |
+| CH-302 | P0 full data / Developer + QA | Licensed catalog integration | Stable provider/edition crosswalk, paginated indexed search, scheduled refresh, failures/expiry/grade mapping, no private license refs in public responses. Depends on CH-301. |
+| CH-401 | P0 commerce / Founder + analyst | Transaction model and processor | Merchant responsibilities, account verification, seller onboarding, fee/refund/dispute/tax policy and ledger responsibilities. Not connected. |
+| CH-402 | P0 commerce / Developer + QA | Orders, inventory and webhooks | Sandbox-only orders, copy reservations, signed durable events and original-payment refunds are implemented and independently tested with simulated processor transport. Genuine sandbox/provider tests, carrier-conditioned seller transfers and production settlement remain pending. |
+| CH-404 | P0 binding auctions / Founder + analyst + legal | Auction operating model | Confirm applicable auction licensing/bonding/operator requirements across offered territories, reserve/retraction/completion rules and identity/shill controls; connect paid orders, settlement, refunds/disputes and tax. Nonbinding previews only; not legally or financially cleared for binding auctions. |
+| CH-403 | P0 shipment promotion / Founder + analyst | Workshop provider operations | Accepted terms/authorization, custody/intake, shipping insurance/claims contacts and actual dealer eligibility clearly distinguished from self-declaration. Not verified. |
+| CH-501 | P0 native stores / Developer + founder | Production native account and signing | Real account/session experience, signed operator-owned builds, privacy/support/deletion/report/block screens and review access. Prototype browser handoffs only. |
+| CH-502 | P0 native stores / QA + founder | Store compliance and real-device sign-off | Resolve applicable toolchain advisories; hardware journeys/disclosures/physical-vs-digital billing pass. Pending. |
+| CH-601 | P2 growth / Analyst + founder | Revenue experiments | Measure activation/retention, helpful matches, seller response and net contribution; price proposals tested with real customers. No revenue forecast asserted. |
+
+## Next delivery order
+
+CH-101 through CH-107 and CH-109 passed their automated acceptance checks. Complete actual-device verification for CH-108, the native advisory portion of CH-110, and remaining CH-201 through CH-204 operational/policy work before audience expansion. Founder operator/contact/scope details have been supplied; do not request them again. Procure licensed samples and decide the commerce model in parallel; implement each integration when its documented rights/account configuration is available. Store work needs its own authentication, signing and device checks. Do not promote a paid plan before its promised features exist.
+
+## Payment/data preparation follow-up
+
+- CH-405 (P0 commerce / Founder + Developer + QA): business-owned Stripe Connect sandbox, protected secrets and reachable signed webhook ingress; genuine successful/declined/challenged/repeated payment and refund evidence. Current runtime sandbox disabled; live keys rejected.
+- CH-406 (P0 protection / Developer + Operations + QA): trusted shipment/destination/signature verification, scheduled deadline checks, delivery review, return custody and seller transfer/bank reconciliation. No active automatic guarantee until these pass.
+- CH-407 (P0 finance / Founder + Analyst): fee/tax model, funded reserves, refunds/chargebacks, seller/payment-provider and applicable funds-flow review. Sandbox tax/commission currently zero.
+- CH-408 (Data / Founder + Analyst): written Key Collector catalog/key/cover agreement or adequate alternative; separately permitted completed-sale feed and derivative/display rights. Original FMV prototype awaits real backtesting. CGC guide uses ordinary GoCollect links.
+
+Current engineering changes and exact setup requirements are in PAYMENTS-REFUNDS-RELEASE.md; final synthetic counts are in verification.json and PAYMENT-QA.md.
+
+## Community and directory release — 9 October 2026
+
+- CH-114 (completed private engineering / Lead + Backend + QA): joined-group combined feed, paginated discovery and group/channel views, discussion/question/showcase/find posts, photos, replies and unique hearts. Enforce membership, two-way blocks, moderation, no private address/collection leakage, actual counts and full export/deletion cleanup. Migration8 adds replies/reactions and post fields; historical migrations remain unchanged.
+- CH-115 (completed private engineering / Lead + Native + QA): remove active FMV/GrailMatch navigation and guides; normalize legacy URLs into Upcoming. Desktop Collectors becomes My Profile and explicitly restores the current member’s own showcase. Six native/mobile tabs now include Community and Upcoming.
+- CH-303 (implemented; live access pending / Developer + QA + Founder): permitted per-member Metron metadata connector, memory-only token, fixed-host proxy, bounded/rate-limited explicit lookups, source/license preservation and no inferred price/artwork. Each user’s own account fits Metron’s default multi-user policy. No authenticated provider lookup has been verified.
+- CH-304 (P0 shared full directory / Founder + Analyst): obtain authorized Metron catalog delivery or written central-service arrangement, measure actual coverage and independently clear cover images. Public CC metadata reuse and API-account rules are distinct. No commercial Comic Vine imports without a separate grant.
+- FMV/GrailMatch remain future product scope. Their backend/research and saved account data are retained; no active public guide, alerts or swipe demo is promised by this release.
+
+Current implementation and frozen QA evidence: COMMUNITY-RELEASE.md, COMMUNITY-QA.md, COMMUNITY-BACKEND.md, METRON-SETUP.md and verification.json. Earlier payment and commerce reports remain historical evidence.

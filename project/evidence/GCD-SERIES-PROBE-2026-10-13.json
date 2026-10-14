@@ -1,0 +1,26 @@
+{
+  "recordedAt": "2026-10-13T21:17:29.590977+00:00",
+  "url": "https://www.comics.org/api/series/",
+  "status": 200,
+  "count": 233585,
+  "recordsOnPage": 50,
+  "firstRecordKeys": [
+    "api_url",
+    "name",
+    "country",
+    "language",
+    "active_issues",
+    "issue_descriptors",
+    "color",
+    "dimensions",
+    "paper_stock",
+    "binding",
+    "publishing_format",
+    "notes",
+    "year_began",
+    "year_ended",
+    "publisher"
+  ],
+  "hasActiveIssues": true,
+  "firstSeriesId": "https://www.comics.org/api/series/10814/"
+}

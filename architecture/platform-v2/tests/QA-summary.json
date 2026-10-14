@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-14",
+  "backend": {
+    "suite": "ComicHuddle platform v2 integration",
+    "passed": 42,
+    "failed": 0,
+    "failures": [],
+    "engine": "postgresql-wasm",
+    "providerTesting": "Fixtures only; no real Stripe/eBay payment or AI provider account was contacted.",
+    "browserTesting": "Not available in this environment."
+  },
+  "ui": {
+    "suite": "ComicHuddle platform v2 React interface",
+    "passed": 4,
+    "failed": 0,
+    "failures": [],
+    "browserTesting": "React render/handler checks; no actual browser, camera or device exercised."
+  },
+  "newChecksPassed": 46,
+  "legacyRegressionSuite": "passed: node checks/run-readiness.mjs; see legacy-regression.log",
+  "typescript": "passed: tsc --noEmit --incremental false",
+  "nativeConcurrency": "Not run: native database startup was unavailable under the required isolated OS user. A native test is included.",
+  "externalProviders": "Not run against real accounts; HTTP/provider fixtures used.",
+  "browserAndPhysicalDevices": "Not run; no supported browser QA capability available.",
+  "newLiveMoneyServices": "disabled",
+  "catalogSchedules": "remain disabled",
+  "productionBuild": "passed: Sites build helper"
+}

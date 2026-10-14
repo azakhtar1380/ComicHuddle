@@ -1,0 +1,3 @@
+export type ComicCardRecord={id:string;title:string;issueNumber:string;publisher:string;publicationDate:string|null;coverUrl:string|null;coverCredit:string|null;variant:string;keyTags:string[];certNumber?:string;rawFMVCents:string|null;cgc98FMVCents:string|null;valuationAsOf:string|null;valuationKind:'sold_estimate'|'licensed_fmv'|'unavailable';listingCount:number};
+export type MarketTick={id:string;comicId:string;title:string;gradeLabel:string;valueCents:string;deltaBps:number;asOf:string;sourceName:string;kind:'sold_estimate'|'licensed_fmv'|'verified_sale'};
+export type HomeFeed={items:ComicCardRecord[];market:MarketTick[];indexedCount:number;asOf:string;feedKind:'editorial'|'trending';filmKeys:ComicCardRecord[];ratioVariants:ComicCardRecord[]};

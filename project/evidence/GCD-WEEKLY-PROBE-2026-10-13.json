@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-10-13T21:14:24.137932+00:00",
+  "url": "https://www.comics.org/api/issue/on_sale_weekly/2026/week/42/",
+  "status": 200,
+  "count": 162,
+  "next": "https://www.comics.org/api/issue/on_sale_weekly/2026/week/42/?page=2",
+  "firstRecordKeys": [
+    "api_url",
+    "series_name",
+    "descriptor",
+    "publication_date",
+    "price",
+    "page_count",
+    "variant_of",
+    "series"
+  ],
+  "firstRecordId": "https://www.comics.org/api/issue/2872386/",
+  "hasStories": false,
+  "hasPublisher": false,
+  "recordsOnPage": 50
+}

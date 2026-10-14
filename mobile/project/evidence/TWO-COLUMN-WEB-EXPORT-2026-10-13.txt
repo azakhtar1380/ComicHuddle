@@ -1,0 +1,36 @@
+
+Using (experimental) base path: /app-preview
+Starting Metro Bundler
+
+| (node:5) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:5) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:5) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:5) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:5) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:5) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 1252ms index.ts (252 modules)
+
+› Assets (7):
+assets/comichuddle-logo.71249ebb17675cb8606dd9ff7802fa26.jpeg (398KB)
+assets/covers/planet-12.751210d1224ba19fa3518bb6c8e18c96.jpg (195KB)
+assets/covers/planet-21.25621ffa6b305dbcbf290b5b53aa5efa.jpg (239KB)
+assets/covers/planet-27.8a69805bb8796af2501f4beaf9ba2e12.jpg (422KB)
+assets/covers/planet-42.7c2bc927e6d10cb212e9041bfb7d22ca.jpg (264KB)
+assets/covers/planet-53.a9fd5f882b8649e8b79d054b94796fce.jpg (274KB)
+assets/covers/planet-55.d667db23c80d890fe61be1628537534c.jpg (248KB)
+
+› web bundles (1):
+_expo/static/js/web/index-cc7cdd4d276055d9675bdc8b231d4276.js (541KB)
+
+› Files (3):
+favicon.ico (15KB)
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist-scan-web

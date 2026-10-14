@@ -1,0 +1,104 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791432763904,
+      "tag": "0000_giant_ricochet",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791434044194,
+      "tag": "0001_third_vargas",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791436190308,
+      "tag": "0002_peaceful_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791468433229,
+      "tag": "0003_natural_ben_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791472093169,
+      "tag": "0004_high_banshee",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791520814079,
+      "tag": "0005_public_readiness",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791524030713,
+      "tag": "0006_marketplace_preview",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791559239133,
+      "tag": "0007_commerce_sandbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791571430558,
+      "tag": "0008_community_hub",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791598626409,
+      "tag": "0009_right_mephistopheles",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791911554681,
+      "tag": "0010_listing_pickup",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791915503261,
+      "tag": "0011_trade_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791925081608,
+      "tag": "0012_gcd_central_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791928766011,
+      "tag": "0013_gcd_bulk_ingest",
+      "breakpoints": true
+    }
+  ]
+}

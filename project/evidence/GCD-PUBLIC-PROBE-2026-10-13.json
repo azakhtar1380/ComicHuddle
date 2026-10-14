@@ -1,0 +1,22 @@
+{
+  "recordedAt": "2026-10-13T20:58:57.644316+00:00",
+  "source": "GCD official anonymous JSON API",
+  "observations": [
+    {
+      "url": "https://www.comics.org/api/issue/256114/?format=json",
+      "httpStatus": 200,
+      "series_name": "Batman: Dark Victory (1999 series)",
+      "number": "12"
+    },
+    {
+      "url": "https://www.comics.org/api/series/?format=json",
+      "httpStatus": 200,
+      "count": 233584
+    }
+  ],
+  "genuineProviderRequestsObserved": 2,
+  "coverage": "Provider series count is not an imported issue count; no full-catalog claim",
+  "credentialsUsed": false,
+  "imagesDownloaded": 0,
+  "fmvImported": 0
+}

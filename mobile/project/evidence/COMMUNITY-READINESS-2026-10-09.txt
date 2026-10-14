@@ -1,0 +1,632 @@
+
+Running --experimental-vm-modules checks/network-smoke.mjs
+(node:14) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: migrations; identity and origin; profile uniqueness; private vault and photos; group membership; reciprocal swipes; mutual match; private messaging; listings and offers; unavailable checkout; owner moderation; blocks; account deletion; catalog identity; pressing registration; private addresses and photos; quote revisions; role-restricted care stages; dealer-only CGC authorization; member reviews and leaderboard; care moderation and deletion.
+
+Running --experimental-vm-modules checks/readiness-negative.mjs
+(node:26) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: All authenticated routes reject anonymous mutations
+PASS: All authenticated account reads reject anonymous requests
+PASS: Foreign and absent mutation origins are rejected
+PASS: Malformed JSON returns a controlled client error
+PASS: Null, arrays and primitive social/care payloads return 400
+PASS: Private vault and profile cost are never shared
+PASS: Vault rejects empty and duplicate book identifiers
+PASS: Vault rejects dangling and duplicate trade identifiers
+PASS: Vault requires a current save precondition and returns an opaque version
+PASS: Concurrent collection edits have one winner and one conflict without lost updates
+PASS: Private media cannot be fetched or attached by another collector
+PASS: Public listing media becomes unavailable to a blocked collector
+PASS: Authenticated media is no-store and cannot outlive access changes in cache
+PASS: Nonexistent report targets are rejected
+PASS: A nonparticipant cannot report a private message
+PASS: Nonmembers cannot report private group posts
+PASS: Seller cannot accept an offer after withdrawing its listing
+PASS: Withdrawal closes pending offers and prevents new offers
+PASS: Owner moderation cannot be undone by the removed profile
+PASS: Blocks apply to new messages and offers, with no thread exposure to outsiders
+PASS: Oversized declared and UTF-8 streamed JSON bodies stop at the byte boundary
+PASS: Concurrent group posting respects an atomic account rate budget
+PASS: New accounts require an explicit current rules receipt and public profiles do not expose it
+PASS: Account export contains only owned and participated records
+PASS: Moderation survives account deletion and only an owner can restore it
+PASS: A moderated provider cannot republish and can resume only after owner restoration
+PASS: Photo upload rejects spoofed, truncated and oversized containers before storage
+PASS: Photo upload enforces maximum edge and total pixel dimensions
+PASS: JPEG upload strips location and text metadata on the server
+PASS: PNG upload strips text and EXIF metadata and rejects animation containers
+PASS: JPEG upload strips metadata inserted after scan data
+PASS: WebP upload strips EXIF/XMP, preserves size headers and rejects animation
+PASS: Legacy collection rows acquire a version without losing stored data
+PASS: Concurrent responses to one offer record only one seller decision
+
+Readiness negative results: 34 passed, 0 failed.
+
+Running --experimental-vm-modules checks/community-api.mjs
+(node:38) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: Migration8 has ten schema-only physical statements and leaves existing rows intact
+PASS: Anonymous discovery and no-profile feeds disclose group metadata only
+PASS: Joined feed contains both groups but no unjoined post bodies
+PASS: Unjoined group preview hides posts, replies and photographs
+PASS: Hidden showcase profiles participate privately with consistent member media and counts
+PASS: Legacy post and posts endpoint remain compatible with default kind and chronological output
+PASS: Post validation rejects unknown kinds, channels, blank body and oversized title
+PASS: Foreign uploaded attachments fail before post creation
+PASS: Real replies and one exact-intent heart per member update thread counts
+PASS: Concurrent duplicated heart commands commit one unique reaction
+PASS: Blocked post authors disappear in both directions from feed, thread and media
+PASS: Blocked reply and reaction actors are excluded from counts and active ordering
+PASS: Owner-restricted and moderated authors cannot leak posts or attach readable member photos
+PASS: Leaving a group revokes posts, replies and photo access immediately
+PASS: Channel and literal text searches filter inside joined content
+PASS: Discovery search is literal, bounded, and does not invent engagement
+PASS: Post keyset pages cover equal-timestamp records without duplicates and bind to filters
+PASS: Thread reply keyset pages are oldest-first and bounded with no duplicates
+PASS: Active sort uses visible reply time while recent sort uses the original post time
+PASS: All new mutations require auth, same origin, rules and group membership
+PASS: Membership removal at post commit prevents a new private post
+PASS: Reply and heart commits reject a membership loss or new block
+PASS: Deleted post or profile at commit cannot leave a reply/reaction orphan
+PASS: Photo ownership loss at post commit rolls back the attachment and parent
+PASS: An eligible group owner can delete replies and posts, outsiders cannot
+PASS: Author deletion and owner moderation remove descendant content and media grants atomically
+PASS: Reply reports are member-only and are reviewable/removable by the operator
+PASS: Exports include only the caller’s authored replies and reactions
+PASS: Account deletion cleans other members’ replies/reactions on its posts without deleting unrelated posts
+PASS: A failed child cleanup rolls back parent deletion and all community descendants
+PASS: Dense joined feeds and discovery stay within query and100-bind budgets
+Community query evidence: {"feedQueries":6,"discoveryQueries":5,"maxBindParameters":24}
+
+Community API results: 31 passed, 0 failed.
+
+Running --experimental-vm-modules checks/metron-directory.mjs
+(node:50) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: Real authenticated route uses only caller Bearer token and returns a private metadata response
+PASS: Guests cannot submit tokens or trigger a provider request or persisted budget
+PASS: Missing and foreign origins are rejected before provider access
+PASS: Credential-bearing request URLs are rejected and never echoed
+PASS: GET has no credential pathway and explicitly allows only POST
+PASS: Non-JSON content types cannot invoke the proxy
+PASS: Malformed JSON, arrays and non-object bodies return bounded validation errors
+PASS: Declared and streamed request bodies over8192 bytes are rejected
+PASS: A collector profile is required before token parsing or provider access
+PASS: Moderated, deletion-pending and restricted accounts cannot connect
+PASS: Current rule version and rule acceptance are both required
+PASS: Private collector profiles can use their own directory without a public showcase
+PASS: Request parser rejects extra endpoints, passwords, cover flags or arbitrary fields
+PASS: Token shape, size and own-account attestation fail closed
+PASS: Search grammar accepts series words and optional exact issue number, within160 characters
+PASS: Search encoding cannot turn series text into extra API parameters or place a token in a URL
+PASS: Detail accepts only positive bounded Metron IDs and fetches the fixed issue endpoint
+PASS: Valid next-page URLs preserve search terms and are fetched one page at a time
+PASS: Pagination rejects foreign hosts, paths, credentials, ports, fragments and unknown parameters
+PASS: Pagination rejects query changes and malformed page numbers
+PASS: Unsafe upstream pagination is suppressed without making a second request
+PASS: Detail DTO keeps plain publisher, year, issue and creator metadata while dropping artwork and values
+PASS: Sanitization strips markup and controls, bounds fields and ignores untrusted source URLs
+PASS: Missing or malformed optional metadata remains unavailable rather than being invented
+PASS: Reflected tokens in metadata fields are not returned to the caller
+PASS: Personal entries retain exact issue and source license with no local catalogue ID or inferred FMV
+PASS: Provider401 and403 fail safely without echoing upstream errors or token content
+PASS: Provider429 honors bounded Retry-After and rejects secret-bearing or impossible header values
+PASS: Provider404,5xx and redirects never trigger automatic retries or credential redirects
+PASS: Provider HTML, malformed JSON and malformed response envelopes are rejected
+PASS: Declared or streamed upstream responses beyond512KiB are rejected
+PASS: Over100 rows, repeated Metron IDs or a mismatched detail ID are rejected
+PASS: Timeout aborts stalled response reading and cancels its body without logging provider errors
+PASS: Network errors are sanitized and caller cancellation aborts the fixed-origin request
+PASS: Provider rate headers are parsed numerically and give a pause when remaining reaches zero
+PASS: Persistent app budget allows eight/minute, rejects the ninth, and remains user specific
+PASS: Concurrent app requests cannot overrun the atomic eight-request minute budget
+PASS: The shared1200/day app ceiling remains below provider allowance and budgets expire
+PASS: Persisted profile and budget state never contains raw tokens or provider metadata
+PASS: Client controller cannot hold a token while signed out and suppresses overlapping actions
+PASS: Actual client helper uses one same-origin POST with ephemeral token body and no URL credential
+PASS: Disconnect suppresses an in-flight successful provider result and aborts its signal
+PASS: Signout and unmount suppress late errors and require a new token on remount
+PASS: Replacing a token prevents stale completion from affecting the new connection
+PASS: Client never displays reflected upstream errors or accepts a response containing its token
+PASS: Actual React markup offers credentials only after sign-in and shows source/license without artwork
+Metron integration: 46 named groups passed; 0 failed. Synthetic fixtures only; live token/provider validation remains unverified.
+
+Running --experimental-vm-modules checks/external-catalog-vault.mjs
+(node:62) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: Actual vault round-trip and account export preserve external provenance without inventing a local valuation link
+PASS: Actual vault rejects invalid external IDs, provider/license, source URLs and secret fields without replacing the saved collection
+PASS: Conflicting external and starter identities fail atomically while separate linked and manual copies remain compatible
+
+External catalog vault results: 3 passed, 0 failed.
+
+Running --experimental-vm-modules checks/marketplace-smoke.mjs
+(node:74) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: Marketplace mutations require identity and the correct origin
+PASS: A single listing snapshots its owned copy and exact licensed FMV without private costs
+PASS: A collection listing snapshots every selected physical copy and totals quantity correctly
+PASS: A mixed collection displays only covered FMV and never presents a partial total as complete
+PASS: Unstructured, inferred-catalog, wrong-grade, wrong-label and wrong-printing copies have unavailable FMV
+PASS: Stale or expired licensed estimates disappear from listing FMV immediately
+PASS: Published copy snapshots and authorized item photos survive later private-vault edits
+PASS: Creation rejects unowned, duplicate, empty and conflicting selections and foreign photos
+PASS: Physical copies cannot be duplicated across active singles and collection lots
+PASS: Concurrent lot publication reserves every copy once or rolls back completely
+PASS: A full 1000-copy collection uses bounded large payloads and preserves every snapshot
+PASS: Oversized listing and nonlisting bodies fail before publication
+PASS: Auction cards keep opening ask and current FMV separate and use server time
+PASS: Auctions reject self bids, missing consent, fractional amounts, low bids and fixed-price actions
+PASS: Bidder identity and request receipts stay private to each collector
+PASS: Bid request IDs are idempotent per bidder and cannot be reused with different payloads
+PASS: Concurrent equal bids record exactly one leading proposal
+PASS: Blocked, hidden and restricted collectors cannot place new bids
+PASS: Server-time cutoff rejects bids and retractions at the exact auction end
+PASS: Only the submitting collector can retract a live nonbinding proposal
+PASS: Leader retraction never silently promotes a prior outbid proposal
+PASS: Retracting an outbid proposal preserves the current leader
+PASS: Seller withdrawal is available before bidding and blocked after bid activity
+PASS: Owner cancellation releases inventory and safely permits participant account deletion
+PASS: Ended auction sellers need owner cancellation while bidder deletion anonymizes history
+PASS: Fixed-price listings cannot receive nonbinding auction proposals
+PASS: An older own proposal cannot be retracted after a newer own proposal
+PASS: Auction collection reservations conflict with fixed-price singles and lots
+PASS: Exports include only owned inventory reservations and owned bid receipts
+PASS: Account restriction withdraws listings and releases reservations only for restored reuse
+PASS: Mixed license expiry preserves a clearly labeled covered subtotal
+PASS: Ended auction inventory can be relisted without creating an order or erasing bid history
+PASS: Retracted live proposals permit bidder deletion and preserve private anonymous history
+PASS: Client valuation requires explicit catalog identity and complete exact conditions
+PASS: Client subtotals count physical copies and never fill missing FMV with zero
+PASS: Client current values expire precisely at the age boundary and reject future estimates
+PASS: The countdown formats a server-provided end without choosing a winner
+PASS: The vault rejects payloads above 1MB before replacing the current collection
+PASS: Individual listing retrieval respects identity, blocks, seller visibility and withdrawal
+PASS: Only the owner can cancel an auction, after which bids end and inventory is reusable
+PASS: Auction support summaries require owner identity and reject malformed exact lookup IDs
+PASS: Exact support lookup finds an older hidden auction outside the recent100 and exposes only safe summary fields
+PASS: Private thread overview previews use each thread’s own latest message
+PASS: A vault edit after listing reads cannot publish a stale collection snapshot
+PASS: A newly blocked bidder is rejected atomically after preliminary eligibility reads
+PASS: Concurrent retries of one request return one accepted receipt and one duplicate success
+PASS: Account deletion racing with an accepted proposal rolls back for the seller
+PASS: Account deletion racing with an accepted proposal rolls back for the bidder
+PASS: A malformed stored auction deadline fails closed for bids and retractions
+
+Marketplace route results: 49 passed, 0 failed.
+
+Running --experimental-vm-modules checks/payment-boundary.mjs
+(node:86) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: The new sandbox adapter fails closed without configuration and leaves its ledger empty
+PASS: The real signed-in overview explicitly keeps checkout disabled
+PASS: Eligible single-copy purchase returns503 without changing inventory or creating an order
+PASS: Eligible whole-collection purchase returns503 and preserves every reserved copy
+PASS: Legacy single-copy publication reaches the same disabled payment boundary
+PASS: Anonymous and profile-less users cannot start checkout
+PASS: Missing, foreign and mismatched-port origins are rejected before checkout
+PASS: Moderated and persistently restricted buyers cannot start checkout
+PASS: A current consent version and actual acceptance timestamp are required
+PASS: Sellers cannot buy their own listing
+PASS: Missing, forged and invalid listing identifiers cannot create purchases
+PASS: Malformed and non-object JSON purchase payloads fail without business writes
+PASS: Withdrawal makes a fixed-price listing unavailable to purchase
+PASS: Client prices, shipping, currency, paid claims and redirect URLs cannot fabricate payment
+PASS: Unknown checkout, refund, payout and webhook actions cannot mutate payment state
+PASS: Sequential retries with copied request tokens remain unpaid and unchanged
+PASS: Concurrent checkout attempts all stop at503 and preserve one physical reservation
+PASS: Persistent checkout throttling counts failures, returns Retry-After and recovers without charges
+PASS: Accepted fixed-price offers are negotiations, and checkout still creates no sale
+PASS: An offer cannot be relabeled as paid through its response action
+PASS: Active auction proposals never authorize the fixed-price purchase endpoint
+PASS: Closing a timed auction does not charge its leading collector or create an order
+PASS: Owner cancellation annuls auction proposals without issuing a refund or settlement
+PASS: Blocking either participant denies direct checkout access
+PASS: Hidden, moderated, restricted, deleting and missing sellers cannot receive checkout attempts
+PASS: Presser quote acceptance records custody agreement rather than a payment
+PASS: All exercised boundaries made zero outbound calls and retained no paid state
+
+Payment boundary: 27 passed, 0 failed. Outbound processor attempts: 0. Real processor transactions executed: 0.
+
+Running checks/fmv-model.mjs
+PASS: Original research output has exact weighted median and observed quartiles, with no purchase discount
+PASS: Thirty-day half-life changes the result predictably without averaging the old high sales
+PASS: Missing data leaves numeric FMV and range null, and reports unavailable support
+PASS: Incomplete exact target identities and unknown grades fail closed
+PASS: Raw and CGC tuples require consistent company and canonical label
+PASS: Every edition, variant, printing, grade, label and specialty attribute must match exactly
+PASS: Missing comparable identities or exact-comparability verification cannot supply estimates
+PASS: Collection and access permission are independently mandatory
+PASS: Derivation permission is independently mandatory; a token or developer account does not suffice
+PASS: Public display permission is independently mandatory
+PASS: Missing, wrong-source, inactive, revoked and undocumented grants fail closed
+PASS: Expired and future-starting grants including exact expiry boundary cannot authorize inputs
+PASS: Malformed and impossible permission dates are refused rather than Date.parse-normalized
+PASS: Conflicting duplicate grant IDs are never resolved by record order
+PASS: Unverified independent sellers or missing seller identities cannot supply support
+PASS: Lots, collections and multiple-copy transaction totals are excluded
+PASS: Pending, cancelled, refunded and unknown transaction states are excluded
+PASS: Non-USD prices are never mixed or implicitly converted
+PASS: Asking prices and totals including fees, shipping, tax or buyer premiums are excluded
+PASS: Unknown accepted-offer amounts fail closed; known actual paid offer amounts can be comparable
+PASS: Nonfinite, nonpositive, nonnumeric, unsafe and subcent amounts cannot supply a valuation
+PASS: Malformed and impossible sale or settlement calendar dates are rejected
+PASS: Future sales and future settlements are excluded relative to the supplied evaluation clock
+PASS: Settlement preceding a sale cannot be treated as a settled comparable
+PASS: The 90-day window includes its boundary and excludes records one millisecond older
+PASS: Newest sale must be within30 days; the exact30-day boundary is allowed
+PASS: Fewer than five unique comparable sales never create an estimate
+PASS: Fewer than three independent sellers never create an estimate
+PASS: Identical transaction repeats within one feed do not inflate sample size or support
+PASS: Identical economic transactions from different licensed feeds and UTC spellings are deduplicated
+PASS: A duplicate from an unlicensed feed is excluded without discarding an identical permitted sale
+PASS: Conflicting duplicate economic transaction IDs reject all copies instead of choosing a feed
+PASS: Missing or malformed stable transaction IDs do not become invented unique transactions
+PASS: Seller concentration rejects aggregate recency weight over40%, including recent dominant sellers
+PASS: Exactly40% seller recency weight is allowed without artificial seller reweighting
+PASS: At least nine observations permit robust log-MAD outlier filtering with transparent exclusions
+PASS: Sparse samples and zero log-MAD do not invent an outlier cutoff
+PASS: Freshness is checked again after removing a recent extreme sale
+PASS: Stronger support requires fifteen fresh comparable sales, five sellers and restrained observed spread
+PASS: Many mostly old sales cannot manufacture stronger support from a small effective sample
+PASS: Conflicts, source selection, audit counts and numeric output are invariant under input order
+PASS: The prototype does not mutate caller records or depend on the current system clock
+PASS: Invalid envelopes and malformed evaluation clocks return unavailable without fabricated observations
+FMV prototype: 43 named groups passed; 0 failed. SYNTHETIC FIXTURES ONLY; no live FMV calibrated or published.
+
+Running checks/commerce-policy.mjs
+PASS: An unpaid order cannot refund or release funds, even after shipping deadlines
+PASS: Verified exact payment binds once and starts deadlines at confirmed payment time
+PASS: Wrong owner, order, amount, currency, source and verification cannot confirm payment
+PASS: Duplicate verified payments preserve the original paid timestamp and intent
+PASS: A charge reference may be completed later without restarting shipment clocks
+PASS: A shipping label alone does not meet the tracking or carrier-handoff requirements
+PASS: The tracking deadline changes at exactly48 hours, with no zero-valued refund
+PASS: Timely verified tracking postpones refund only until physical carrier acceptance deadline
+PASS: Timely tracking and real carrier acceptance keep the order in transit
+PASS: Late tracking cannot rescue an already missed deadline
+PASS: Late delivery evidence cannot revive release after a persisted carrier deadline
+PASS: Delayed evidence received after deadline fails closed even if it claims an earlier scan
+PASS: Another shipment, delivery before handoff or future evidence cannot affect funds
+PASS: Owned tracking and delivery timestamps cannot be swapped after confirmation
+PASS: Delivery opens a full48-hour review window before transfer eligibility
+PASS: An owned buyer issue and return request freeze release without automatically refunding
+PASS: An outsider cannot freeze or request a return for another buyer
+PASS: Operator issue resolution can release or approve a full refund, never both
+PASS: A payment dispute freezes both financial operations and cannot be cleared by issue resolution
+PASS: Out-of-order dispute events cannot reopen an older state; a lost dispute requires reconciliation
+PASS: Unknown processor or courier states require manual review rather than a payout
+PASS: Unconfigured high-value terms block release without inventing a dollar threshold
+PASS: Chosen high-value signature and longer review requirements are enforced
+PASS: Missing seller account or source charge blocks transfer despite confirmed delivery
+PASS: Refund begins only when eligible and reserves the exact full amount and request ID
+PASS: Repeated refund requests retain one reservation, while a different request or transfer is rejected
+PASS: Only the matching verified refund result creates refunded terminal state
+PASS: Refund retries and late delivery cannot create a second refund or seller transfer
+PASS: Transfer reservation and confirmation match amount, destination, intent and request
+PASS: Repeated transfer confirmation cannot produce a second seller transfer
+PASS: Conflicting or unsolicited processor objects pause release for reconciliation
+PASS: Deadline-refund and late-delivery event order never changes the winning refund path
+PASS: A buyer issue during an in-flight transfer cannot start a competing refund
+PASS: The same event ID with changed contents is rejected; receipts are bounded and not a durable ledger
+PASS: Malformed timestamps, unknown policy/state and inconsistent financial records fail closed
+PASS: An atomic caller must choose one versioned financial transition, never merge stale branches
+
+Commerce policy: 36 passed, 0 failed. Pure policy only; processor transactions executed: 0.
+
+Running checks/stripe-sandbox.mjs
+PASS: No configuration is disabled and never exposes a secret
+PASS: An owner flag cannot enable a live or restricted-live Stripe key
+PASS: Malformed, whitespace, publishable and restricted keys fail closed
+PASS: Explicit review and sandbox flags, webhook key and HTTPS origin are mandatory
+PASS: Missing setup produces no outbound API attempt
+PASS: Revoking the sandbox flag or switching the canonical origin disables an existing adapter
+PASS: Hosted checkout uses server cents, exact metadata and persisted idempotency, with no automatic transfer
+PASS: Server item, shipping and tax cents reconcile exactly without optional shopper amounts
+PASS: Retrying unchanged Checkout with its persisted key returns one synthetic provider object
+PASS: Reusing a key with altered totals is an explicit sanitized conflict
+PASS: Zero, fractional, tiny, negative, nonnumeric and unsafe charge totals never reach Stripe
+PASS: Negative components and mismatched breakdown never reach Stripe
+PASS: Invalid identifiers, titles and weak idempotency keys cannot start Checkout
+PASS: Checkout rejects external, insecure, credentialed and malformed return URLs
+PASS: Only Stripe HTTPS Checkout URLs can be returned to the browser
+PASS: Create response must be an open unpaid sandbox session bound to the order
+PASS: Paid Checkout retrieval checks the saved session, total, order and exact intent
+PASS: Cross-order, amount, currency, metadata and intent mismatches cannot mark payment paid
+PASS: Redirect completion and processing/unpaid sessions cannot prove a payment
+PASS: PaymentIntent requires exact sandbox order, transfer group and captured amount
+PASS: Automatic destination transfers or application fees are rejected
+PASS: Malformed provider JSON and nonobject responses are sanitized
+PASS: HTTP failure responses expose no provider payload, key or customer information
+PASS: Network failures are uncertain and never automatically replayed
+PASS: Timeout aborts the request and reports uncertainty without starting another charge
+PASS: Oversized declared and streaming Stripe responses are bounded
+PASS: A partial refund re-verifies intent and charge before refunding the original payment
+PASS: Full refund is supported with exactly the remaining order amount
+PASS: Zero, negative, excess and invalid refund amounts cannot reach the refund API
+PASS: Provider refunded amount overrides an optimistic local remaining balance
+PASS: Current open or unknown charge disputes block refunds despite a delayed webhook
+PASS: Pending and failed refunds are returned as unconfirmed states, never as completed
+PASS: Refund reconciliation requires exact intent, amount, currency, order and completion
+PASS: Create-refund response cannot substitute another order or payment
+PASS: Seller release uses separate transfer, saved source charge and exact server amount
+PASS: Disputed, partially refunded and fully refunded charges cannot release seller funds
+PASS: Another charge or payment cannot be substituted for the order charge
+PASS: Incomplete, disabled or non-US sellers cannot receive transfers
+PASS: Transfer response verifies exact destination, source charge, amount and order
+PASS: US Express onboarding binds profile and user, explicitly disables automatic bank payouts
+PASS: Seller account creation and retrieval reject mismatched profile metadata
+PASS: Onboarding links are HTTPS Stripe single-use links with canonical site returns
+PASS: Expired or unexpected-host seller onboarding links are never returned
+PASS: Webhook authenticates actual raw bytes using HMAC SHA-256 before parsing
+PASS: Webhook supports rotating multiple v1 signatures while ignoring obsolete schemes
+PASS: Stale, future and malformed timestamps or duplicated t values are rejected
+PASS: Changed body and unauthenticated malformed JSON fail signature authentication first
+PASS: Correctly signed malformed JSON, live events and unexpected event shapes are rejected
+PASS: Raw Unicode bytes authenticate without reserialization or normalization
+PASS: Webhook size, signature count and clock tolerance are bounded
+PASS: Webhook rejects absent credentials and every live key even with owner flags
+PASS: Authenticated retries retain the event ID for durable caller deduplication
+PASS: Signature validation can precede the integration review without enabling checkout
+Stripe sandbox adapter: 53 named groups passed; 0 failed. Synthetic HTTP/signature tests only; actual Stripe sandbox transactions not run.
+
+Running --experimental-vm-modules checks/commerce-api.mjs
+(node:134) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: Migration 7 applies as 17 complete hosted physical-line statements with no trigger or runtime DDL
+PASS: Setup is public, sandbox only and discloses neither secrets nor enabled carrier/payouts
+PASS: Absent, live-key, unreviewed and wrong-origin configuration refuse before checkout domain writes
+PASS: Commerce actions enforce identity, same origin, profile and current rules
+PASS: Strict checkout rejects prices, paid claims, redirect overrides and unsupported US addresses
+PASS: Malformed and oversized commerce action bodies are controlled errors
+PASS: Seller onboarding binds the account to its profile, uses manual payout setup and never trusts a return URL
+PASS: Checkout reserves a single safe snapshot using server price and shipping, without paid proof or transfer
+PASS: Whole-collection checkout retains every copy, photo and one lot amount
+PASS: Exact checkout retries reuse the persisted order/session; changed request payloads conflict
+PASS: Competing buyers reserve a listing atomically with no second checkout or partial domain writes
+PASS: A checkout reservation receipt failure rolls back order, listing status and closed offers
+PASS: Unknown checkout response retains its reservation and blocks a new POST at the 23-hour safety boundary
+PASS: Signed sandbox payment proof re-retrieves exact session, intent and charge before marking sold
+PASS: Bad, expired, live-mode and unreviewed webhooks fail without paid records or receipts
+PASS: Webhook raw-body bounds and mismatched provider amounts/metadata cannot confirm payment
+PASS: Durable signed event dedupe handles exact replay/concurrency and rejects changed content
+PASS: Checkout expiration is re-retrieved unpaid proof, releases locks and does not accept late paid claims
+PASS: Own paid order detail reveals locked address and photos only to participants, with limited support view
+PASS: Paid condition photos survive public listing removal for both participants and deny unrelated viewers
+PASS: Entered tracking is unverified and cannot fabricate carrier delivery or trigger seller transfer
+PASS: Refund request belongs only to the buyer, freezes release and deduplicates its stated issue
+PASS: Missing-tracking refund starts exactly at 48 hours, uses one full refund and releases unshipped inventory
+PASS: A freshly disputed processor charge blocks refund even before its dispute webhook
+PASS: Approving a buyer issue cannot clear unrelated processor reconciliation holds
+PASS: Checkout refuses missing, self-owned and auction listings, and requires fresh seller verification
+PASS: Checkout retries cannot issue a URL after seller hiding, moderation, restriction, deletion or either block direction
+PASS: Moderation preserves reserved copies, reconciles already-issued signed payment and prevents double listing after restoration
+PASS: A refund with entered but unverified tracking retains custody inventory even after moderator cleanup
+PASS: Pending refund is reconciled by bound GET and signed completion without a replacement POST
+PASS: An unbound pending refund plus unknown processor hold permits no replacement funds POST
+PASS: Unknown refund response blocks a repeat POST at the 23-hour idempotency safety boundary
+PASS: Stale pending refund response cannot overwrite a newer bound provider refund ID
+PASS: Conflicting payment totals and processor identities fail closed before refund or checkout calls
+PASS: Concurrent distinct refund requests reserve one ledger and cannot release seller funds
+PASS: Paid order records and photos survive moderation and blocks while private details deny bystanders
+PASS: Any reserved or refunded financial history blocks self deletion and listing withdrawal without erasing records
+PASS: Listing-only moderation denies checkout retry yet reconciles already-issued money under a hold without releasing copies
+PASS: Checkout guard catches withdrawal, visibility and deletion committed after its preliminary reads
+PASS: Account deletion guard catches a checkout committed after the financial-history precheck
+PASS: Payment receipt failure rolls back paid status, binding and durable event then safely retries the same signed proof
+PASS: Refund completion receipt failure retains one pending reservation and reconciles its original processor key
+PASS: Owner reconciliation retrieves an existing refund amid a new dispute without issuing another operation
+PASS: A retained order blocks deletion even without a profile and protects collection/photo custody
+PASS: Overview truncation is explicit while owned finance export includes every order/event beyond 100 within hosted bind limits
+PASS: An onboarded seller with no financial orders can delete and create a usable collector account again
+PASS: Delayed first signed completion sets 48 and 72-hour deadlines from provider completion and later receipts do not restart them
+PASS: A malformed refund ledger cannot confirm a smaller amount or a different financial request
+PASS: Seller tracking input cannot replace a processor hold or enable approval to initiate a new refund
+
+Commerce API: 49 named groups passed, 0 failed. Fake Stripe transport only; actual processor transactions: 0.
+
+Running --experimental-vm-modules checks/marketplace-legacy.mjs
+(node:146) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Migration6: 24 complete schema statements, 0 triggers.
+PASS: Migration6 physical lines are complete, schema-only and provide the CHECK guard without triggers
+PASS: Atomic guard rejects legacy overlap appearing after initialization but before publication
+PASS: Legacy overlap is seller-scoped and never blocks another owner’s copy identifier
+PASS: Owned lazy initialization safely snapshots legacy rows and closes the later duplicate
+PASS: Lazy initialization is idempotent and published legacy contents remain frozen after vault edits
+Full25-row initialization: maximum 32 SQL bindings; uninitialized26th copy remained protected.
+PASS: Owned initialization processes25 rows and protects overlap outside that batch
+Migration delta results: 6 passed, 0 failed.
+
+Running checks/readiness-client-race.mjs
+PASS: chat: an old selection cannot overwrite a new selection
+PASS: chat: render selection changes invalidate results before the next effect
+PASS: chat: reverse-order refreshes keep the most recent response
+PASS: chat: a late failure cannot replace a newer successful state
+PASS: posts: an old selection cannot overwrite a new selection
+PASS: posts: render selection changes invalidate results before the next effect
+PASS: posts: reverse-order refreshes keep the most recent response
+PASS: posts: a late failure cannot replace a newer successful state
+PASS: Conversation selection clears a draft addressed to the previous peer
+PASS: Conversation effect cleanup invalidates its outstanding request
+PASS: chat: stale finalizers cannot stop the latest loading state
+PASS: chat: the current failure is surfaced and loading stops
+PASS: posts: stale finalizers cannot stop the latest loading state
+PASS: posts: the current failure is surfaced and loading stops
+PASS: Opening a collector profile accepts its first response after entering Collectors
+PASS: Rapid profile choices keep the most recently selected collector
+PASS: A late profile error cannot replace a newer collector result
+PASS: Leaving Collectors prevents late profile results from changing the screen
+PASS: A direct collector card choice cancels an outstanding profile lookup
+PASS: Returning to my showcase cancels an outstanding profile lookup
+PASS: A new collector loads null as an empty collection and can perform the first conditional save
+PASS: Collection saves send and advance the server version
+PASS: A stale collection save rolls back and disables writes until reconnected
+PASS: An in-flight collection save cannot enqueue a second write
+PASS: Collection network failure rolls back optimistic content
+PASS: Collection bootstrap cleanup ignores a late account response
+
+Client response-order results: 26 passed, 0 failed.
+
+Running --experimental-vm-modules checks/journey-integration.mjs
+(node:170) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: A new signed-in collector sees an empty account and must create a profile before saving or registering a studio
+PASS: Collector handles, consent receipts and featured ownership survive real create/edit/export requests
+PASS: Catalog search and exact selection preserve series, edition, key information and honest starter coverage
+PASS: Malformed or conflicting catalog queries return controlled errors without silently selecting an issue
+PASS: The actual picker client consumes the real catalog search route response before a collector selects a record
+PASS: Selected directory copies save canonical identity with private estimate, photo and version intact
+PASS: Mismatched or unknown directory selections fail without overwriting the collector’s existing save
+PASS: Legacy mismatched directory links remain readable but cannot create a false sale or reciprocal trade
+PASS: Manual personal records remain unlinked, and physical duplicate issues have distinct owned-copy IDs
+PASS: Actual Add Comic selection submits one exact API issue and trade choice through a conditional vault save
+PASS: Actual manual Add Comic submits a personal record without inferring directory identity
+PASS: Actual Add Comic refuses an empty directory selection before invoking storage
+PASS: Actual Add Comic keeps its completion callback pending after a stale save conflict
+PASS: Actual owned-copy directory edit retains copy/photo/price identity and updates the exact edition
+PASS: Actual owned-copy manual edit removes an old directory link, and a listed copy is protected before storage
+PASS: Studio registration requires collector discovery and messages, then updates one owned listing
+PASS: Studio registration rejects invalid scope, intake, dealer claims and foreign portfolio photos
+PASS: Paused and hidden studios preserve owned management while refusing new requests and private address disclosure
+PASS: A quoted care request keeps provider intake details locked in both normal reads and account export
+PASS: Mail-in care records freeze quote terms, unlock accepted addresses and complete with a private timeline
+PASS: Local drop-off skips carrier shipment and return charges without skipping collector receipt
+PASS: Requests reject unavailable books, foreign copies, duplicate selections and unoffered service or intake
+PASS: Review badges distinguish member experience from completed custody, edits remain one review and deletion belongs to the author
+PASS: Two simultaneous quote revisions preserve one current quote and one matching timeline receipt
+PASS: Accepting a quote while the provider revises it cannot accept stale terms or lose a successful revision
+PASS: Concurrent custody updates preserve one current stage and one matching event
+PASS: Care-request storage failure cannot create an orphan job without its initial custody receipt
+PASS: A quote timeline-write failure rolls back the associated custody change
+PASS: A approve timeline-write failure rolls back the associated custody change
+PASS: A stage timeline-write failure rolls back the associated custody change
+PASS: Account deletion for the provider racing with quote acceptance preserves accepted custody and both participants
+PASS: Account deletion for the collector racing with quote acceptance preserves accepted custody and both participants
+PASS: Provider deletion cleans a newly arriving unaccepted request and message even when preliminary reads were empty
+PASS: An ordinary fixed-price sale supports offers and private messaging but cannot claim a paid purchase
+PASS: A provider moderation hold removes discovery while preserving existing private custody and condition photos
+
+Journey integration results: 35 passed, 0 failed.
+
+Running checks/journey-client.mjs
+PASS: Comic Workshop provider: reverse responses preserve the latest chosen record
+PASS: Comic Workshop provider: a late failure cannot surface an error after a newer successful choice
+PASS: Comic Workshop job: reverse responses preserve the latest chosen record
+PASS: Comic Workshop job: a late failure cannot surface an error after a newer successful choice
+PASS: Comic Workshop refresh: reverse responses preserve the latest saved directory and jobs
+PASS: Comic Workshop refresh: a stale failure cannot replace a newer successful connection
+PASS: Comic Workshop provider: closing selection prevents a late result from reopening the modal
+PASS: Comic Workshop provider: leaving and returning before effects invalidates the prior page request
+PASS: Comic Workshop job: closing selection prevents a late result from reopening the modal
+PASS: Comic Workshop job: leaving and returning before effects invalidates the prior page request
+PASS: Comic Workshop cross-selection cannot let a provider response overlap a newer care-job modal
+PASS: Comic Workshop account change discards an old private-job directory response before effects
+PASS: Comic Workshop unmount ignores an outstanding response and its error
+PASS: Comic Workshop old mutation completion cannot reopen a record after leaving and returning
+PASS: Directory picker search: newer results survive a reversed old response even when abort is ignored
+PASS: Directory picker search: obsolete errors cannot replace a successful newer selection
+PASS: Directory picker cancellation prevents a late response from restoring a closed result list
+PASS: Directory picker current failures are surfaced, and a subsequent retry can recover
+PASS: Directory picker requests encode the query and exact page offset without putting it in a route path
+PASS: Directory picker rejects malformed pagination and duplicate comic identities before selection
+PASS: Directory picker keyboard navigation wraps available results and leaves empty searches unselected
+PASS: Collector network refresh preserves newer account/listing data when initial responses resolve backwards
+PASS: Collector network stale failure cannot replace a successful mutation refresh
+PASS: Collector network signout/relogin discards prior account reads and mutation completions
+PASS: Collector network unmount ignores a late read failure without updating connection state
+PASS: Account sign-in return path preserves provider role, current section and app query context
+PASS: Account return paths stay local and reject unsupported roles or section intents
+PASS: Consuming a completed account intent retains the original app, issue and selling query context
+PASS: Actual Hub restores signed-out provider intent into the free profile gate
+PASS: Actual Hub resumes a valid signed-in provider into studio registration once and consumes the intent
+
+Journey client results: 30 passed, 0 failed.
+
+Running checks/navigation-community.mjs
+PASS: Public navigation has seven web destinations and six unique app tabs with archived features absent
+PASS: Every archived section and public profile/workshop alias resolves to the canonical destination
+PASS: Sign-in return paths canonicalize archived links and preserve app/role/context without remote redirects
+PASS: Actual Hub navigation routes all historical FMV and GrailMatch button calls to Upcoming
+PASS: Actual Hub deep links normalize archived sections and reject unknown or owner-only pages for members
+PASS: Opening My Profile while already viewing a peer resets to own showcase and cancels that peer response
+PASS: Explicit collector links retain peer lookup while public My Profile deep links carry own intent
+PASS: Actual Community effect ordering resumes native create/compose intents after initial identity loading
+PASS: Community feed keeps the newest page when response order reverses and abort is ignored
+PASS: Community feed late failure cannot replace a newer successful connection or stop its loading state
+PASS: Community account, channel and group changes discard outstanding feed results before effects run
+PASS: Community cursor loads append unique posts and suppress duplicate clicks while keeping prior content
+PASS: Community current malformed pages and failures surface errors, while My Groups requires no feed request
+PASS: Community discussion selection keeps the newest post and closing ignores all late results
+PASS: Community reply pages append without duplicate receipts and reject a different post identity
+PASS: Community account and membership changes invalidate private discussion responses and visible content
+PASS: Community unmount aborts feed/thread/photo work and ignores late data and errors
+PASS: Dismissing the Community composer prevents an outstanding upload from restoring its photo
+PASS: A new group opens after its automatic membership refresh but stale or dismissed creator dialogs cannot navigate
+PASS: A saved post cannot navigate back to an old group after the user selects a different Community view
+PASS: A delayed reaction completion cannot start a stale feed load or reopen a dismissed discussion
+PASS: Metron client sends one same-origin POST with caller token confined to the JSON body
+PASS: Metron refuses guest requests, parallel clicks and disconnected requests without any network action
+PASS: Metron disconnect, signout and unmount abort requests and suppress stale results or errors
+PASS: Metron token replacement and reconnect preserve only the newest connection even if old fetch ignores abort
+PASS: Metron sanitized client errors cannot echo a credential and genuine failures permit explicit retry
+PASS: Metron rejects a successful response that echoes its secret and skips JSON parsing after disconnect
+PASS: Distinct Metron client sessions keep caller credentials and cancellation isolated per account
+
+Navigation/Community client results: 28 passed, 0 failed.
+
+Running --experimental-vm-modules checks/readiness-query-budget.mjs
+(node:206) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: dense fixture budgets: social 23/40 queries (50 collectors, 100 groups/listings/threads); workshop 20/40 (200 studios and 200 private jobs); job detail 6/10. Blocks, private costs, addresses and custody ownership preserved.
+
+Running checks/app-privacy.mjs
+PASS: PWA caches only generic offline assets; APIs/auth bypass worker; account navigation stays uncached; manifest and icons exist.
+
+Running checks/dialog-focus.mjs
+PASS: offscreen drawer open/close preserves page position; keyboard scrolling stays inside dialogs; nested dialogs retain focus and scroll locks.
+
+Running node_modules/typescript/bin/tsc --noEmit --incremental false
+
+Automated web readiness checks passed. Physical browser/device and external service release gates remain separate.
+
+Formatting-only migration8 follow-up: independently reran Community31 after aligning inline Drizzle breakpoints. Exit0. These31 groups are not counted again in the496 full-run total.
+
+(node:5) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: Migration8 has ten schema-only physical statements and leaves existing rows intact
+PASS: Anonymous discovery and no-profile feeds disclose group metadata only
+PASS: Joined feed contains both groups but no unjoined post bodies
+PASS: Unjoined group preview hides posts, replies and photographs
+PASS: Hidden showcase profiles participate privately with consistent member media and counts
+PASS: Legacy post and posts endpoint remain compatible with default kind and chronological output
+PASS: Post validation rejects unknown kinds, channels, blank body and oversized title
+PASS: Foreign uploaded attachments fail before post creation
+PASS: Real replies and one exact-intent heart per member update thread counts
+PASS: Concurrent duplicated heart commands commit one unique reaction
+PASS: Blocked post authors disappear in both directions from feed, thread and media
+PASS: Blocked reply and reaction actors are excluded from counts and active ordering
+PASS: Owner-restricted and moderated authors cannot leak posts or attach readable member photos
+PASS: Leaving a group revokes posts, replies and photo access immediately
+PASS: Channel and literal text searches filter inside joined content
+PASS: Discovery search is literal, bounded, and does not invent engagement
+PASS: Post keyset pages cover equal-timestamp records without duplicates and bind to filters
+PASS: Thread reply keyset pages are oldest-first and bounded with no duplicates
+PASS: Active sort uses visible reply time while recent sort uses the original post time
+PASS: All new mutations require auth, same origin, rules and group membership
+PASS: Membership removal at post commit prevents a new private post
+PASS: Reply and heart commits reject a membership loss or new block
+PASS: Deleted post or profile at commit cannot leave a reply/reaction orphan
+PASS: Photo ownership loss at post commit rolls back the attachment and parent
+PASS: An eligible group owner can delete replies and posts, outsiders cannot
+PASS: Author deletion and owner moderation remove descendant content and media grants atomically
+PASS: Reply reports are member-only and are reviewable/removable by the operator
+PASS: Exports include only the caller’s authored replies and reactions
+PASS: Account deletion cleans other members’ replies/reactions on its posts without deleting unrelated posts
+PASS: A failed child cleanup rolls back parent deletion and all community descendants
+PASS: Dense joined feeds and discovery stay within query and100-bind budgets
+Community query evidence: {"feedQueries":6,"discoveryQueries":5,"maxBindParameters":24}
+
+Community API results: 31 passed, 0 failed.

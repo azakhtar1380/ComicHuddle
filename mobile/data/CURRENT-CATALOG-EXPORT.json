@@ -1,0 +1,15 @@
+{
+  "exportedAt": "2026-10-13T22:16:10.870513+00:00",
+  "source": "https://comichuddle.aztooeasy.chatgpt.site/api/catalog",
+  "actualIndexedIssues": 65,
+  "gcdIssues": 22,
+  "metronIssues": 0,
+  "lastGcdRecordUpdate": "2026-10-13T22:06:47.827Z",
+  "fullGcdArchive": false,
+  "fullHistoricalCoverage": false,
+  "gcdCoverArtworkIncluded": false,
+  "FMVIncluded": false,
+  "exactGcdDetailsIncluded": 22,
+  "format": "Public directory CSV; not the normalized bulk-import CSV schema",
+  "note": "This is the actually indexed catalog, not every comic in GCD. No private user data or credentials."
+}

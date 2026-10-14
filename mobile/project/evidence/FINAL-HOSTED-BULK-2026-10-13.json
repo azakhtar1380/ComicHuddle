@@ -1,0 +1,99 @@
+{
+  "startedAt": "2026-10-13T22:23:56.438Z",
+  "source": "Previously imported genuine GCD metadata, reprojected into a one-record CSV at its exact stored timestamp.",
+  "sourceSnapshotAt": "2026-10-13T21:35:23.582Z",
+  "directoryId": 4002872321,
+  "fullArchive": false,
+  "artworkImported": false,
+  "valuationImported": false,
+  "realServiceCalls": true,
+  "before": {
+    "total": 65,
+    "gcd": 22,
+    "issueDigest": "bcb1186dc143faf60834b0a539b148ffcf85d9be9f0b88803e736d5d9e4b5a44",
+    "dailyStage": "importing",
+    "dailyCompletedAt": null
+  },
+  "upload": {
+    "outcome": "declared-export-completed",
+    "batches": 1,
+    "importId": "1377fd50aa82bc8e8819b16cde4932cb428cb2e73f82045a7a728ca71c4ccb96",
+    "stage": "COMPLETED",
+    "acceptedRecords": 1,
+    "writtenRecords": 0,
+    "retainedNewerRecords": 1,
+    "nextBatch": 1,
+    "historicalCoverageComplete": false
+  },
+  "completedRetry": {
+    "outcome": "already-completed",
+    "batches": 0,
+    "importId": "1377fd50aa82bc8e8819b16cde4932cb428cb2e73f82045a7a728ca71c4ccb96",
+    "stage": "COMPLETED",
+    "acceptedRecords": 1,
+    "writtenRecords": 0,
+    "retainedNewerRecords": 1,
+    "nextBatch": 1,
+    "historicalCoverageComplete": false
+  },
+  "sameBatchReplay": {
+    "httpStatus": 200,
+    "replayed": true,
+    "accepted": 1,
+    "written": 0,
+    "retained": 1
+  },
+  "changedReplay": {
+    "httpStatus": 409
+  },
+  "after": {
+    "total": 65,
+    "gcd": 22,
+    "issueDigest": "bcb1186dc143faf60834b0a539b148ffcf85d9be9f0b88803e736d5d9e4b5a44",
+    "dailyStage": "importing",
+    "dailyCompletedAt": null,
+    "lastGcdRecordUpdate": "2026-10-13T22:06:47.827Z",
+    "dailyCheckpoint": {
+      "stage": "importing",
+      "weeks": [
+        {
+          "year": 2026,
+          "week": 42
+        },
+        {
+          "year": 2026,
+          "week": 41
+        }
+      ],
+      "weekIndex": 0,
+      "page": 1,
+      "pending": 28,
+      "expectedCounts": [
+        175,
+        null
+      ],
+      "checked": 22,
+      "unavailable": 0,
+      "startedAt": "2026-10-13T21:35:06.381Z",
+      "lastCompletedAt": null
+    },
+    "backfillCheckpoint": {
+      "stage": "idle",
+      "page": 1,
+      "pendingSeries": 0,
+      "currentSeries": null,
+      "issueOffset": 0,
+      "expectedSeriesCount": null,
+      "observedSeriesCount": 0,
+      "processedSeriesCount": 0,
+      "checkedIssues": 0,
+      "unavailable": 0,
+      "lastPassCompletedAt": null,
+      "deferredForRecentRefresh": true
+    }
+  },
+  "exactIssueUnchanged": true,
+  "weeklyCheckpointAndQuotaUnchanged": true,
+  "accepted": true,
+  "finishedAt": "2026-10-13T22:24:14.549Z"
+}

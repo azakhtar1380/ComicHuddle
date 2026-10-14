@@ -1,0 +1,43 @@
+{
+  "observedAt": "2026-10-13T22:01:45.865752+00:00",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/stats/templates/stats/download.html",
+      "bytes": 4527,
+      "sha256": "e2778e856c63ea02e8926dcfadd16f6668fd4d61913f9981e3017bc967449f23"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/gcd/models/publisher.py",
+      "bytes": 25050,
+      "sha256": "7228fa2ce32e67c4ee07e960e1a1caaf7b2ea99e98ac7269cd7d4bcc045b8eba"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/gcd/models/series.py",
+      "bytes": 28267,
+      "sha256": "23df45f38dfa7f0b76a48b43027832c2042f7b6d3dd66eb9b8b99698f74ef86e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/stats/views.py",
+      "bytes": 5028,
+      "sha256": "5091833ded90761313f3ecec6a089cdf78e85505f6d1fba1b7c50230670e4732"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/gcd/models/story.py",
+      "bytes": 58437,
+      "sha256": "ede6648500dc20aa601e349af0dcd7c5fc075923bd109f82b7dbc54e6573aacc"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/api/serializers.py",
+      "bytes": 7801,
+      "sha256": "fa31d4d48743ddfc771d4c662bd0a95be6271d17ebf7f7479cf2f2cef61ff223"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/master/apps/gcd/models/issue.py",
+      "bytes": 44386,
+      "sha256": "c22d47b678ef5b25747d3e5f6f8b595d250c54eac4580c4e542e79e0b60cfec5"
+    }
+  ],
+  "archiveObtained": false,
+  "sqliteAdapterBasis": "Published Django model field/table definitions. Actual licensed archive schema has not been inspected.",
+  "downloadView": "login_required; SQLite/MySQL/name-value options; license acceptance form"
+}

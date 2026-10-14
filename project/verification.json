@@ -1,0 +1,209 @@
+{
+  "assessment_date": "2026-10-09",
+  "audience": "owner-private",
+  "project_id": "appgprj_6ac716de731c8191bdff0d2478a4f9f2",
+  "web_checks": {
+    "passed": true,
+    "runner": "node checks/run-readiness.mjs",
+    "negative_groups": 34,
+    "client_groups": 26,
+    "dense_query_counts": {
+      "social": 23,
+      "workshop": 20,
+      "job_detail": 6
+    },
+    "marketplace_groups": 49,
+    "legacy_compatibility_groups": 6,
+    "journey_groups": 35,
+    "journey_client_groups": 30,
+    "named_regression_groups": 496,
+    "full_runner_exit_code": 0,
+    "diff_check": true,
+    "actual_hosted_oauth_browser_e2e": false,
+    "payment_boundary_groups": 27,
+    "fmv_model_groups": 43,
+    "commerce_policy_groups": 36,
+    "stripe_sandbox_adapter_groups": 53,
+    "commerce_api_groups": 49,
+    "simulated_payment_provider": true,
+    "genuine_stripe_transactions": 0,
+    "final_runner_log": "project/evidence/COMMUNITY-READINESS-2026-10-09.txt",
+    "retained_runner_evidence": "project/evidence/COMMUNITY-READINESS-2026-10-09.txt",
+    "community_groups": 31,
+    "metron_directory_groups": 46,
+    "navigation_community_client_groups": 28,
+    "external_catalog_vault_groups": 3,
+    "genuine_metron_provider_queries": 0,
+    "community_query_counts": {
+      "joined_feed": 6,
+      "discovery": 5,
+      "maximum_binds": 24
+    }
+  },
+  "native_checks": {
+    "passed": true,
+    "runner": "node checks/run-readiness.mjs",
+    "layout_viewports": 7,
+    "typescript": true,
+    "exports": [
+      "web",
+      "ios",
+      "android"
+    ],
+    "signed_device_build": false,
+    "exports_refreshed_for_provider_intent": true,
+    "exports_refreshed_for_orders_and_cgc_guide": true,
+    "actual_tsx_handler_groups": 13,
+    "exports_refreshed_for_community_upcoming": true
+  },
+  "audits": {
+    "web_production_findings": 0,
+    "native_high_graph_entries": 15,
+    "native_unique_unresolved_advisories": [
+      "braces",
+      "node-forge"
+    ],
+    "evidence": "Retained from the prior 9 October 2026 assessment; this code change did not run a new dependency audit."
+  },
+  "limitations": [
+    "No supported real browser/device QA",
+    "No hosted customer/authentication load tests",
+    "No configured Stripe credentials or genuine payment-provider transactions",
+    "No verified carrier connector, unattended deadline scheduler or enabled seller release",
+    "No comprehensive shared catalog, modern-cover rights or FMV feed; no authenticated live Metron lookup",
+    "No native production account/signing/store release",
+    "Binding auction operating/legal clearance not completed"
+  ],
+  "production_web_build": "The source publication workflow runs the final production build before committing, pushing and packaging. The launch kit publication record contains the exact build and hosted deployment result.",
+  "public_production_approved": false,
+  "operator": {
+    "name": "Malik LLC",
+    "jurisdiction": "Minnesota, United States",
+    "support_email": "maliktecks@gmail.com",
+    "launch_territory": "United States only",
+    "supplied_by_founder": true,
+    "independently_verified": false
+  },
+  "marketplace": {
+    "single_listings": true,
+    "whole_collection_listings": true,
+    "maximum_copies": 1000,
+    "card_fmv_coverage": true,
+    "server_controlled_nonbinding_auctions": true,
+    "owner_cancel_support": true,
+    "binding_auctions": false,
+    "paid_orders": false,
+    "migration_statement_count": 24,
+    "atomic_trigger_count": 0,
+    "atomic_check_guard_table": "operation_guard",
+    "validation_and_coupled_writes_share_batch": true,
+    "successful_and_failed_operations_leave_no_guards": true,
+    "legacy_initialization_batch_limit": 25,
+    "migration_schema_only": true,
+    "legacy_initialization_max_measured_binds": 32,
+    "sandbox_checkout_implemented": true,
+    "sandbox_checkout_enabled": false,
+    "original_payment_refund_implemented": true,
+    "operator_refund_reconciliation": true,
+    "verified_delivery_and_seller_release_enabled": false,
+    "commerce_migration_statement_count": 17
+  },
+  "catalog_picker": {
+    "implemented": true,
+    "search_route": "/api/catalog",
+    "issue_count": 43,
+    "authorized_cover_count": 6,
+    "explicit_selection_required_for_directory_link": true,
+    "manual_entry_supported_without_fmv": true,
+    "provider_signin_intent_preserved": true
+  },
+  "payment_protection": {
+    "scope": "test-only engineering preparation; live payments disabled",
+    "tracking_submission_hours": 48,
+    "verified_carrier_handoff_hours": 72,
+    "buyer_review_hours_after_verified_delivery": 48,
+    "private_signed_webhook_ingress_not_configured": true,
+    "manual_tracking_is_verified_shipping": false,
+    "processor_payment_timestamp_controls_deadlines": true,
+    "unknown_payment_timestamp_holds_order": true,
+    "refund_on_original_payment": true,
+    "maximum_unknown_refund_retry_age_hours": 23,
+    "escrow_claim": false,
+    "financial_records_delete_requires_support_review": true
+  },
+  "fmv_research": {
+    "implemented": true,
+    "model_version": "comichuddle-research-1",
+    "calibrated": false,
+    "public_live_prices_enabled": false,
+    "requires_permission_cleared_sales": true,
+    "cgc_external_guide": "https://gocollect.com/comics",
+    "public_section": "Upcoming / FMV coming soon"
+  },
+  "navigation": {
+    "desktop": [
+      "Home",
+      "Directory",
+      "Marketplace",
+      "Community",
+      "My Profile",
+      "Comic Workshop",
+      "Upcoming"
+    ],
+    "mobile": [
+      "Home",
+      "Directory",
+      "Marketplace",
+      "Community",
+      "Upcoming",
+      "Comic Workshop"
+    ],
+    "legacy_fmv_and_grailmatch": "Upcoming",
+    "my_profile_explicit_own_reset": true
+  },
+  "community": {
+    "joined_feed": true,
+    "group_discovery": true,
+    "post_types": [
+      "discussion",
+      "question",
+      "showcase",
+      "find"
+    ],
+    "replies": true,
+    "unique_hearts": true,
+    "member_only_photos": true,
+    "membership_blocks_moderation_guarded": true,
+    "fake_member_activity": false,
+    "migration": 8,
+    "migration_statements": 10,
+    "historical_migrations_changed": false
+  },
+  "metron_directory": {
+    "connector_implemented": true,
+    "shared_full_catalog_connected": false,
+    "authenticated_live_lookup_verified": false,
+    "genuine_authenticated_provider_queries": 0,
+    "default_access": "central provider delivery/business-owned sync arrangement pending",
+    "persistent_token_storage": false,
+    "source_license_preserved": true,
+    "metadata_license": "CC BY-SA 4.0",
+    "artwork_imported": false,
+    "cover_price_is_fmv": false,
+    "comic_vine_integrated": false,
+    "customer_token_prompt": false,
+    "connector_mounted": false
+  },
+  "latest_followup": "SHARED-DIRECTORY-CORRECTION.md",
+  "latest_followup_checks": {
+    "named_client_groups": 58,
+    "passed": true,
+    "typescript": true,
+    "diff_check": true,
+    "customer_provider_token_prompt": false,
+    "owner_setup_guarded": true,
+    "provider_queries": 0,
+    "evidence": "project/SHARED-DIRECTORY-QA.md",
+    "prior_full_496_baseline_retained": true
+  }
+}

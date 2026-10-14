@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "ComicHuddle",
+    "slug": "comichuddle-prototype",
+    "version": "0.1.0",
+    "scheme": "comichuddle",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.comichuddle.preview"
+    },
+    "android": {
+      "package": "com.comichuddle.preview"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/icon.png"
+    },
+    "experiments": {
+      "baseUrl": "/app-preview"
+    }
+  }
+}

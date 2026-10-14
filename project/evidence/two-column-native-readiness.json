@@ -1,0 +1,167 @@
+{
+  "revision": "Two compact portrait cards per mobile row / v25 candidate",
+  "recorded_at": "2026-10-13T21:58:20.761146+00:00",
+  "owner": "native_scan",
+  "cwd": "/workspace/scratch/45922a1a6a9c/ComicHuddle-App",
+  "source_frozen": true,
+  "source_sha256": {
+    "NativeApp.tsx": "7636b89309fbd7f2b9a04c85650974b14590d26d777f6298babb1df22206d452",
+    "app-styles.ts": "62dcb15e4322a867db12237b1948141f91063e18f3a9ff0364514e8f3636c02d",
+    "app-design.tsx": "b428da46bef9bc7262b716b1605e52f7187ebe65eeb8ade5f06d256725d47929",
+    "art-layout.ts": "061c6ccd133453053674cf3bde1b4b3716ddae231bd5e6298434689ee5b48b8b",
+    "checks/native-journeys.mjs": "7b4da7297b84e6d01df7da09dabc4845cb7d9447ad968f20614fb3525867c506",
+    "checks/image-layout.mjs": "a8fa09e6026ac480626b76c7ddb054872ce90ea9de9a5602735f4ce2835e5853",
+    "checks/run-readiness.mjs": "a169f90d9020685c83c1f6e97442dc5fd3b83989338a07e37977aa59547aaeb3",
+    "App.tsx": "f61c524d04539f59419253c5941f36cae14d022b7bf3c78ae799cc7b5134ddac",
+    "index.ts": "5c157f4d44972d9c84415e1e4bda595b3abcd8cf733f8a9cd20935bec3eccc42",
+    "covers.ts": "3f4b533a30daaa88d93e0839517f85ec6b71444f3abe23309509b20e98c0e6e1",
+    "data/catalog.json": "95988e2a1662320d365c85b3c46023d58431aa888914dd5dcf1ba15af817e081",
+    "app.json": "95dec9f368c3946ea610696f52b591adcd6124202587309981cfc69c1f4cf3b8",
+    "package.json": "0f46c9b8b447b59cd7e6e1079741f8d5d7ea7a7eaee68939b029b710f7ffb69e",
+    "package-lock.json": "1044a5c0b698930156b5a9eeb2586f9658c9b39e291a6ce2347cfacc898dbc05"
+  },
+  "executed_commands": [
+    {
+      "command": "node checks/run-readiness.mjs",
+      "shell_command": "node checks/run-readiness.mjs > project/evidence/TWO-COLUMN-NATIVE-READINESS-2026-10-13.txt 2>&1",
+      "exit_code": 0,
+      "raw_log": "project/evidence/TWO-COLUMN-NATIVE-READINESS-2026-10-13.txt",
+      "child_commands": [
+        "node checks/image-layout.mjs",
+        "node checks/native-journeys.mjs",
+        "node node_modules/typescript/bin/tsc --noEmit"
+      ],
+      "handler_groups_passed": 23,
+      "cover_dock_viewport_cases_passed": 7,
+      "two_column_mobile_cases_passed": 5,
+      "strict_typescript": "passed"
+    },
+    {
+      "command": "CI=1 node node_modules/expo/bin/cli export --platform web --output-dir dist-scan-web",
+      "shell_command": "CI=1 node node_modules/expo/bin/cli export --platform web --output-dir dist-scan-web > project/evidence/TWO-COLUMN-WEB-EXPORT-2026-10-13.txt 2>&1",
+      "exit_code": 0,
+      "raw_log": "project/evidence/TWO-COLUMN-WEB-EXPORT-2026-10-13.txt",
+      "result": "Web export verified; entry references latest bundle"
+    },
+    {
+      "command": "CI=1 node node_modules/expo/bin/cli export --platform all --output-dir dist-scan-all",
+      "shell_command": "CI=1 node node_modules/expo/bin/cli export --platform all --output-dir dist-scan-all > project/evidence/TWO-COLUMN-ALL-EXPORT-2026-10-13.txt 2>&1",
+      "exit_code": 0,
+      "raw_log": "project/evidence/TWO-COLUMN-ALL-EXPORT-2026-10-13.txt",
+      "result": "Web, iOS and Android unsigned exports succeeded"
+    }
+  ],
+  "raw_log_sha256": {
+    "project/evidence/TWO-COLUMN-NATIVE-READINESS-2026-10-13.txt": "ab89ffa944e947b4b7a1468ef7bca07c1d8751f0a36e233037577c744e1c81b1",
+    "project/evidence/TWO-COLUMN-WEB-EXPORT-2026-10-13.txt": "b9e0727a3bc0a1c68ed7a9b6f71aafca2ab5e4bac13d4320926ccf7034c3d422",
+    "project/evidence/TWO-COLUMN-ALL-EXPORT-2026-10-13.txt": "7df4e4b99d6a272f860999c5fed6d325f6694db42b54cfe9d41a33a31ba98640"
+  },
+  "cover_dock_viewports": [
+    [
+      320,
+      568
+    ],
+    [
+      375,
+      667
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      430,
+      932
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      844,
+      390
+    ]
+  ],
+  "two_column_mobile_widths": [
+    320,
+    360,
+    390,
+    430,
+    760
+  ],
+  "two_column_contract": {
+    "gallery_width": "100%",
+    "gallery_max_width": 440,
+    "gallery_alignment": "center",
+    "card_width": "47.8%",
+    "card_flex_grow": 0,
+    "card_flex_shrink": 0,
+    "card_max_computed_width_at_760": 210.32,
+    "title_number_of_lines": null,
+    "title_width": "100%",
+    "title_min_width": 0,
+    "title_min_height": 38,
+    "cover_ratio": 0.74,
+    "cover_max_height": 251
+  },
+  "bundles": {
+    "web": "dist-scan-web/_expo/static/js/web/index-cc7cdd4d276055d9675bdc8b231d4276.js",
+    "web_all": "dist-scan-all/_expo/static/js/web/index-cc7cdd4d276055d9675bdc8b231d4276.js",
+    "android": "dist-scan-all/_expo/static/js/android/index-22e6d31b35b56addd50535d104ba1f64.hbc",
+    "ios": "dist-scan-all/_expo/static/js/ios/index-05a61034d38fa9e1530213e74fd91a64.hbc"
+  },
+  "exports_sha256": {
+    "dist-scan-web/_expo/static/js/web/index-cc7cdd4d276055d9675bdc8b231d4276.js": "1f83629997c14f55383e54a91e16f35ff7821f0a46741eebee863b6205cfee5f",
+    "dist-scan-web/assets/assets/comichuddle-logo.71249ebb17675cb8606dd9ff7802fa26.jpeg": "018c672f13b6be40f1da85d03ffa651be5ee587739e6b0ee9d925974e223f45a",
+    "dist-scan-web/assets/assets/covers/planet-12.751210d1224ba19fa3518bb6c8e18c96.jpg": "034a7a685fb3ca55da020ecf7c53df59e2ea6d4e94e8ed47e84bee1f69a697a1",
+    "dist-scan-web/assets/assets/covers/planet-21.25621ffa6b305dbcbf290b5b53aa5efa.jpg": "7ccd83c0991bd6e161a4f9862dc66fdd82c1be8f760307a48a22085dc0268ffe",
+    "dist-scan-web/assets/assets/covers/planet-27.8a69805bb8796af2501f4beaf9ba2e12.jpg": "ab9b36612804427ba8c5a420209b4f9fa564991b458d92d2033af09e0d63d458",
+    "dist-scan-web/assets/assets/covers/planet-42.7c2bc927e6d10cb212e9041bfb7d22ca.jpg": "1a6ff9a5f749c0f5f59fba1dc9a5332c53c1643da24922ce2a18b7b84ba67de7",
+    "dist-scan-web/assets/assets/covers/planet-53.a9fd5f882b8649e8b79d054b94796fce.jpg": "09b1d06fa1c3c878a5215266ed331a321fe0ba3b941c18ce314e85d82e82c181",
+    "dist-scan-web/assets/assets/covers/planet-55.d667db23c80d890fe61be1628537534c.jpg": "a5917dddb57565569ce692fcd0f9305a0ff96816e08f2b999ba284fd45470b47",
+    "dist-scan-web/favicon.ico": "a20c09b5b74f50a1e2eaffefe158a82bd1c682837c740430756e8387a80c87da",
+    "dist-scan-web/index.html": "9b1a97bd0d830acd17d586a18be48ab28ad5b14f4145a2006041ec10fdfb2695",
+    "dist-scan-web/metadata.json": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991",
+    "dist-scan-all/_expo/static/js/android/index-22e6d31b35b56addd50535d104ba1f64.hbc": "d68b1cd0d57ae3fe98442f87e8e2ed7a748c227f68fd412e645f7b3c9f3f2be4",
+    "dist-scan-all/_expo/static/js/ios/index-05a61034d38fa9e1530213e74fd91a64.hbc": "1176290343603033ebf2d9291cc45d197626479d6e38df0b4d8fd60b450e9adc",
+    "dist-scan-all/_expo/static/js/web/index-cc7cdd4d276055d9675bdc8b231d4276.js": "1f83629997c14f55383e54a91e16f35ff7821f0a46741eebee863b6205cfee5f",
+    "dist-scan-all/assets/25621ffa6b305dbcbf290b5b53aa5efa": "7ccd83c0991bd6e161a4f9862dc66fdd82c1be8f760307a48a22085dc0268ffe",
+    "dist-scan-all/assets/71249ebb17675cb8606dd9ff7802fa26": "018c672f13b6be40f1da85d03ffa651be5ee587739e6b0ee9d925974e223f45a",
+    "dist-scan-all/assets/751210d1224ba19fa3518bb6c8e18c96": "034a7a685fb3ca55da020ecf7c53df59e2ea6d4e94e8ed47e84bee1f69a697a1",
+    "dist-scan-all/assets/7c2bc927e6d10cb212e9041bfb7d22ca": "1a6ff9a5f749c0f5f59fba1dc9a5332c53c1643da24922ce2a18b7b84ba67de7",
+    "dist-scan-all/assets/8a69805bb8796af2501f4beaf9ba2e12": "ab9b36612804427ba8c5a420209b4f9fa564991b458d92d2033af09e0d63d458",
+    "dist-scan-all/assets/a9fd5f882b8649e8b79d054b94796fce": "09b1d06fa1c3c878a5215266ed331a321fe0ba3b941c18ce314e85d82e82c181",
+    "dist-scan-all/assets/assets/comichuddle-logo.71249ebb17675cb8606dd9ff7802fa26.jpeg": "018c672f13b6be40f1da85d03ffa651be5ee587739e6b0ee9d925974e223f45a",
+    "dist-scan-all/assets/assets/covers/planet-12.751210d1224ba19fa3518bb6c8e18c96.jpg": "034a7a685fb3ca55da020ecf7c53df59e2ea6d4e94e8ed47e84bee1f69a697a1",
+    "dist-scan-all/assets/assets/covers/planet-21.25621ffa6b305dbcbf290b5b53aa5efa.jpg": "7ccd83c0991bd6e161a4f9862dc66fdd82c1be8f760307a48a22085dc0268ffe",
+    "dist-scan-all/assets/assets/covers/planet-27.8a69805bb8796af2501f4beaf9ba2e12.jpg": "ab9b36612804427ba8c5a420209b4f9fa564991b458d92d2033af09e0d63d458",
+    "dist-scan-all/assets/assets/covers/planet-42.7c2bc927e6d10cb212e9041bfb7d22ca.jpg": "1a6ff9a5f749c0f5f59fba1dc9a5332c53c1643da24922ce2a18b7b84ba67de7",
+    "dist-scan-all/assets/assets/covers/planet-53.a9fd5f882b8649e8b79d054b94796fce.jpg": "09b1d06fa1c3c878a5215266ed331a321fe0ba3b941c18ce314e85d82e82c181",
+    "dist-scan-all/assets/assets/covers/planet-55.d667db23c80d890fe61be1628537534c.jpg": "a5917dddb57565569ce692fcd0f9305a0ff96816e08f2b999ba284fd45470b47",
+    "dist-scan-all/assets/d667db23c80d890fe61be1628537534c": "a5917dddb57565569ce692fcd0f9305a0ff96816e08f2b999ba284fd45470b47",
+    "dist-scan-all/favicon.ico": "a20c09b5b74f50a1e2eaffefe158a82bd1c682837c740430756e8387a80c87da",
+    "dist-scan-all/index.html": "9b1a97bd0d830acd17d586a18be48ab28ad5b14f4145a2006041ec10fdfb2695",
+    "dist-scan-all/metadata.json": "e33afe53d32f99ab905b8d4876f2b9c92300f9e80bbc374667a9c4d2ec41cd82"
+  },
+  "web_exports_byte_identical": true,
+  "changes": [
+    "Native and hosted app-preview Directory/Marketplace galleries retain two compact portrait cards per row, capped at 440px gallery width.",
+    "Long titles wrap without a two-line truncation limit; cover bounds and 44px More info touch targets remain.",
+    "Card content stays cover or missing-cover icon, title/#, publisher and More info; metadata and actions stay in clicked details.",
+    "Same-origin shared catalog paging/search/filter and exact-id bibliography requests, central Scan and existing profile/account handoffs are preserved."
+  ],
+  "limitations": [
+    "The 23 handler/API-state groups execute actual TSX handlers with isolated native surfaces and response fixtures; they are not hosted browser authentication or GCD import coverage evidence.",
+    "The 7 cover/dock viewports and 5 targeted mobile card cases verify source-derived geometry and handlers, without a browser screenshot, simulator or physical device.",
+    "iOS/Android retain the honest 43-record app snapshot and full-directory website handoff, with no native authenticated catalog session or native camera-frame recognition.",
+    "Unsigned Hermes bundles are not signed APK/AAB/IPA builds or app-store submissions; hardware camera, OAuth, account persistence and processor outcomes remain unverified.",
+    "Only six authorized local cover identities are rendered; modern provider cover URLs are not imported.",
+    "Existing unresolved upstream native build-tool advisories are not cleared by these exports."
+  ],
+  "site_exports_copied_by_native_owner": false,
+  "supersedes_for_current_native_revision": "project/evidence/GCD-DIRECTORY-NATIVE-READINESS-2026-10-13.json"
+}

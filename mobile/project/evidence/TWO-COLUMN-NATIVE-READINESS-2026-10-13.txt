@@ -1,0 +1,26 @@
+Cover and centered navigation bounds passed for seven phone, tablet and landscape viewports.
+PASS Exactly six bottom tabs; each changes to one corresponding screen
+PASS Scan is a circular center action between three left and three right destination tabs
+PASS Upcoming has exactly three coming-soon cards without active community, guides or matching controls
+PASS Header account drawer opens My Profile using the exact showcase handoff
+PASS Home scan, profile and Directory actions use supported destinations
+PASS My Profile opens the actual showcase and collection and explains city and provider collections
+PASS Legacy Community, FMV and GrailMatch links route to Upcoming and discard dormant actions
+PASS The uploaded superhero logo stays bounded and vintage images retain source credits
+PASS Marketplace actions preserve listing mode; no local illustrative inventory or FMV
+PASS Comic Workshop preserves studio registration intent
+PASS Exact issue detail links retain identity, bibliography and bounded original artwork
+PASS Every Directory card contains only cover, title and number, publisher and More info
+PASS Five mobile widths retain exactly two compact portrait Directory cards per row with wrapping titles
+PASS Native full directory uses the real website handoff and labels snapshot coverage
+PASS Shared catalog requests are origin gated, paginated and preserve exact GCD identities without importing covers
+PASS Multiword issue searches tolerate punctuation without assigning new catalog IDs
+PASS Handoffs encode values and cannot overwrite section or app mode
+PASS Seven viewports retain centered Scan, 44px destination targets, bottom safe area and proportional covers
+PASS Delayed startup links and unmounted callbacks cannot replace the chosen screen
+PASS Scan launches only on explicit press and defeats late startup navigation
+PASS Hosted preview loads shared pages, searches and publisher filters using same-origin cookies only
+PASS More info loads exact issue bibliography and labels original cover price as publication data
+PASS Canceled, unauthenticated and cross-origin loads cannot overwrite results or silently display a live snapshot
+Native handler checks: 23 groups passed; browser/device/persistence journeys remain unverified.
+Native source checks passed. Signed builds, hardware behavior, store review and unresolved upstream build-tool advisories still require verification.

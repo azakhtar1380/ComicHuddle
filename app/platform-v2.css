@@ -1,0 +1,30 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../architecture/platform-v2/ui";
+/* No Tailwind preflight: legacy account, scanner and marketplace keep their base styles. */
+.platform-v2{--v2-ink:#18232a;font-family:'DM Sans',Arial,sans-serif;min-width:0}
+.platform-v2 section{padding-top:0;padding-bottom:0}
+.platform-v2 .v2-hero-title{font-family:'Barlow Condensed',Impact,sans-serif;letter-spacing:-.03em}
+.platform-v2 .v2-card h3{font-family:'DM Sans',Arial,sans-serif}
+.platform-v2 .v2-hero{padding-block:36px}
+.platform-v2 .v2-hero+section{padding-block:44px}
+.platform-v2 .v2-hero-shelf{background-image:radial-gradient(#9a89532b 1px,transparent 1px);background-size:9px 9px}
+.platform-v2 .v2-card .v2-metadata-cover{background-image:radial-gradient(#20201f20 .8px,transparent .8px);background-size:6px 6px}
+.platform-v2 input{box-shadow:none;min-width:0}
+.platform-v2 button,.platform-v2 a{touch-action:manipulation}
+.platform-v2 button:focus-visible,.platform-v2 a:focus-visible{outline:3px solid #087bdf;outline-offset:3px}
+.platform-v2 .v2-orbit{transform:rotate(-18deg);box-shadow:0 0 0 24px #efe8d233}
+@media(max-width:760px){.platform-v2 .v2-hero{padding-block:28px}.platform-v2 .v2-hero-title{font-size:52px}.platform-v2 .v2-quick{flex-direction:column;font-size:10px;gap:4px;min-height:60px}.platform-v2 .v2-hero-shelf{min-height:280px}.platform-v2 .v2-hero-book{max-height:230px}.platform-v2 .v2-market-strip{align-items:flex-start}.platform-v2 .v2-market-strip>span{font-size:9px;max-width:95px}.platform-v2 .v2-card{min-width:0;max-width:100%}.platform-v2 .v2-card h3{font-size:17px}}
+@media(prefers-reduced-motion:reduce){.platform-v2 *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+.home-provider-link{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:18px 0;font-size:10px;color:#6b706b}.home-provider-link span{max-width:540px}.home-directory-error{padding:20px;border:1px solid #c83e30;border-radius:16px}
+/* Scoped defaults and rollback of legacy unlayered tag rules: Tailwind remains
+   usable here without resetting the scanner/account/marketplace elsewhere. */
+@layer theme{
+ .platform-v2 :where(*,::before,::after){box-sizing:border-box;border-style:solid;border-width:0}
+ .platform-v2 button{font-family:inherit;cursor:pointer;background:none;color:inherit}
+ .platform-v2 p{margin:0 0 1rem}
+}
+.platform-v2 :where(button,input){background:revert-layer;border:revert-layer;color:revert-layer;padding:revert-layer;font-size:revert-layer}
+.platform-v2 :where(h1,h2,h3,p){font-size:revert-layer;line-height:revert-layer;font-weight:revert-layer;letter-spacing:revert-layer;margin:revert-layer;color:revert-layer}
+.platform-v2 h2{font-family:'Barlow Condensed',Impact,sans-serif}

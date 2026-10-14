@@ -1,0 +1,1100 @@
+{
+  "asOf": "2026-10-08",
+  "status": "Starter bibliography; historical individual sale results. No live valuation feed.",
+  "issues": [
+    {
+      "title": "Amazing Spider-Man",
+      "number": "300",
+      "publisher": "Marvel",
+      "year": 1988,
+      "characters": [
+        "Spider-Man",
+        "Venom"
+      ],
+      "writer": "David Michelinie",
+      "artist": "Todd McFarlane",
+      "note": "A landmark chapter in the Venom story.",
+      "kind": "Key issue",
+      "source": "https://www.marvel.com/comics/issue/6706/the_amazing_spider-man_1963_300",
+      "id": 0,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Batman",
+      "number": "423",
+      "publisher": "DC",
+      "year": 1988,
+      "characters": [
+        "Batman"
+      ],
+      "writer": "Jim Starlin",
+      "artist": "Dave Cockrum",
+      "note": "Known among collectors for its Todd McFarlane cover.",
+      "kind": "Cover spotlight",
+      "source": "https://www.cgccomics.com/gallery-comics/details.aspx?comic=11869",
+      "id": 1,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Invincible",
+      "number": "1",
+      "publisher": "Image",
+      "year": 2003,
+      "characters": [
+        "Invincible"
+      ],
+      "writer": "Robert Kirkman",
+      "artist": "Cory Walker",
+      "note": "The beginning of the Invincible series.",
+      "kind": "Series debut",
+      "source": "https://imagecomics.com/comics/releases/invincible-1",
+      "id": 2,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Modern Age"
+    },
+    {
+      "title": "Uncanny X-Men",
+      "number": "266",
+      "publisher": "Marvel",
+      "year": 1990,
+      "characters": [
+        "Gambit",
+        "Storm"
+      ],
+      "writer": "Chris Claremont",
+      "artist": "Mike Collins",
+      "note": "An early Gambit story frequently collected as a key.",
+      "kind": "Key issue",
+      "source": "https://www.marvel.com/comics/issue/13807/uncanny_x-men_1963_266",
+      "id": 3,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Saga",
+      "number": "1",
+      "publisher": "Image",
+      "year": 2012,
+      "characters": [
+        "Alana",
+        "Marko"
+      ],
+      "writer": "Brian K. Vaughan",
+      "artist": "Fiona Staples",
+      "note": "The opening issue of Saga.",
+      "kind": "Series debut",
+      "source": "https://imagecomics.com/comics/releases/saga-1",
+      "id": 4,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Modern Age"
+    },
+    {
+      "title": "Fantastic Four",
+      "number": "48",
+      "publisher": "Marvel",
+      "year": 1966,
+      "characters": [
+        "Silver Surfer",
+        "Galactus",
+        "Fantastic Four"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Jack Kirby",
+      "note": "The opening chapter of the Galactus trilogy.",
+      "kind": "Key issue",
+      "source": "https://www.marvel.com/comics/issue/13253/fantastic_four_1961",
+      "id": 5,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "title": "Amazing Spider-Man",
+      "number": "301",
+      "publisher": "Marvel",
+      "year": 1988,
+      "characters": [
+        "Spider-Man"
+      ],
+      "writer": "David Michelinie",
+      "artist": "Todd McFarlane",
+      "note": "A companion issue for the late-eighties Spider-Man run.",
+      "kind": "Run builder",
+      "source": "https://www.marvel.com/comics/series/1987/amazing_spider-man_1963_-_1998",
+      "id": 6,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Amazing Spider-Man",
+      "number": "302",
+      "publisher": "Marvel",
+      "year": 1988,
+      "characters": [
+        "Spider-Man"
+      ],
+      "writer": "David Michelinie",
+      "artist": "Todd McFarlane",
+      "note": "Part of the Michelinie and McFarlane era.",
+      "kind": "Run builder",
+      "source": "https://www.marvel.com/comics/issue/6708",
+      "id": 7,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Uncanny X-Men",
+      "number": "265",
+      "publisher": "Marvel",
+      "year": 1990,
+      "characters": [
+        "Storm"
+      ],
+      "writer": "Chris Claremont",
+      "artist": "Bill Jaaska",
+      "note": "A neighboring issue in the 1990 X-Men run.",
+      "kind": "Run builder",
+      "source": "https://www.marvel.com/comics/issue/13806/uncanny_x-men_1981_265",
+      "id": 8,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Uncanny X-Men",
+      "number": "267",
+      "publisher": "Marvel",
+      "year": 1990,
+      "characters": [
+        "Gambit",
+        "Storm"
+      ],
+      "writer": "Chris Claremont",
+      "artist": "Whilce Portacio",
+      "note": "Continue the story after issue 266.",
+      "kind": "Run builder",
+      "source": "https://www.marvel.com/comics/issue/13808",
+      "id": 9,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Incredible Hulk",
+      "number": "181",
+      "publisher": "Marvel",
+      "year": 1974,
+      "characters": [
+        "Hulk",
+        "Wolverine"
+      ],
+      "writer": "Len Wein",
+      "artist": "Herb Trimpe",
+      "note": "An early Wolverine appearance and a Bronze Age collecting staple.",
+      "kind": "Key issue",
+      "source": "https://www.marvel.com/comics/issue/17198/incredible_hulk_1962_181",
+      "id": 10,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Bronze Age"
+    },
+    {
+      "title": "Amazing Fantasy",
+      "number": "15",
+      "publisher": "Marvel",
+      "year": 1962,
+      "characters": [
+        "Spider-Man"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Steve Ditko",
+      "note": "Spider-Man begins here.",
+      "kind": "First appearance",
+      "source": "https://www.marvel.com/comics/issue/16926",
+      "id": 11,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "title": "New Mutants",
+      "number": "98",
+      "publisher": "Marvel",
+      "year": 1991,
+      "characters": [
+        "Deadpool",
+        "Domino",
+        "Cable"
+      ],
+      "writer": "Fabian Nicieza",
+      "artist": "Rob Liefeld",
+      "note": "The debut issue for Deadpool.",
+      "kind": "First appearance",
+      "source": "https://www.marvel.com/comics",
+      "id": 12,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Radiant Black",
+      "number": "1",
+      "publisher": "Image",
+      "year": 2021,
+      "characters": [
+        "Radiant Black"
+      ],
+      "writer": "Kyle Higgins",
+      "artist": "Marcelo Costa",
+      "note": "The first chapter of Radiant Black.",
+      "kind": "Series debut",
+      "source": "https://imagecomics.com/read/radiant-black",
+      "id": 13,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Modern Age"
+    },
+    {
+      "title": "The Walking Dead",
+      "number": "1",
+      "publisher": "Image",
+      "year": 2003,
+      "characters": [
+        "Rick Grimes"
+      ],
+      "writer": "Robert Kirkman",
+      "artist": "Tony Moore",
+      "note": "The original black-and-white series begins.",
+      "kind": "Series debut",
+      "source": "https://imagecomics.com/read/the-walking-dead",
+      "id": 14,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Modern Age"
+    },
+    {
+      "title": "Spawn",
+      "number": "1",
+      "publisher": "Image",
+      "year": 1992,
+      "characters": [
+        "Spawn"
+      ],
+      "writer": "Todd McFarlane",
+      "artist": "Todd McFarlane",
+      "note": "The debut issue of Spawn.",
+      "kind": "Series debut",
+      "source": "https://imagecomics.com/comics/releases/spawn-1",
+      "id": 15,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Modern Age"
+    },
+    {
+      "title": "Action Comics",
+      "number": "1",
+      "publisher": "DC",
+      "year": 1938,
+      "characters": [
+        "Superman"
+      ],
+      "writer": "Jerry Siegel",
+      "artist": "Joe Shuster",
+      "note": "The first published Superman comic.",
+      "kind": "First appearance",
+      "source": "https://www.dc.com/characters/superman",
+      "id": 16,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Detective Comics",
+      "number": "27",
+      "publisher": "DC",
+      "year": 1939,
+      "characters": [
+        "Batman"
+      ],
+      "writer": "Bill Finger",
+      "artist": "Bob Kane",
+      "note": "Batman enters the pages of Detective Comics.",
+      "kind": "First appearance",
+      "source": "https://www.dc.com/characters/batman",
+      "id": 17,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Watchmen",
+      "number": "1",
+      "publisher": "DC",
+      "year": 1986,
+      "characters": [
+        "Rorschach",
+        "Nite Owl"
+      ],
+      "writer": "Alan Moore",
+      "artist": "Dave Gibbons",
+      "note": "The first issue of the twelve-part series.",
+      "kind": "Series debut",
+      "source": "https://www.dc.com/graphic-novels/watchmen-1986/watchmen",
+      "id": 18,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Batman: The Dark Knight Returns",
+      "number": "1",
+      "publisher": "DC",
+      "year": 1986,
+      "characters": [
+        "Batman"
+      ],
+      "writer": "Frank Miller",
+      "artist": "Frank Miller",
+      "note": "Book one of The Dark Knight Returns.",
+      "kind": "Series debut",
+      "source": "https://www.dc.com/graphic-novels/batman-the-dark-knight-returns-1986/batman-the-dark-knight-returns",
+      "id": 19,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "X-Men",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1991,
+      "characters": [
+        "X-Men",
+        "Magneto"
+      ],
+      "writer": "Chris Claremont",
+      "artist": "Jim Lee",
+      "note": "The launch of the 1991 X-Men series.",
+      "kind": "Series debut",
+      "source": "https://www.marvel.com/comics",
+      "id": 20,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Copper Age"
+    },
+    {
+      "title": "Wolverine",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1982,
+      "characters": [
+        "Wolverine"
+      ],
+      "writer": "Chris Claremont",
+      "artist": "Frank Miller",
+      "note": "The first issue of the original four-part limited series.",
+      "kind": "Series debut",
+      "source": "https://www.marvel.com/comics",
+      "id": 21,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Bronze Age"
+    },
+    {
+      "title": "Secret Wars",
+      "number": "8",
+      "publisher": "Marvel",
+      "year": 1984,
+      "characters": [
+        "Spider-Man"
+      ],
+      "writer": "Jim Shooter",
+      "artist": "Mike Zeck",
+      "note": "An important chapter in the black-suit story.",
+      "kind": "Key issue",
+      "source": "https://www.marvel.com/comics",
+      "id": 22,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Bronze Age"
+    },
+    {
+      "title": "Batman Adventures",
+      "number": "12",
+      "publisher": "DC",
+      "year": 1993,
+      "characters": [
+        "Harley Quinn",
+        "Batgirl"
+      ],
+      "writer": "Kelley Puckett",
+      "artist": "Mike Parobeck",
+      "note": "An early comic-book appearance of Harley Quinn.",
+      "kind": "Key issue",
+      "source": "https://www.dc.com/comics",
+      "id": 23,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Modern Age"
+    },
+    {
+      "title": "Planet Comics",
+      "number": "12",
+      "publisher": "Fiction House",
+      "year": 1941,
+      "characters": [
+        "Science-fiction anthology"
+      ],
+      "writer": "Multiple contributors",
+      "artist": "Multiple contributors",
+      "coverArtist": "John Celardo",
+      "note": "Vintage science-fiction anthology. Cover dated May 1941.",
+      "kind": "Cover spotlight",
+      "source": "https://commons.wikimedia.org/wiki/File:Planet_Comics_12.jpg",
+      "cover": "/covers/planet-12.jpg",
+      "coverCredit": "Wikimedia Commons · public-domain label in the US (no renewal); other jurisdictions require review",
+      "coverSource": "https://commons.wikimedia.org/wiki/File:Planet_Comics_12.jpg",
+      "id": 24,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Planet Comics",
+      "number": "21",
+      "publisher": "Fiction House",
+      "year": 1942,
+      "characters": [
+        "Science-fiction anthology"
+      ],
+      "writer": "Multiple contributors",
+      "artist": "Multiple contributors",
+      "coverArtist": "Dan Zolnerowich",
+      "note": "Vintage science-fiction anthology. Cover dated November 1942.",
+      "kind": "Cover spotlight",
+      "source": "https://commons.wikimedia.org/wiki/File:Planet_Comics_21.jpg",
+      "cover": "/covers/planet-21.jpg",
+      "coverCredit": "Wikimedia Commons · public-domain label in the US (no renewal); other jurisdictions require review",
+      "coverSource": "https://commons.wikimedia.org/wiki/File:Planet_Comics_21.jpg",
+      "id": 25,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Planet Comics",
+      "number": "27",
+      "publisher": "Fiction House",
+      "year": 1943,
+      "characters": [
+        "Science-fiction anthology"
+      ],
+      "writer": "Multiple contributors",
+      "artist": "Multiple contributors",
+      "coverArtist": "Joe Doolin",
+      "note": "Vintage science-fiction anthology. Cover dated November 1943.",
+      "kind": "Cover spotlight",
+      "source": "https://commons.wikimedia.org/wiki/File:Planet_Comics_27.jpg",
+      "cover": "/covers/planet-27.jpg",
+      "coverCredit": "Wikimedia Commons · public-domain label in the US (no renewal); other jurisdictions require review",
+      "coverSource": "https://commons.wikimedia.org/wiki/File:Planet_Comics_27.jpg",
+      "id": 26,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Planet Comics",
+      "number": "42",
+      "publisher": "Fiction House",
+      "year": 1946,
+      "characters": [
+        "Science-fiction anthology"
+      ],
+      "writer": "Multiple contributors",
+      "artist": "Multiple contributors",
+      "coverArtist": "Joe Doolin",
+      "note": "Vintage science-fiction anthology. Cover dated May 1946.",
+      "kind": "Cover spotlight",
+      "source": "https://commons.wikimedia.org/wiki/File:Planet_Comics_42.jpg",
+      "cover": "/covers/planet-42.jpg",
+      "coverCredit": "Wikimedia Commons · public-domain label in the US (no renewal); other jurisdictions require review",
+      "coverSource": "https://commons.wikimedia.org/wiki/File:Planet_Comics_42.jpg",
+      "id": 27,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Planet Comics",
+      "number": "53",
+      "publisher": "Fiction House",
+      "year": 1948,
+      "characters": [
+        "Science-fiction anthology"
+      ],
+      "writer": "Multiple contributors",
+      "artist": "Multiple contributors",
+      "coverArtist": "Joe Doolin",
+      "note": "Vintage science-fiction anthology. Cover dated March 1948.",
+      "kind": "Cover spotlight",
+      "source": "https://commons.wikimedia.org/wiki/File:Planet_Comics_53.jpg",
+      "cover": "/covers/planet-53.jpg",
+      "coverCredit": "Wikimedia Commons · public-domain label in the US (no renewal); other jurisdictions require review",
+      "coverSource": "https://commons.wikimedia.org/wiki/File:Planet_Comics_53.jpg",
+      "id": 28,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Planet Comics",
+      "number": "55",
+      "publisher": "Fiction House",
+      "year": 1948,
+      "characters": [
+        "Science-fiction anthology"
+      ],
+      "writer": "Multiple contributors",
+      "artist": "Multiple contributors",
+      "coverArtist": "Joe Doolin",
+      "note": "Vintage science-fiction anthology. Cover dated July 1948.",
+      "kind": "Cover spotlight",
+      "source": "https://commons.wikimedia.org/wiki/File:Planet_Comics_55.jpg",
+      "cover": "/covers/planet-55.jpg",
+      "coverCredit": "Wikimedia Commons · public-domain label in the US (no renewal); other jurisdictions require review",
+      "coverSource": "https://commons.wikimedia.org/wiki/File:Planet_Comics_55.jpg",
+      "id": 29,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "title": "Fantastic Four",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1961,
+      "characters": [
+        "Fantastic Four"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Jack Kirby",
+      "note": "The original Fantastic Four series begins.",
+      "kind": "First appearance",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "id": 30,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "title": "Journey into Mystery",
+      "number": "83",
+      "publisher": "Marvel",
+      "year": 1962,
+      "characters": [
+        "Thor"
+      ],
+      "writer": "Stan Lee / Larry Lieber",
+      "artist": "Jack Kirby",
+      "note": "Thor enters the Marvel comic universe.",
+      "kind": "First appearance",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "id": 31,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "title": "Amazing Spider-Man",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1963,
+      "characters": [
+        "Spider-Man"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Steve Ditko",
+      "note": "The original Amazing Spider-Man series begins.",
+      "kind": "Series debut",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "id": 32,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "title": "X-Men",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1963,
+      "characters": [
+        "X-Men"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Jack Kirby",
+      "note": "The debut of the original X-Men team. Distinct from the 1991 series.",
+      "kind": "First appearance",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "id": 33,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "title": "Teenage Mutant Ninja Turtles",
+      "number": "1",
+      "publisher": "Mirage",
+      "year": 1984,
+      "characters": [
+        "Teenage Mutant Ninja Turtles"
+      ],
+      "writer": "Kevin Eastman / Peter Laird",
+      "artist": "Kevin Eastman / Peter Laird",
+      "note": "The original black-and-white Turtles comic.",
+      "kind": "Series debut",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "id": 34,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Bronze Age"
+    },
+    {
+      "title": "Batman",
+      "number": "1",
+      "publisher": "DC",
+      "year": 1940,
+      "characters": [
+        "Batman",
+        "Joker",
+        "Catwoman"
+      ],
+      "writer": "Bill Finger",
+      "artist": "Bob Kane and collaborators",
+      "note": "Batman’s solo title begins; introduces the Joker and Catwoman.",
+      "kind": "First appearance",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "id": 35,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "Tales of Suspense",
+      "number": "39",
+      "publisher": "Marvel",
+      "year": 1963,
+      "characters": [
+        "Iron Man"
+      ],
+      "writer": "Stan Lee / Larry Lieber",
+      "artist": "Don Heck",
+      "note": "The first Iron Man story. Cover dated March 1963.",
+      "kind": "First appearance",
+      "source": "https://www.comics.org/issue/17575/",
+      "id": 36,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "Incredible Hulk",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1962,
+      "characters": [
+        "Hulk",
+        "Bruce Banner"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Jack Kirby",
+      "note": "The original Hulk series begins. Cover dated May 1962.",
+      "kind": "First appearance",
+      "source": "https://www.comics.org/issue/16935/",
+      "id": 37,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "Fantastic Four",
+      "number": "5",
+      "publisher": "Marvel",
+      "year": 1962,
+      "characters": [
+        "Fantastic Four",
+        "Doctor Doom"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Jack Kirby",
+      "note": "Doctor Doom enters the Fantastic Four series. Cover dated July 1962.",
+      "kind": "First appearance",
+      "source": "https://www.comics.org/issue/17043/",
+      "id": 38,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "Detective Comics",
+      "number": "33",
+      "publisher": "DC",
+      "year": 1939,
+      "characters": [
+        "Batman"
+      ],
+      "writer": "Bill Finger and anthology contributors",
+      "artist": "Bob Kane and anthology contributors",
+      "note": "An early Batman origin story. Cover dated November 1939.",
+      "kind": "Key issue",
+      "source": "https://www.comics.org/issue/560/",
+      "id": 39,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "All-American Comics",
+      "number": "16",
+      "publisher": "DC",
+      "year": 1940,
+      "characters": [
+        "Green Lantern",
+        "Alan Scott"
+      ],
+      "writer": "Bill Finger and anthology contributors",
+      "artist": "Martin Nodell and anthology contributors",
+      "note": "Alan Scott’s Green Lantern debut. Cover dated July 1940.",
+      "kind": "First appearance",
+      "source": "https://www.comics.org/issue/878/",
+      "id": 40,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "Daredevil",
+      "number": "1",
+      "publisher": "Marvel",
+      "year": 1964,
+      "characters": [
+        "Daredevil",
+        "Matt Murdock"
+      ],
+      "writer": "Stan Lee",
+      "artist": "Bill Everett",
+      "note": "Daredevil’s original series begins. Cover dated April 1964.",
+      "kind": "First appearance",
+      "source": "https://www.comics.org/issue/18338/",
+      "id": 41,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Silver Age"
+    },
+    {
+      "dataCredit": "Grand Comics Database · selected metadata adapted by ComicHuddle, 2026-10-08",
+      "dataLicense": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "Detective Comics",
+      "number": "38",
+      "publisher": "DC",
+      "year": 1940,
+      "characters": [
+        "Batman",
+        "Robin",
+        "Dick Grayson"
+      ],
+      "writer": "Bill Finger and anthology contributors",
+      "artist": "Bob Kane and anthology contributors",
+      "note": "Robin joins Batman. Cover dated April 1940.",
+      "kind": "First appearance",
+      "source": "https://www.comics.org/issue/754/",
+      "id": 42,
+      "variant": "Original issue · printing to be confirmed",
+      "era": "Golden Age"
+    }
+  ],
+  "sales": [
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 16,
+      "grade": "4.5",
+      "amount": 1525000
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Restored",
+      "issueId": 16,
+      "grade": "6.5",
+      "amount": 427000
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 11,
+      "grade": "8.0",
+      "amount": 237900
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 30,
+      "grade": "9.0",
+      "amount": 231800
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 38,
+      "grade": "9.4",
+      "amount": 122000
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 36,
+      "grade": "9.4",
+      "amount": 118950
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 31,
+      "grade": "9.0",
+      "amount": 91500
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 37,
+      "grade": "8.0",
+      "amount": 91500
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 39,
+      "grade": "5.5",
+      "amount": 79300
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Signature Series",
+      "issueId": 40,
+      "grade": "1.8",
+      "amount": 73200,
+      "note": "Signed by Sheldon Moldoff."
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 10,
+      "grade": "9.8",
+      "amount": 53680
+    },
+    {
+      "date": "2026-07-09",
+      "dateEnd": "2026-07-11",
+      "venue": "Heritage",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-heritage-million-6wvuW2iyGVLNsLh4NXmCZJ/",
+      "buyerPremium": true,
+      "label": "Label not specified",
+      "issueId": 36,
+      "grade": "8.5",
+      "amount": 53680
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 16,
+      "grade": "6.0",
+      "amount": 2760000,
+      "note": "The individual “Rocket Copy.”"
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 35,
+      "grade": "6.0",
+      "amount": 471500
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 11,
+      "grade": "8.0",
+      "amount": 211600
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 30,
+      "grade": "9.0",
+      "amount": 208150
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 41,
+      "grade": "9.6",
+      "amount": 115000
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 42,
+      "grade": "5.0",
+      "amount": 45232
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 37,
+      "grade": "6.0",
+      "amount": 29325
+    },
+    {
+      "date": "2026-06-22",
+      "venue": "ComicConnect",
+      "source": "https://www.cgcgrading.com/news/articles/action-comics-superman-rocket-copy-ir7uN6gTVg63QTQsmzxrD/",
+      "label": "Label not specified",
+      "issueId": 32,
+      "grade": "7.0",
+      "amount": 24150
+    },
+    {
+      "issueId": 11,
+      "grade": "5.0",
+      "label": "Label not specified",
+      "date": "2025-05-04",
+      "amount": 45300,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    },
+    {
+      "issueId": 10,
+      "grade": "9.8",
+      "label": "Label not specified",
+      "date": "2025-04-21",
+      "amount": 50969,
+      "venue": "ComicLink",
+      "source": "https://www.cgcgrading.com/news/articles/comiclink-hulk-wolverine-7cUbVH2XEU09m0twuRknsV/"
+    },
+    {
+      "issueId": 30,
+      "grade": "3.5",
+      "label": "Label not specified",
+      "date": "2025-04-14",
+      "amount": 11900,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    },
+    {
+      "issueId": 31,
+      "grade": "6.5",
+      "label": "Signature Series",
+      "date": "2025-04-07",
+      "amount": 17100,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "note": "Signed by Stan Lee, Larry Lieber and Joe Sinnott."
+    },
+    {
+      "issueId": 34,
+      "grade": "8.0",
+      "label": "Signature Series",
+      "date": "2025-03-31",
+      "amount": 10139,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/",
+      "note": "Signed by Kevin Eastman."
+    },
+    {
+      "issueId": 30,
+      "grade": "4.5",
+      "label": "Label not specified",
+      "date": "2025-03-20",
+      "amount": 17151,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    },
+    {
+      "issueId": 32,
+      "grade": "4.0",
+      "label": "Label not specified",
+      "date": "2025-03-20",
+      "amount": 10788,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    },
+    {
+      "issueId": 32,
+      "grade": "4.5",
+      "label": "Label not specified",
+      "date": "2025-03-16",
+      "amount": 11988,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    },
+    {
+      "issueId": 33,
+      "grade": "5.0",
+      "label": "Label not specified",
+      "date": "2025-03-16",
+      "amount": 10656,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    },
+    {
+      "issueId": 32,
+      "grade": "5.0",
+      "label": "Label not specified",
+      "date": "2025-02-18",
+      "amount": 12000,
+      "venue": "eBay",
+      "source": "https://www.cgcgrading.com/news/articles/ebay-sales-2025-5QJYjTdBEsTOSqXBLgOaLt/"
+    }
+  ],
+  "credits": {
+    "metadata": "Selected records adapted from Grand Comics Database; individual dataCredit and dataLicense fields identify CC BY-SA 4.0 adaptations. Other records were independently entered from linked primary sources.",
+    "covers": "Only six vintage covers whose linked source pages identify US public-domain status. This is not worldwide image clearance.",
+    "prices": "Dated sale facts reported by CGC, with individual source URLs. These are not FMV."
+  }
+}

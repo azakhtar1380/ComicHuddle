@@ -1,0 +1,36 @@
+READY-TO-SEND DRAFT — NOT SENT
+
+CovrPrice: info@covrprice.com (published general contact; ask to be routed to commercial partnerships).
+GoCollect: use the Enterprise contact option at https://gocollect.com/pricing/ or https://gocollect.com/contact.
+
+Subject: ComicHuddle commercial data partnership — web, iOS and Android
+
+Hello,
+
+I am building ComicHuddle, a comic collector marketplace and community with personal collections, issue discovery, value tracking, messaging and comic pressing services. The initial release will include responsive desktop/mobile web and native iOS/Android apps.
+
+I would like a commercial licensing quote for your data. My initial target is $250–500 per month, subject to your minimums and coverage. Please quote an early-stage pilot and explain how pricing scales with users, request volume and displayed records.
+
+Please confirm:
+
+1. Catalog scope: issues, publishers, series, variants, printings, editions, languages, stable identifiers and the number of records actually covered. How are new releases and corrections delivered?
+2. Raw and graded valuations: raw condition buckets, CGC numerical grades, label categories, signed/restored/qualified/conserved copies, currencies, estimate methodology, confidence/sample counts and update frequency. Identify categories you do not value.
+3. Display rights: use in free and paid accounts, collection totals, alerts, listing comparisons, public collector showcases, web, iOS and Android. May we display sale histories and individual comparable-sale facts?
+4. Cover images: are cover images included, and do you have the right to sublicense public commercial display across these platforms? Please identify rights limitations, required credits, territories, thumbnail/full-size restrictions and whether linking differs from hosting.
+5. Delivery: documented API or licensed file feed, sandbox, bulk bootstrap, deltas/webhooks, rate limits, permitted server caching, retention, SLA and support.
+6. Mapping: documentation for your issue/variant identifiers and any permitted crosswalk to Grand Comics Database records or a separate canonical catalog.
+7. Legal terms: redistribution permission, attribution, usage reporting, contract duration, renewal pricing, termination/expiry behavior, data deletion and responsibility for underlying third-party rights. We will not scrape a consumer price guide or ship your keys in a client app.
+
+If the requested coverage exceeds the initial budget, please propose a narrower pilot with a path to broader coverage. Please distinguish commercial redistribution rights from an individual subscription and send sample data plus the proposed agreement before any purchase.
+
+Thank you,
+ComicHuddle founder
+
+Optional Key Collector partnership inquiry:
+Ask through its official contact channel whether it licenses key-issue annotations or permits a commercial data partnership. No public self-service commercial API was established in the research. Do not copy its database or images without written permission.
+
+Official references checked 8 October 2026:
+https://club.clz.com/t/faq-about-getting-values-from-covrprice/10422
+https://gocollect.com/pricing/
+https://www.keycollectorcomics.com/frequently-asked-questions/
+https://www.keycollectorcomics.com/terms
