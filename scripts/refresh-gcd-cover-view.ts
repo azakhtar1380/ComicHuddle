@@ -12,7 +12,7 @@ try{
      COALESCE(NULLIF(to_jsonb(c)->>'image_url',''),NULLIF(to_jsonb(c)->>'cover_url',''),NULLIF(to_jsonb(c)->>'url',''),NULLIF(to_jsonb(c)->>'image_path','')) AS image_url,
      'https://www.comics.org/issue/'||c.issue_id||'/' AS source_url,
      'Cover image source: Grand Comics Database (GCD) / Publisher'::text AS attribution,
-     'active'::text AS status,COALESCE(to_jsonb(c)->>'modified',to_jsonb(c)->>'created','') AS fetched_at,0 AS priority
+     'active'::text AS status,now() AS fetched_at,0 AS priority
     FROM gcd.gcd_cover c WHERE COALESCE(to_jsonb(c)->>'deleted','0') NOT IN ('1','true')
     UNION ALL SELECT issue_id,gcd_id,image_url,source_url,attribution,status,fetched_at,1 FROM ch_web.catalog_cover_references
    ) refs WHERE image_url IS NOT NULL ORDER BY issue_id,priority,fetched_at DESC,image_url`);

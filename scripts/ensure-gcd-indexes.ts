@@ -4,6 +4,7 @@ const indexes=[
  ['comichuddle_gcd_directory_id','gcd.gcd_issue','(4000000000::bigint+id)'],
  ['comichuddle_gcd_issue_id','gcd.gcd_issue','id'],
  ['comichuddle_gcd_issue_series_number','gcd.gcd_issue','series_id,number,id'],
+ ['comichuddle_gcd_release_date','gcd.gcd_issue','on_sale_date,id'],
  ['comichuddle_gcd_series_id','gcd.gcd_series','id'],
  ['comichuddle_gcd_series_publisher','gcd.gcd_series','publisher_id,id'],
  ['comichuddle_gcd_publisher_id','gcd.gcd_publisher','id'],
