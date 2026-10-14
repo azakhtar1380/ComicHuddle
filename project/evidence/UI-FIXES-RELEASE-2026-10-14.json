@@ -1,0 +1,62 @@
+{
+  "verifiedAt": "2026-10-14T20:04:28.998403+00:00",
+  "url": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "deploymentId": "dpl_EmGLod7yryvmkpuLK6ZKpBaqUPM2",
+  "applicationCommit": "0cc86f54550515c63e04948e8e8894c86a97408e",
+  "build": "READY; production build and checksum-verified AWS RDS migrations completed",
+  "liveAuthenticatedApiChecks": 23,
+  "liveApiError": null,
+  "successfulRunCleanup": [
+    {
+      "role": "seller",
+      "applicationRecordsRemoved": true
+    },
+    {
+      "role": "buyer",
+      "applicationRecordsRemoved": true
+    }
+  ],
+  "localChecks": {
+    "vaultRevisionRecovery": 12,
+    "actualCollectionAndListingClient": 7,
+    "exactIssueDetailLifecycle": 7,
+    "directoryCardStates": 15,
+    "nativePostgresAndActualCatalogEndpoint": 7,
+    "marketplaceWalletLocationAndSafePurchase": 10,
+    "scannerClientLifecycle": 12,
+    "realScannerPixelsAndUnknownStates": 15,
+    "compactDirectory": 10,
+    "mobileSourceGeometry": 7,
+    "mobileDock": 4,
+    "dialogFocus": 1
+  },
+  "browserChecks": [
+    "Homepage feed loads ten real stored issues; all six local cover images render",
+    "Navigation labels have no numeric prefixes and page has no horizontal overflow",
+    "Issue cover and metadata occupy separate columns with attribution under the cover",
+    "Add to Collection has a red background; source links have 0px borders",
+    "Orders & refunds closes the drawer and opens the full Orders page",
+    "Uploaded Planet Comics #55 is recognized and View issue opens its exact directory record",
+    "Final scanner native file input has display:none and its visible upload control is 49px high"
+  ],
+  "catalog": {
+    "issueCount": 6826,
+    "gcdIssueCount": 6783,
+    "gcdIndexIssueCount": 5642,
+    "coverIssueCount": 2094,
+    "lastGcdSyncedAt": "2026-10-14T16:49:14.709Z"
+  },
+  "limits": [
+    "Catalog is partial; 5642 records contain index metadata rather than full story credits",
+    "2094 records have cover references; that is not a count of accessible or licensed cover images",
+    "Six local Planet Comics covers are available and indexed for automatic recognition",
+    "No hardware camera available in the verification browser; real upload recognition was tested",
+    "Full-catalog recognition, authenticity/condition grading, current FMV, live payments and physical inspection/payout integrations are not complete",
+    "Authenticated browser account forms were not automated; authentication and listing endpoints were tested live and client callbacks tested separately"
+  ],
+  "interruptedAttempt": "A deployment-host connection error interrupted the first live QA run. Its one empty test profile was subsequently hidden and messaging disabled; authentication identities retained.",
+  "screenshots": [
+    "comichuddle-detail-fixed-1792008001736.jpg",
+    "comichuddle-scanner-verified-1792007777200.jpg"
+  ]
+}
