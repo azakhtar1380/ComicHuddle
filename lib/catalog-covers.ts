@@ -1,5 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { catalogCoverReferences } from '../db/schema';
+import { directoryCoverReferences } from '../db/schema';
 import type { CatalogDb } from './catalog-store';
 import type { Issue } from './catalog';
 
@@ -11,13 +11,13 @@ export function gcdThumbnailUrl(value: unknown): string | null {
 
 export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise<Issue[]> {
   if (!issues.length) return issues;
-  const rows = await db.select().from(catalogCoverReferences).where(and(
-    inArray(catalogCoverReferences.issueId, issues.map(issue => issue.id)),
-    eq(catalogCoverReferences.status, 'active')));
+  const rows = await db.select().from(directoryCoverReferences).where(and(
+    inArray(directoryCoverReferences.issueId, issues.map(issue => issue.id)),
+    eq(directoryCoverReferences.status, 'active')));
   const byId = new Map(rows.map(row => [row.issueId, row]));
   return issues.map(issue => {
     const reference = byId.get(issue.id), url = reference && gcdThumbnailUrl(reference.imageUrl);
     if (!reference || !url || reference.gcdId !== issue.gcdId || issue.id !== 4_000_000_000 + reference.gcdId) return issue;
-    return { ...issue, cover: url, coverSource: reference.sourceUrl, coverCredit: reference.attribution };
+    return { ...issue, cover: url, coverSource: reference.sourceUrl!, coverCredit: reference.attribution! };
   });
 }

@@ -25,7 +25,7 @@ export function getPool(): Pool {
     user: process.env.DB_USER, password: process.env.DB_PASSWORD,
     ssl: { ca, rejectUnauthorized: true, servername: host },
     max: 4, idleTimeoutMillis: 20000, connectionTimeoutMillis: 10000,
-    options: '-c search_path=ch_web,public -c statement_timeout=15000',
+    options: '-c search_path=ch_web,gcd,public -c statement_timeout=15000',
   });
   return globalPool.comicHuddlePool;
 }

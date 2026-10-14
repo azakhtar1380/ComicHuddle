@@ -4,7 +4,7 @@ import './mobile-dock.css';
 
 type Props={tab:string;scanOpen:boolean;onNavigate:(section:string)=>void;onScan:()=>void};
 const left=[{section:'Home',label:'Home',Icon:Home},{section:'Directory',label:'Directory',Icon:BookOpen},{section:'Marketplace',label:'Marketplace',Icon:ShoppingBag}];
-const right=[{section:'Collectors',label:'My Profile',Icon:User},{section:'Pressing',label:'Comic Workshop',Icon:Wrench},{section:'Upcoming',label:'Upcoming',Icon:Hourglass}];
+const right=[{section:'Pressing',label:'Comic Workshop',Icon:Wrench},{section:'Upcoming',label:'Upcoming',Icon:Hourglass},{section:'Collectors',label:'My Profile',Icon:User}];
 
 export default function MobileDock({tab,scanOpen,onNavigate,onScan}:Props){
  const destination=(item:typeof left[number])=><button type="button" key={item.section} aria-label={item.label} aria-current={tab===item.section?'page':undefined} onClick={()=>onNavigate(item.section==='Collectors'?'My Profile':item.section)}><item.Icon size={20}/><span>{item.label}</span></button>;

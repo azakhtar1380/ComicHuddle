@@ -9,7 +9,7 @@ const {default:MobileDock} = loadTypeScriptModule('app/mobile-dock.tsx');
 const navigation = loadTypeScriptModule('lib/section-navigation.ts'), report = createReporter('Center Scan mobile dock');
 const children = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(children)
   : [node,...children(node.props?.children)];
-const expected = ['Home','Directory','Marketplace','Scan a comic','My Profile','Comic Workshop','Upcoming'];
+const expected = ['Home','Directory','Marketplace','Scan a comic','Comic Workshop','Upcoming','My Profile'];
 const fixture = (tab='Home', scanOpen=false) => {
   const events=[],tree=MobileDock({tab,scanOpen,onNavigate:value=>events.push({navigate:value}),onScan:()=>events.push({scan:true})});
   const buttons=children(tree).filter(node=>node.type==='button'); return {events,tree,buttons};
@@ -24,7 +24,7 @@ await report.test('One semantic dock places Scan in the center and retains exact
 await report.test('The center action opens scanning once without changing the section; other buttons retain canonical own-profile intent',async()=>{
   const f=fixture(); f.buttons[3].props.onClick(); assert.deepEqual(f.events,[{scan:true}]);
   for(const button of f.buttons.filter((_,index)=>index!==3))button.props.onClick();
-  assert.deepEqual(f.events.slice(1).map(value=>value.navigate),['Home','Directory','Marketplace','My Profile','Pressing','Upcoming']);
+  assert.deepEqual(f.events.slice(1).map(value=>value.navigate),['Home','Directory','Marketplace','Pressing','Upcoming','My Profile']);
 });
 await report.test('Active page and scanner expanded state are exposed independently',async()=>{
   const f=fixture('Marketplace',true); assert.equal(f.buttons[2].props['aria-current'],'page');

@@ -12,7 +12,7 @@ async function reconcileOrder(client:PoolClient,row:Order,userId:string){
  try{snapshot=JSON.parse(row.snapshot);state=JSON.parse(row.state)}catch{return false}
  if(!object(snapshot)||!state||state.status!==row.status||evaluateCommercePolicy(state,new Date().toISOString()).reason==='invalid_or_unknown_state')return false;
  const order=state.order,total=amount(snapshot.totalCents),proceeds=amount(snapshot.sellerTransferCents);
- if(total===null||proceeds===null||proceeds>total||snapshot.currency!=='USD'||order.orderId!==row.id||order.buyerId!==row.buyer_id||order.sellerId!==row.seller_id||order.totalCents!==total||order.sellerTransferCents!==proceeds)return false;
+ if(total===null||proceeds===null||proceeds>total+Number(snapshot.storeCreditCents||0)||snapshot.currency!=='USD'||order.orderId!==row.id||order.buyerId!==row.buyer_id||order.sellerId!==row.seller_id||order.totalCents!==total||order.sellerTransferCents!==proceeds)return false;
  if(!order.paidAt||!row.payment_intent_id||!row.charge_id||order.paymentIntentId!==row.payment_intent_id||order.chargeId!==row.charge_id)return false;
  const [payment]=(await client.query<{id:string}>("SELECT id FROM ch_web.commerce_events WHERE order_id=$1 AND type='payment_confirmed' AND provider_event_id IS NOT NULL LIMIT 1",[row.id])).rows;
  if(!payment)return false;

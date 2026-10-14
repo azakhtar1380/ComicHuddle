@@ -10,11 +10,13 @@ export type StripeSandboxEnv = {
   COMMERCE_STRIPE_TEST_SECRET_KEY?: unknown;
   COMMERCE_STRIPE_TEST_WEBHOOK_SECRET?: unknown;
   COMMERCE_PUBLIC_ORIGIN?: unknown;
+  COMMERCE_STRIPE_TEST_PUBLISHABLE_KEY?: unknown;
 };
 export type StripeBinding = {orderId: string; amountCents: number; paymentIntentId?: string};
 export type StripeSellerBinding = {profileId: string; userId: string};
 export type StripeCheckoutInput = {
   orderId: string; amountCents: number; title: string; successUrl: string; cancelUrl: string;
+  uiMode?: 'hosted_page'|'custom';
   buyerEmail?: string; itemAmountCents?: number; shippingCents?: number; taxCents?: number;
 };
 export class StripeSandboxError extends Error {
@@ -270,11 +272,12 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         fail('invalid_title', 'Order title is invalid.');
       const shipping = input.shippingCents ?? 0, tax = input.taxCents ?? 0;
       const item = input.itemAmountCents ?? input.amountCents - shipping - tax;
-      cents(item); cents(shipping, 0); cents(tax, 0);
+      cents(item, 0); cents(shipping, 0); cents(tax, 0);
       if (item + shipping + tax !== input.amountCents) fail('invalid_amount', 'Order breakdown does not match the total.');
       const fields: Record<string, string> = {
-        mode: 'payment', ui_mode: 'hosted_page',
-        client_reference_id: input.orderId, success_url: returnUrl(input.successUrl, origin!), cancel_url: returnUrl(input.cancelUrl, origin!),
+        mode: 'payment', ui_mode: input.uiMode==='custom'?'custom':'hosted_page',
+        client_reference_id: input.orderId,
+        ...(input.uiMode==='custom'?{return_url:returnUrl(input.successUrl,origin!)}:{success_url:returnUrl(input.successUrl,origin!),cancel_url:returnUrl(input.cancelUrl,origin!)}),
         // Fulfillment uses the route's immutable, buyer-confirmed US address.
         // Do not collect a second shipping address that could contradict it.
         'billing_address_collection': 'required',
@@ -295,7 +298,8 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         fields.customer_email = input.buyerEmail;
       }
       const session = responseObject(await request('POST', 'checkout/sessions', fields, key), 'checkout.session');
-      stripeId(session.id, 'cs_test_'); providerUrl(session.url, 'checkout.stripe.com');
+      stripeId(session.id, 'cs_test_');
+      if(input.uiMode==='custom'){if(typeof session.client_secret!=='string'||!session.client_secret.startsWith(String(session.id)+'_secret_')||session.client_secret.length>512)fail('stripe_order_mismatch','Embedded checkout secret does not match this session.',502)}else providerUrl(session.url, 'checkout.stripe.com');
       if (session.currency !== 'usd' || session.amount_total !== input.amountCents || session.mode !== 'payment' ||
         session.status !== 'open' || session.payment_status !== 'unpaid' || session.client_reference_id !== input.orderId)
         fail('stripe_order_mismatch', 'Checkout does not match this order.', 502);

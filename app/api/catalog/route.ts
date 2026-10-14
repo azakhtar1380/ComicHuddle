@@ -3,7 +3,7 @@ import {withCatalogCovers} from '../../../lib/catalog-covers';
 import {getDb} from '../../../db';
 import {catalogSearchDto} from '../../../lib/catalog-search';
 import {catalogIssue,catalogOverview,searchSharedCatalog,browseSharedSeries} from '../../../lib/catalog-store';
-import {catalogIssues} from '../../../db/schema';
+import {directoryIssues} from '../../../db/schema';
 import {inArray} from 'drizzle-orm';
 import type {Issue} from '../../../lib/catalog';
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
@@ -20,8 +20,8 @@ export async function GET(req:Request){
  if(params.has('ids')){
   const raw=params.get('ids')||'';if([...params.keys()].length!==1||!/^\d+(,\d+){0,24}$/.test(raw))return json({error:'Use up to 25 exact directory IDs.'},400);
   const ids=[...new Set(raw.split(',').map(Number))];if(ids.some(id=>!Number.isSafeInteger(id)))return json({error:'Use valid directory IDs.'},400);
-  const db=getDb(),rows=await db.select({id:catalogIssues.id,data:catalogIssues.data}).from(catalogIssues).where(inArray(catalogIssues.id,ids));
-  const byId=new Map(rows.map(row=>[row.id,JSON.parse(row.data) as Issue]));
+  const db=getDb(),rows=await db.select({id:directoryIssues.id,data:directoryIssues.data}).from(directoryIssues).where(inArray(directoryIssues.id,ids));
+  const byId=new Map(rows.map(row=>[row.id,JSON.parse(row.data!) as Issue]));
   const issues=await withCatalogCovers(db,ids.flatMap(id=>{const issue=byId.get(id)||catalog.find(i=>i.id===id);return issue?[issue]:[]}));
   return json({...await catalogOverview(db),issues:issues.map(issue=>catalogSearchDto(issue)),total:issues.length,limit:Math.max(1,ids.length),offset:0,hasMore:false});
  }

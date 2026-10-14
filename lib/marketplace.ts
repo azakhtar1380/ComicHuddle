@@ -2,7 +2,7 @@ import {resolveLocation} from './location-search';
 import {and,asc,desc,eq,gt,gte,inArray,lt,lte,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
 import {getDb} from '../db';
-import {auctionBids,collections,listingInventory,listings,marketValues,media,offers,profiles,commerceOrders,threads,messages,catalogIssues,tradeProposals,accountRestrictions} from '../db/schema';
+import {auctionBids,collections,listingInventory,listings,marketValues,media,offers,profiles,commerceOrders,threads,messages,directoryIssues,tradeProposals,accountRestrictions} from '../db/schema';
 import {catalog,grades,normalize} from './catalog';
 import {type Listing,type ListingAuction,type ListingCondition,type ListingItem,type ListingValuation,type TradeProposal,type TradeTermsData,previewRulesVersion,listingStateCodes} from './community';
 import {vaultSchema,type Vault} from './vault';
@@ -163,7 +163,7 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  if(Object.keys(value.conditions).some(id=>!selected.includes(id)))throw new ApiRequestError('Set conditions only for the selected copies.',400);
  const copies=selected.map(id=>owned.get(id)!),items=copies.map(copy=>snapshot(copy,value.conditions[copy.id]));
  const externalIds=[...new Set(copies.flatMap(copy=>{const id=copy.externalCatalog?listingDirectoryId(copy):null;return id===null?[]:[id]}))],externalRows=new Map<number,{id:number;metronId:number|null;gcdId:number|null;title:string;number:string}>();
- for(const batch of chunks(externalIds)){const rows=await db.select({id:catalogIssues.id,metronId:catalogIssues.metronId,gcdId:catalogIssues.gcdId,title:catalogIssues.title,number:catalogIssues.number}).from(catalogIssues).where(inArray(catalogIssues.id,batch));for(const row of rows)externalRows.set(row.id,row)}
+ for(const batch of chunks(externalIds)){const rows=await db.select({id:directoryIssues.id,metronId:directoryIssues.metronId,gcdId:directoryIssues.gcdId,title:directoryIssues.title,number:directoryIssues.number}).from(directoryIssues).where(inArray(directoryIssues.id,batch));for(const row of rows)externalRows.set(row.id,row)}
  const numberKey=(value:string)=>value.trim().replace(/^#\s*/,'').replace(/\s/g,'').toLowerCase();
  for(const copy of copies){if(!copy.externalCatalog)continue;const directoryId=listingDirectoryId(copy),record=directoryId===null?undefined:externalRows.get(directoryId),providerMatches=record&&(copy.externalCatalog.provider==='Metron'?record.metronId===copy.externalCatalog.id&&record.gcdId===null:record.gcdId===copy.externalCatalog.id&&record.metronId===null);if(!record||!providerMatches||normalize(record.title)!==normalize(copy.title)||numberKey(record.number)!==numberKey(copy.issue))throw new ApiRequestError('Correct the linked directory edition for each selected comic, or save it as an unlinked personal record before listing.',400)}
  const externalSnapshot=JSON.stringify([...externalRows.values()]);
@@ -174,7 +174,7 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
   WHERE p.id = ${me.id} AND p.user_id = ${me.userId} AND p.visible = 1 AND p.moderated = 0 AND p.deletion_started_at IS NULL
    AND c.revision = ${source.revision} AND NOT EXISTS
     (SELECT 1 FROM account_restrictions r WHERE r.user_id = p.user_id AND r.scope = 'account'))
-  AND NOT EXISTS (SELECT 1 FROM json_each(${externalSnapshot}) selected LEFT JOIN catalog_issues canonical ON canonical.id = json_extract(selected.value,'$.id')::bigint
+  AND NOT EXISTS (SELECT 1 FROM json_each(${externalSnapshot}) selected LEFT JOIN gcd.comichuddle_directory canonical ON canonical.id = json_extract(selected.value,'$.id')::bigint
    WHERE canonical.id IS NULL OR canonical.metron_id IS DISTINCT FROM json_extract(selected.value,'$.metronId')::bigint OR canonical.gcd_id IS DISTINCT FROM json_extract(selected.value,'$.gcdId')::bigint OR canonical.title != json_extract(selected.value,'$.title') OR canonical.number != json_extract(selected.value,'$.number'))
   AND json_array_length(${selectedJSON}) BETWEEN 1 AND 1000
   AND (${value.kind} != 'single' OR json_array_length(${selectedJSON}) = 1)
@@ -382,6 +382,8 @@ export async function decideTradeTerms(db:Db,me:Profile,raw:Record<string,unknow
 }
 
 export async function checkMarketplaceDeletion(db:Db,me:Profile){
+ const credit=await db.execute(sql`SELECT 1 FROM ch_web.reward_accounts WHERE user_id=${me.userId} AND (credit_cents>0 OR reserved_cents>0 OR points_balance<>0) LIMIT 1`);
+ if(credit.rows.length)throw new ApiRequestError('Contact support to resolve your on-site credit and reward history before removing the account.',409);
  const custody=await db.execute(sql`SELECT id FROM ch_web.safe_purchase_requests WHERE (buyer_user_id=${me.userId} OR seller_user_id=${me.userId}) AND status IN ('accepted','received_at_vault','inspected','shipped_to_buyer') LIMIT 1`);
  if(custody.rows.length)throw new ApiRequestError('Resolve your active SafePurchase inspection or shipment before account removal. Contact maliktecks@gmail.com for custody review.',409);
  const [orderHistory]=await db.select({id:commerceOrders.id}).from(commerceOrders).where(or(eq(commerceOrders.buyerUserId,me.userId),eq(commerceOrders.sellerUserId,me.userId))).limit(1);
@@ -393,11 +395,13 @@ export async function checkMarketplaceDeletion(db:Db,me:Profile){
 }
 export function anonymizeMarketplaceHistory(db:Db,me:Profile){
  const removed='deleted:'+crypto.randomUUID(),stamp=new Date().toISOString();
- const sellerSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.buyer_user_id = ${me.userId} OR o.seller_user_id = ${me.userId}) AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = ${me.id} AND l.sale_type = 'auction' AND l.bid_count > 0 AND l.status IN ('active','ended')) AND NOT EXISTS(SELECT 1 FROM ch_web.safe_purchase_requests r WHERE (r.buyer_user_id=${me.userId} OR r.seller_user_id=${me.userId}) AND r.status IN ('accepted','received_at_vault','inspected','shipped_to_buyer'))`);
+ const sellerSafe=guard(db,sql`NOT EXISTS(SELECT 1 FROM ch_web.reward_accounts WHERE user_id=${me.userId} AND (credit_cents>0 OR reserved_cents>0 OR points_balance<>0)) AND NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.buyer_user_id = ${me.userId} OR o.seller_user_id = ${me.userId}) AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.seller_id = ${me.id} AND l.sale_type = 'auction' AND l.bid_count > 0 AND l.status IN ('active','ended')) AND NOT EXISTS(SELECT 1 FROM ch_web.safe_purchase_requests r WHERE (r.buyer_user_id=${me.userId} OR r.seller_user_id=${me.userId}) AND r.status IN ('accepted','received_at_vault','inspected','shipped_to_buyer'))`);
  const bidderSafe=guard(db,sql`NOT EXISTS (SELECT 1 FROM auction_bids b JOIN listings l ON l.id = b.listing_id WHERE b.bidder_id = ${me.id} AND b.status IN ('leading','outbid') AND l.status = 'active' AND parse_iso_timestamp(l.end_at) IS NOT NULL AND l.end_at > ${stamp})`);
  return {checks:[sellerSafe.start,bidderSafe.start],before:[
   db.update(profiles).set({deletionStartedAt:stamp,visible:0,dmOpen:0}).where(eq(profiles.id,me.id)),
   db.execute(sql`DELETE FROM ch_web.safe_purchase_requests WHERE buyer_user_id=${me.userId} OR seller_user_id=${me.userId}`),
+  db.execute(sql`DELETE FROM ch_web.reward_ledger WHERE user_id=${me.userId}`),
+  db.execute(sql`DELETE FROM ch_web.reward_accounts WHERE user_id=${me.userId}`),
   db.update(auctionBids).set({bidderId:removed,requestId:sql`${auctionBids.id}`}).where(eq(auctionBids.bidderId,me.id)),
   db.update(listings).set({leaderId:null}).where(eq(listings.leaderId,me.id)),
   db.update(listings).set({sellerId:removed,title:'Cancelled preview · seller account removed',description:'Historical nonbinding preview. The seller removed their account.',photos:'[]',items:'[]',itemCount:0,bookId:'deleted',issueId:null,grade:'',cert:'',vaultRevision:'',usaAttestedAt:'',fulfillment:'shipping',pickupCity:'',pickupState:'',locationZip:'',locationCity:'',locationState:'',latitude:null,longitude:null,safePurchaseOptIn:0,safePurchaseVerifiedAt:null}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),gt(listings.bidCount,0),eq(listings.status,'cancelled'))),

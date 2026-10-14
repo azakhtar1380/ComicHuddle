@@ -63,7 +63,7 @@ export function createScannerFixture(options = {}) {
     constructor(...args){if(args.length)super(...args);else super(initialNow+currentTime);}
     static now(){return initialNow+currentTime;}
   }:Date;
-  const globals = {console, Request, Response, Headers, URLSearchParams, AbortController,
+  const globals = {console, Request, Response, Headers, URLSearchParams, AbortController, AbortSignal,
     TextEncoder, TextDecoder, Uint8Array, Uint8ClampedArray, ArrayBuffer, Promise,
     Date:ClockDate, Error, TypeError, Object, Math, Number, crypto:globalThis.crypto,
     FormData:class {constructor(record){this.record=record;}get(key){return this.record[key]??null;}},
@@ -86,6 +86,7 @@ export function createScannerFixture(options = {}) {
     const module = {exports: {}}; modules.set(resolved, module);
     const localRequire = specifier => {
       if (specifier === 'react') return hookReact;
+      if (specifier === 'next/dynamic') return {__esModule:true,default:()=>function DeferredComponent(){return jsx('DeferredPaymentElement',{});}};
       if (specifier === 'react/jsx-runtime') return {jsx, jsxs: jsx, Fragment: 'fragment'};
       if (specifier === 'lucide-react') return new Proxy({}, {get: (_, name) => function Icon() {return jsx(String(name), {});}});
       if (specifier.startsWith('.')) return load(path.resolve(path.dirname(resolved), specifier));

@@ -5,6 +5,7 @@ import {ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, Filter, Grid3X3, List
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
 import './shared-directory.css';
+import CatalogFmv from './catalog-fmv';
 import ComicPicker from './comic-picker';
 import DirectoryTree from './directory-tree';
 
@@ -23,8 +24,8 @@ function DirectoryIssueCard({issue,onOpen}:{issue:Issue;onOpen:(issue:Issue)=>vo
   useEffect(()=>setCoverFailed(false),[issue.cover]);
   return <button type="button" className="sd-card" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}>
     <span className="sd-art">{issue.cover&&!coverFailed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>:<span className="sd-cover-empty" role="img" aria-label="Cover unavailable"><BookOpen size={36} aria-hidden="true"/><small>Cover unavailable</small></span>}</span>
-    {issue.cover&&!coverFailed&&<span className="sd-cover-credit">{issue.gcdId?'Cover via Grand Comics Database · © rights holders':'Cover: Wikimedia Commons · US public domain'}</span>}
-    <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span>
+    {issue.cover&&<span className="sd-cover-credit">{issue.gcdId?'Cover image source: Grand Comics Database (GCD) / Publisher':'Cover: Wikimedia Commons · US public domain'}</span>}
+    <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><CatalogFmv issueId={issue.id}/><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span>
   </button>;
 }
 function syncedDate(value: string | null) {

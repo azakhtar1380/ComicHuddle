@@ -111,3 +111,11 @@ export const catalogGcdBulkRuns=appTable('catalog_gcd_bulk_runs',{
 export const catalogGcdBulkBatches=appTable('catalog_gcd_bulk_batches',{
  importId:text('import_id').notNull().references(()=>catalogGcdBulkRuns.id),batchIndex:integer('batch_index').notNull(),contentSha256:text('content_sha256').notNull(),recordCount:integer('record_count').notNull(),writtenRecords:integer('written_records').notNull(),retainedNewerRecords:integer('retained_newer_records').notNull(),firstProviderId:integer('first_provider_id').notNull(),lastProviderId:integer('last_provider_id').notNull(),chainSha256:text('chain_sha256').notNull(),committedAt:text('committed_at').notNull()
 },t=>[primaryKey({columns:[t.importId,t.batchIndex]}),check('catalog_gcd_bulk_batch_counts',sql`${t.batchIndex}>=0 AND ${t.recordCount}>0 AND ${t.recordCount}<=8 AND ${t.writtenRecords}>=0 AND ${t.retainedNewerRecords}>=0 AND ${t.writtenRecords}+${t.retainedNewerRecords}=${t.recordCount} AND ${t.firstProviderId}>0 AND ${t.lastProviderId}>=${t.firstProviderId}`)]);
+
+// Read-only view over the native GCD snapshot; writes retain source-specific ingestion tables.
+export const directoryIssues=pgSchema('gcd').view('comichuddle_directory',{
+ id:integer('id').notNull(),coverRank:integer('cover_rank').notNull(),gcdId:integer('gcd_id'),metronId:integer('metron_id'),title:text('title').notNull(),number:text('number').notNull(),publisher:text('publisher').notNull(),year:integer('year').notNull(),era:text('era').notNull(),kind:text('kind').notNull(),searchText:text('search_text').notNull(),data:text('data').notNull(),fetchedAt:text('fetched_at').notNull(),rawMetadata:text('raw_metadata').notNull()
+}).existing();
+export const directoryCoverReferences=pgSchema('gcd').view('comichuddle_cover_references',{
+ issueId:integer('issue_id'),gcdId:integer('gcd_id'),imageUrl:text('image_url'),sourceUrl:text('source_url'),attribution:text('attribution'),status:text('status'),fetchedAt:text('fetched_at')
+}).existing();

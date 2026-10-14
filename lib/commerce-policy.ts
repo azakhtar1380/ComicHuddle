@@ -4,7 +4,7 @@ const hour=3600000;
 export type CommerceStatus='awaiting_payment'|'awaiting_shipment'|'in_transit'|'delivered_review'|'release_eligible'|'refund_eligible'|'refund_pending'|'refunded'|'transfer_pending'|'transferred'|'manual_review';
 export type CommercePolicy={version:string;trackingHours:48;carrierHours:72;reviewHours:number;highValue:boolean;highValueConfigured:boolean;requiresSignature:boolean};
 export const standardCommercePolicy:CommercePolicy=Object.freeze({version:commercePolicyVersion,trackingHours:48,carrierHours:72,reviewHours:48,highValue:false,highValueConfigured:false,requiresSignature:false});
-export type CommerceOrder={orderId:string;buyerId:string;sellerId:string;sellerAccountId:string|null;currency:'USD';totalCents:number;sellerTransferCents:number;createdAt:string;paymentIntentId:string|null;chargeId:string|null;paidAt:string|null};
+export type CommerceOrder={orderId:string;buyerId:string;sellerId:string;sellerAccountId:string|null;currency:'USD';totalCents:number;sellerTransferCents:number;storeCreditCents?:number;createdAt:string;paymentIntentId:string|null;chargeId:string|null;paidAt:string|null};
 type RefundReason='tracking_deadline'|'carrier_deadline'|'operator_refund';
 type FinancialOperation={kind:'refund'|'transfer';requestId:string;amountCents:number;destinationAccountId:string|null;requestedAt:string;processorId:string|null;confirmedAt:string|null};
 export type CommerceState={
@@ -38,7 +38,7 @@ const cents=(value:unknown)=>typeof value==='number'&&Number.isSafeInteger(value
 const iso=(stamp:number)=>new Date(stamp).toISOString();
 function copy(state:CommerceState):CommerceState{return {...state,order:{...state.order},policy:{...state.policy},shipment:{...state.shipment},issue:state.issue?{...state.issue}:null,financial:state.financial?{...state.financial}:null,recentEvents:state.recentEvents.map(row=>({...row}))}}
 function validPolicy(policy:CommercePolicy){return policy&&policy.version===commercePolicyVersion&&policy.trackingHours===48&&policy.carrierHours===72&&Number.isInteger(policy.reviewHours)&&policy.reviewHours>=48&&policy.reviewHours<=336&&typeof policy.highValue==='boolean'&&typeof policy.highValueConfigured==='boolean'&&typeof policy.requiresSignature==='boolean'}
-function validOrder(order:CommerceOrder){return order&&[order.orderId,order.buyerId,order.sellerId].every(nonempty)&&order.buyerId!==order.sellerId&&(order.sellerAccountId===null||nonempty(order.sellerAccountId))&&order.currency==='USD'&&cents(order.totalCents)&&order.totalCents>0&&cents(order.sellerTransferCents)&&order.sellerTransferCents<=order.totalCents&&Number.isFinite(time(order.createdAt))&&(order.paymentIntentId===null||nonempty(order.paymentIntentId))&&(order.chargeId===null||nonempty(order.chargeId))&&(order.paidAt===null||Number.isFinite(time(order.paidAt))&&!!order.paymentIntentId&&time(order.paidAt)>=time(order.createdAt))}
+function validOrder(order:CommerceOrder){return order&&[order.orderId,order.buyerId,order.sellerId].every(nonempty)&&order.buyerId!==order.sellerId&&(order.sellerAccountId===null||nonempty(order.sellerAccountId))&&order.currency==='USD'&&cents(order.totalCents)&&order.totalCents>0&&cents(order.sellerTransferCents)&&cents(order.storeCreditCents??0)&&order.sellerTransferCents<=order.totalCents+(order.storeCreditCents??0)&&Number.isFinite(time(order.createdAt))&&(order.paymentIntentId===null||nonempty(order.paymentIntentId))&&(order.chargeId===null||nonempty(order.chargeId))&&(order.paidAt===null||Number.isFinite(time(order.paidAt))&&!!order.paymentIntentId&&time(order.paidAt)>=time(order.createdAt))}
 function validState(state:CommerceState){
  if(!state||!validOrder(state.order)||!validPolicy(state.policy)||!Number.isSafeInteger(state.version)||state.version<0||!state.shipment||!Array.isArray(state.recentEvents)||state.recentEvents.length>64)return false;
  if(!['awaiting_payment','awaiting_shipment','in_transit','delivered_review','release_eligible','refund_eligible','refund_pending','refunded','transfer_pending','transferred','manual_review'].includes(state.status)||!['none','open','won','lost'].includes(state.dispute))return false;
@@ -79,6 +79,7 @@ function decide(state:CommerceState,stamp:number):Omit<CommerceDecision,'state'>
  if(!state.shipment.deliveredAt)return {...base,status:'in_transit',reason:'confirmed_delivery_required'};
  if(state.policy.requiresSignature&&!state.shipment.signatureVerified)return {...base,status:'manual_review',reason:'delivery_signature_required'};
  if(stamp<time(releaseAt))return {...base,status:'delivered_review',reason:'buyer_review_window_open'};
+ if((order.storeCreditCents??0)>0)return {...base,status:'manual_review',reason:'store_credit_subsidy_settlement_required'};
  if(!order.sellerAccountId||!order.chargeId||order.sellerTransferCents<=0)return {...base,status:'manual_review',reason:'seller_transfer_configuration_required'};
  return {...base,status:'release_eligible',transferEligible:true,reason:'delivery_review_completed'};
 }

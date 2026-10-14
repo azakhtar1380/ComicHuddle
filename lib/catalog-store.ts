@@ -1,6 +1,6 @@
 import {ilike,and,asc,desc,eq,inArray,isNotNull,like,sql} from 'drizzle-orm';
 import {getDb} from '../db';
-import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync,catalogCoverReferences} from '../db/schema';
+import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync,catalogCoverReferences,directoryIssues} from '../db/schema';
 import {withCatalogCovers} from './catalog-covers';
 import {catalog,type Issue} from './catalog';
 import {catalogSearchDto,searchCatalog} from './catalog-search';
@@ -8,48 +8,53 @@ import {catalogSearchText,eraForYear,metronDirectoryId,plainCatalogText} from '.
 
 export type CatalogDb=ReturnType<typeof getDb>;
 export type CatalogFilters={q:string;limit:number;offset:number;publisher?:string;series?:string;era?:string;kind?:string;sort?:string};
-export async function catalogOverview(db:CatalogDb){
- const [counts]=await db.select({total:sql<number>`count(*)`.as('total_count'),imported:sql<number>`coalesce(sum(case when ${catalogIssues.metronId} is not null then 1 else 0 end),0)`.as('metron_count'),gcd:sql<number>`coalesce(sum(case when ${catalogIssues.gcdId} is not null then 1 else 0 end),0)`.as('gcd_count'),index:sql<number>`coalesce(sum(case when ${catalogIssues.rawMetadata} like '%"metadataScope":"selected_series_issue_indexes"%' then 1 else 0 end),0)`.as('index_count'),lastGcd:sql<string|null>`max(case when ${catalogIssues.gcdId} is not null then ${catalogIssues.fetchedAt} else null end)`}).from(catalogIssues);
- const publishers=await db.selectDistinct({name:catalogIssues.publisher}).from(catalogIssues).orderBy(asc(catalogIssues.publisher)).limit(1000);
+async function loadCatalogOverview(db:CatalogDb){
+ const [counts]=await db.select({total:sql<number>`count(*)`.as('total_count'),imported:sql<number>`coalesce(sum(case when ${directoryIssues.metronId} is not null then 1 else 0 end),0)`.as('metron_count'),gcd:sql<number>`coalesce(sum(case when ${directoryIssues.gcdId} is not null then 1 else 0 end),0)`.as('gcd_count'),index:sql<number>`coalesce(sum(case when ${directoryIssues.rawMetadata} like '%"metadataScope":"selected_series_issue_indexes"%' then 1 else 0 end),0)`.as('index_count'),lastGcd:sql<string|null>`max(case when ${directoryIssues.gcdId} is not null then ${directoryIssues.fetchedAt} else null end)`}).from(directoryIssues);
+ const publishers=await db.selectDistinct({name:directoryIssues.publisher}).from(directoryIssues).orderBy(asc(directoryIssues.publisher)).limit(1000);
  const [sync]=await db.select({state:catalogSync.state}).from(catalogSync).where(eq(catalogSync.id,'metron'));
  let lastSyncedAt:string|null=null;if(sync){try{lastSyncedAt=JSON.parse(sync.state).lastCompletedAt||null}catch{}}
- const [covers]=await db.select({n:sql<number>`count(*)`.as('cover_count')}).from(catalogIssues).where(sql`(${catalogIssues.data}::jsonb->>'cover') IS NOT NULL OR EXISTS (SELECT 1 FROM ${catalogCoverReferences} WHERE ${catalogCoverReferences.issueId}=${catalogIssues.id} AND ${catalogCoverReferences.status}='active')`);
+ const [covers]=await db.select({n:sql<number>`count(*)`.as('cover_count')}).from(directoryIssues).where(sql`${directoryIssues.coverRank}<2`);
  const total=Number(counts?.total||0),imported=Number(counts?.imported||0),gcd=Number(counts?.gcd||0);
- return {scope:imported||gcd?'shared':'starter',issueCount:total||catalog.length,syncedIssueCount:imported,lastSyncedAt,gcdIssueCount:gcd,gcdIndexIssueCount:Number(counts?.index||0),coverIssueCount:Number(covers?.n||0),lastGcdSyncedAt:counts?.lastGcd||null,gcdCoverage:'Partial sourced catalog. Series-index records provide actual issue IDs and edition descriptors; missing issue dates, stories, credits and valuations are not inferred. Issue-specific cover references are enriched separately. No complete catalog or historical freshness claim.',publishers:total?publishers.map(p=>p.name):[...new Set(catalog.map(p=>p.publisher))].sort(),rights:[imported?'Metron metadata adapted and formatted under CC BY-SA 4.0.':null,gcd?'Bibliographic data from the Grand Comics Database, selected and formatted under CC BY-SA 4.0.':null,'Cover thumbnails identify editions. Artwork copyright stays with the respective publisher and artist; metadata licensing does not include artwork. Existing starter sources retain their credits. No FMV imported.'].filter(Boolean).join(' ')};
+ return {scope:imported||gcd?'shared':'starter',issueCount:total||catalog.length,syncedIssueCount:imported,lastSyncedAt,gcdIssueCount:gcd,gcdIndexIssueCount:Number(counts?.index||0),coverIssueCount:Number(covers?.n||0),lastGcdSyncedAt:counts?.lastGcd||null,catalogSchema:'gcd',gcdCoverage:'Native GCD snapshot with incremental additions. Not a complete current GCD export. Series-index records provide actual issue IDs and edition descriptors; missing issue dates, stories, credits and valuations are not inferred. Issue-specific cover references are enriched separately. No complete catalog or historical freshness claim.',publishers:total?publishers.flatMap(p=>p.name?[p.name]:[]):[...new Set(catalog.map(p=>p.publisher))].sort(),rights:[imported?'Metron metadata adapted and formatted under CC BY-SA 4.0.':null,gcd?'Bibliographic data from the Grand Comics Database, selected and formatted under CC BY-SA 4.0.':null,'Cover thumbnails identify editions. Artwork copyright stays with the respective publisher and artist; metadata licensing does not include artwork. Existing starter sources retain their credits. No FMV imported.'].filter(Boolean).join(' ')};
+}
+let overviewCache:{expires:number;value:ReturnType<typeof loadCatalogOverview>}|null=null;
+export function catalogOverview(db:CatalogDb){
+ if(process.env.VERCEL!=='1')return loadCatalogOverview(db);
+ if(overviewCache&&overviewCache.expires>Date.now())return overviewCache.value;
+ const value=loadCatalogOverview(db);overviewCache={expires:Date.now()+30000,value};void value.catch(()=>{if(overviewCache?.value===value)overviewCache=null});return value;
 }
 export async function catalogIssue(db:CatalogDb,id:number):Promise<Issue|undefined>{
- const [row]=await db.select({data:catalogIssues.data}).from(catalogIssues).where(eq(catalogIssues.id,id));
- const issue=row?JSON.parse(row.data) as Issue:catalog.find(issue=>issue.id===id);
+ const [row]=await db.select({data:directoryIssues.data}).from(directoryIssues).where(eq(directoryIssues.id,id));
+ const issue=row?JSON.parse(row.data!) as Issue:catalog.find(issue=>issue.id===id);
  return issue?(await withCatalogCovers(db,[issue]))[0]:undefined;
 }
 export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const meta=await catalogOverview(db);
- const [stored]=await db.select({n:sql<number>`count(*)`}).from(catalogIssues);
- if(!Number(stored?.n)){
+ if(!meta.issueCount){
    const base=searchCatalog(filter.q,catalog.length,0).issues.filter(i=>(!filter.publisher||i.publisher===filter.publisher)&&(!filter.series||i.title===filter.series)&&(!filter.era||i.era===filter.era)&&(!filter.kind||i.kind===filter.kind));
   base.sort((a,b)=>filter.sort==='title'?a.title.localeCompare(b.title)||a.id-b.id:filter.sort==='oldest'?a.year-b.year||a.id-b.id:filter.sort==='newest'?b.year-a.year||a.id-b.id:a.id-b.id);
   return {...meta,issues:base.slice(filter.offset,filter.offset+filter.limit),total:base.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<base.length};
  }
  const numbers=[...filter.q.matchAll(/#\s*([a-z0-9./-]+)/gi)].map(m=>m[1].toLowerCase());
  const words=filter.q.replace(/#\s*([a-z0-9./-]+)/gi,' ').normalize('NFKD').toLowerCase().match(/[a-z0-9]+/g)||[];
- const terms=[...numbers.map(n=>sql`lower(${catalogIssues.number}) = ${n}`),...words.map(w=>like(catalogIssues.searchText,'%'+w+'%'))];
- if(filter.publisher)terms.push(eq(catalogIssues.publisher,filter.publisher));
-  if(filter.series)terms.push(eq(catalogIssues.title,filter.series));
- if(filter.era)terms.push(eq(catalogIssues.era,filter.era));
- if(filter.kind)terms.push(eq(catalogIssues.kind,filter.kind));
+ const terms=[...numbers.map(n=>sql`lower(${directoryIssues.number}) = ${n}`),...words.map(w=>like(directoryIssues.searchText,'%'+w+'%'))];
+ if(filter.publisher)terms.push(eq(directoryIssues.publisher,filter.publisher));
+  if(filter.series)terms.push(eq(directoryIssues.title,filter.series));
+ if(filter.era)terms.push(eq(directoryIssues.era,filter.era));
+ if(filter.kind)terms.push(eq(directoryIssues.kind,filter.kind));
  const where=terms.length?and(...terms):undefined;
- const [count]=await db.select({n:sql<number>`count(*)`}).from(catalogIssues).where(where);
- const coverRank=sql`CASE WHEN (${catalogIssues.data}::jsonb->>'cover') LIKE '/covers/%' THEN 0 WHEN EXISTS (SELECT 1 FROM ${catalogCoverReferences} WHERE ${catalogCoverReferences.issueId}=${catalogIssues.id} AND ${catalogCoverReferences.status}='active') THEN 1 WHEN (${catalogIssues.data}::jsonb->>'cover') IS NOT NULL THEN 1 ELSE 2 END`;
- const order=filter.sort==='title'?[asc(catalogIssues.title),asc(catalogIssues.id)]:filter.sort==='oldest'?[asc(catalogIssues.year),asc(catalogIssues.id)]:filter.sort==='newest'?[desc(catalogIssues.year),asc(catalogIssues.id)]:[asc(coverRank),asc(catalogIssues.id)];
+ const [count]=await db.select({n:sql<number>`count(*)`}).from(directoryIssues).where(where);
+ const coverRank=directoryIssues.coverRank;
+ const order=filter.sort==='title'?[asc(directoryIssues.title),asc(directoryIssues.id)]:filter.sort==='oldest'?[asc(directoryIssues.year),asc(directoryIssues.id)]:filter.sort==='newest'?[desc(directoryIssues.year),asc(directoryIssues.id)]:[asc(coverRank),asc(directoryIssues.id)];
  if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
- const rows=await db.select({data:catalogIssues.data}).from(catalogIssues).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);
+ const rows=await db.select({data:directoryIssues.data}).from(directoryIssues).where(where).orderBy(...order).limit(filter.limit).offset(filter.offset);
  const total=Number(count?.n||0);
- const issues=await withCatalogCovers(db,rows.map(row=>JSON.parse(row.data) as Issue));
+ const issues=await withCatalogCovers(db,rows.map(row=>JSON.parse(row.data!) as Issue));
  return {...meta,issues:issues.map(issue=>catalogSearchDto(issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
 }
 // A bounded publisher > series tree. Never download the entire catalog to a browser.
 export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q:string;limit:number;offset:number}){
- const [stored]=await db.select({n:sql<number>`count(*)`}).from(catalogIssues);
+ const [stored]=await db.select({n:sql<number>`count(*)`}).from(directoryIssues);
  if(!Number(stored?.n)){
   const byTitle=new Map<string,{title:string;publisher:string;count:number;firstYear:number;lastYear:number}>();
   for(const issue of catalog){
@@ -61,9 +66,9 @@ export async function browseSharedSeries(db:CatalogDb,filter:{publisher:string;q
   const series=[...byTitle.values()].sort((a,b)=>a.title.localeCompare(b.title));
   return {series:series.slice(filter.offset,filter.offset+filter.limit),total:series.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<series.length};
  }
- const where=and(eq(catalogIssues.publisher,filter.publisher),filter.q?ilike(catalogIssues.title,'%'+filter.q+'%'):undefined);
- const [total]=await db.select({n:sql<number>`count(distinct ${catalogIssues.title})`}).from(catalogIssues).where(where);
- const series=await db.select({title:catalogIssues.title,publisher:catalogIssues.publisher,count:sql<number>`count(*)`,firstYear:sql<number>`min(${catalogIssues.year})`,lastYear:sql<number>`max(${catalogIssues.year})`}).from(catalogIssues).where(where).groupBy(catalogIssues.title,catalogIssues.publisher).orderBy(asc(catalogIssues.title)).limit(filter.limit).offset(filter.offset);
+ const where=and(eq(directoryIssues.publisher,filter.publisher),filter.q?ilike(directoryIssues.title,'%'+filter.q+'%'):undefined);
+ const [total]=await db.select({n:sql<number>`count(distinct ${directoryIssues.title})`}).from(directoryIssues).where(where);
+ const series=await db.select({title:directoryIssues.title,publisher:directoryIssues.publisher,count:sql<number>`count(*)`,firstYear:sql<number>`min(${directoryIssues.year})`,lastYear:sql<number>`max(${directoryIssues.year})`}).from(directoryIssues).where(where).groupBy(directoryIssues.title,directoryIssues.publisher).orderBy(asc(directoryIssues.title)).limit(filter.limit).offset(filter.offset);
  return {series,total:Number(total?.n||0),limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<Number(total?.n||0)};
 }
 export function seedStarterStatements(db:CatalogDb,stamp:string){

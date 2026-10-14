@@ -7,6 +7,10 @@ const ca = await response.text();
 if (!ca.includes('-----BEGIN CERTIFICATE-----')) throw new Error('Invalid AWS trust bundle.');
 await mkdir('certificates', { recursive: true });
 await writeFile('certificates/rds-ca.pem', ca);
+if (process.env.COMICHUDDLE_INSPECT_GCD === 'true') {
+  const diagnostic = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-gcd-schema.ts'], { stdio: 'inherit' });
+  if (diagnostic.status !== 0) throw new Error('GCD schema diagnostic failed.');
+}
 if (process.env.MIGRATE_ON_BUILD === 'true' && (!process.env.VERCEL || process.env.VERCEL_ENV === 'production')) {
   const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/migrate-postgres.ts'], { stdio: 'inherit' });
   if (result.status !== 0) throw new Error('ComicHuddle database migration failed.');
@@ -18,4 +22,6 @@ if (process.env.MIGRATE_ON_BUILD === 'true' && (!process.env.VERCEL || process.e
   if (covers.status !== 0) throw new Error('ComicHuddle cover-reference seed failed.');
   const locations = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/seed-us-locations.ts'], { stdio: 'inherit' });
   if (locations.status !== 0) throw new Error('ComicHuddle US location seed failed.');
+  const verification = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/verify-rds-directory.ts'], { stdio: 'inherit' });
+  if (verification.status !== 0) throw new Error('Native GCD directory verification failed.');
 }

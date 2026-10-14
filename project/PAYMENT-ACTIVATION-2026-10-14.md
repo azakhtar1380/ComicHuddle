@@ -42,3 +42,11 @@ Official processor references:
 - https://docs.stripe.com/apple-pay
 - https://docs.stripe.com/connect/separate-charges-and-transfers
 - https://docs.stripe.com/testing
+
+## Embedded payments and closed-loop rewards update
+
+Set `COMMERCE_STRIPE_TEST_PUBLISHABLE_KEY` with the test publishable key to activate the embedded Payment Element alongside the existing test secret, signed webhook secret, reviewed/enabled flags, and public origin. The browser receives only the publishable key and its own order-bound session client secret. Register the actual HTTPS domain in Stripe for wallet payment methods. Apple Pay / Google Pay availability is device and Stripe-account dependent.
+
+`payment_intent.succeeded` and Checkout completion re-retrieve the exact saved session, intent and captured charge before updating an order. The same transaction reconciles on-site reward points and credit reservations. Refund confirmation restores applied credit and reverses earned points. 100 points convert to $1 non-cashable credit; points accrue at one per whole dollar of net item price, excluding shipping/tax. Sandbox balances cannot cross into live balances.
+
+Seller proceeds remain separate. An order paid partly with promotional credit cannot release a seller transfer until the platform-funded credit subsidy is reconciled. This preview still blocks all seller releases without trusted delivery integration. Shipping-only test checkout requires at least $0.50 of processor payment; cashless credit-only orders and workshop payment checkout are not enabled. Existing auction bids remain nonbinding previews and do not create Stripe orders.

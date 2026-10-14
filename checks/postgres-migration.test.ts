@@ -1,3 +1,4 @@
+import {nativeGcdFixture} from './native-gcd-fixture';
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -22,8 +23,8 @@ let engine: PGlite;
 const pool = new Pool();
 before(async () => {
   engine = new PGlite();
-  await engine.exec('CREATE SCHEMA ch_web; BEGIN;');
-  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
+  await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web; BEGIN;');
+  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
   await engine.exec('COMMIT; SET search_path TO ch_web,public;');
   const query = async (config: string | { text: string; rowMode?: string }, values: unknown[] = []) => {
     const result = await engine.query<Record<string, unknown>>(typeof config === 'string' ? config : config.text, values);
