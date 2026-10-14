@@ -2,7 +2,11 @@
 
 Complete existing website, native mobile source, PostgreSQL architecture, and a dedicated Render interactive sandbox.
 
-## Render deployment
+## Vercel deployment
+
+The active deployment target is Vercel. Import this repository with Root Directory `deploy/vercel`. See [Vercel deployment guide](deploy/vercel/README.md). The Vercel package provides serverless APIs, production-only migration builds, verified AWS RDS TLS, and a protected weekly Cron endpoint.
+
+## Alternate Render configuration
 
 The root `render.yaml` selects `deploy/render/Dockerfile` with the `deploy/render` Docker context. The Node service verifies AWS RDS TLS, applies versioned migrations once on startup, and exposes `/health`. Set `DB_PASSWORD` and provider credentials only in Render environment settings. No secret value is stored in this repository.
 
