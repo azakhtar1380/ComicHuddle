@@ -58,7 +58,11 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const order=filter.sort==='title'?[asc(readCatalog.title),asc(readCatalog.id)]:filter.sort==='oldest'?[asc(readCatalog.year),asc(readCatalog.id)]:filter.sort==='newest'?[desc(readCatalog.year),asc(readCatalog.id)]:[asc(readCatalog.id)];
  if(filter.offset>=Number(count?.n||0))return {...meta,issues:[],total:Number(count?.n||0),limit:filter.limit,offset:filter.offset,hasMore:false};
  const rowWhere=filter.after!==undefined?and(where,sql`${readCatalog.id}>${filter.after}`):where;
- const rows=await db.select({data:readCatalog.data}).from(readCatalog).where(rowWhere).orderBy(...order).limit(filter.limit).offset(filter.after===undefined?filter.offset:0);
+ // Page cheap identities first: never build/sort millions of JSON issue payloads.
+ const selected=await db.select({id:readCatalog.id}).from(readCatalog).where(rowWhere).orderBy(...order).limit(filter.limit).offset(filter.after===undefined?filter.offset:0);
+ const found=selected.length?await db.select({id:readCatalog.id,data:readCatalog.data}).from(readCatalog).where(inArray(readCatalog.id,selected.map(row=>row.id))):[];
+ const byId=new Map(found.map(row=>[row.id,row]));
+ const rows=selected.flatMap(row=>{const record=byId.get(row.id);return record?[record]:[]});
  const total=Number(count?.n||0);
  const issues=await withCatalogCovers(db,rows.map(row=>directoryIssueData(row.data!)));
  return {...meta,issues:issues.map(issue=>catalogSearchDto(issue)),total,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<total};
