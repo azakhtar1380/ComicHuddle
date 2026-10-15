@@ -1,0 +1,110 @@
+{
+  "asOf": "2026-10-15T00:38:39.146258+00:00",
+  "deploymentId": "dpl_6Eq6mQiPR5noeGuWAT2i8HRx1m3q",
+  "sourceCommit": "86a03cb",
+  "deploymentUrl": "https://comichuddle-dtnui1ndy-abdul-aziz-akhtars-projects.vercel.app",
+  "publicUrl": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app",
+  "optionalTestsRun": false,
+  "transactionsAttempted": false,
+  "checks": [
+    {
+      "route": "/api/catalog?limit=12&offset=0",
+      "status": 200,
+      "seconds": 3.15,
+      "count": 2390305,
+      "total": 2390305,
+      "rows": 12,
+      "records": [
+        {
+          "id": 0,
+          "title": "Amazing Spider-Man",
+          "issue": "#300"
+        },
+        {
+          "id": 1,
+          "title": "Batman",
+          "issue": "#423"
+        },
+        {
+          "id": 2,
+          "title": "Invincible",
+          "issue": "#1"
+        }
+      ],
+      "error": null,
+      "ready": null,
+      "paymentElementEnabled": null,
+      "productionPaymentsEnabled": null,
+      "observedAt": "2026-10-15T00:06:09.943Z"
+    },
+    {
+      "route": "/api/catalog?limit=2&offset=7000",
+      "status": 200,
+      "seconds": 3.05,
+      "count": 2390305,
+      "total": 2390305,
+      "rows": 2,
+      "records": [
+        {
+          "id": 4000007009,
+          "title": "Series metadata pending \u00b7 GCD 208",
+          "issue": "#6 [90]"
+        },
+        {
+          "id": 4000007010,
+          "title": "Series metadata pending \u00b7 GCD 314",
+          "issue": "#7 [43]"
+        }
+      ],
+      "error": null,
+      "ready": null,
+      "paymentElementEnabled": null,
+      "productionPaymentsEnabled": null,
+      "observedAt": "2026-10-15T00:06:09.943Z"
+    },
+    {
+      "route": "/api/catalog?q=Amazing+Spider-Man+%23300&limit=6&offset=0",
+      "status": 200,
+      "seconds": 3.97,
+      "count": 2390305,
+      "total": 3,
+      "rows": 3,
+      "records": [
+        {
+          "id": 0,
+          "title": "Amazing Spider-Man",
+          "issue": "#300"
+        },
+        {
+          "id": 4000044451,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "issue": "#300"
+        },
+        {
+          "id": 4001266237,
+          "title": "The Amazing Spider-Man (1963 series)",
+          "issue": "#300"
+        }
+      ],
+      "error": null,
+      "ready": null,
+      "paymentElementEnabled": null,
+      "productionPaymentsEnabled": null,
+      "observedAt": "2026-10-15T00:06:09.943Z"
+    },
+    {
+      "route": "/api/commerce?kind=setup",
+      "status": 200,
+      "seconds": 4.57,
+      "count": null,
+      "total": null,
+      "rows": 0,
+      "records": [],
+      "error": null,
+      "ready": true,
+      "paymentElementEnabled": true,
+      "productionPaymentsEnabled": false,
+      "observedAt": null
+    }
+  ]
+}
