@@ -15,7 +15,7 @@ import {enqueueEnrichment,claimEnrichment,finishEnrichment,retryDelay} from '../
 import {resolveCoverBatch,processCoverJob,parseGcdCoverResponse,optimizeCover,revokeCoverProvider} from '../lib/cover-cache';
 import {readyCachedCoverRows} from '../lib/cover-cache-read';
 import {CoverSourceError,publicSourceAddress} from '../lib/cover-source-fetch';
-import {listingDraftSchema,emptyListingDraft,resizeCopyIds,completeDraftCondition} from '../lib/listing-draft';
+import {listingDraftSchema,emptyListingDraft,resizeCopyIds,completeDraftCondition,availableOwnedCopies} from '../lib/listing-draft';
 import {rankVisionDirectory,type CoverObservations} from '../lib/vision-directory-match';
 import {activityChange,qualifyingPlatformSale,readMarketPulseSnapshot} from '../lib/market-pulse-snapshot';
 import {createListing} from '../lib/marketplace';
@@ -101,4 +101,8 @@ test('multiple actual owned native GCD copies publish while cover/AI providers a
 test('native directory supports explicit year and publisher terms without treating 2000 AD as a date',async()=>{
  const {catalogQueryParts}=await import('../lib/catalog-search');assert.deepEqual(catalogQueryParts('2000 AD #1').words,['2000','ad']);assert.deepEqual(catalogQueryParts('Secret Wars #1 1984').years,[1984]);
  const page=await searchSharedCatalog(db,{q:'QA Publisher Secret Wars #1 (1984)',limit:12,offset:0});assert.equal(page.total,2);assert.ok(page.issues.every(issue=>issue.year===1984&&issue.number==='1'));
+});
+
+test('quantity growth reuses actual owned copies and excludes reserved or separately certified books',()=>{
+ const identity={externalCatalog:{provider:'GCD',id:123}},books=[{id:'used',...identity},{id:'available',...identity},{id:'reserved',...identity},{id:'certified',...identity,ownership:{format:'GRADED',certificationNumber:'123456789'}}];assert.deepEqual(availableOwnedCopies(4000000123,books,['used'],new Set(['reserved'])),['available']);
 });

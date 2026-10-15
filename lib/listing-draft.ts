@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {listingDirectoryId} from './shared-catalog';
 import type {EstimateCondition} from './estimated-fmv-types';
 export type ListingDraftRow={id:string;issueId:number|null;title:string;issue:string;publisher:string;year:number;variant:string;copyIds:string[];condition:Partial<EstimateCondition>};
 export type ListingDraft={version:1;step:number;rows:ListingDraftRow[];saleType:'fixed'|'auction';title:string;description:string;price:string;shipping:string;locationZip:string;fulfillment:'shipping'|'pickup'|'both';pickupCity:string;pickupState:string;safePurchase:boolean;photos:string[];duration:string;increment:string;owned:boolean;usa:boolean};
@@ -10,3 +11,9 @@ export function completeDraftCondition(value:Partial<EstimateCondition>):Estimat
  return {...value,mode:value.mode,grade:value.grade,printing:value.printing,label:value.mode==='Raw'?'Raw':value.label!};
 }
 export function resizeCopyIds(ids:string[],quantity:number,uuid:()=>string){if(!Number.isSafeInteger(quantity)||quantity<1||quantity>1000)throw Error('Use a quantity from 1 to 1,000.');return quantity<=ids.length?ids.slice(0,quantity):[...ids,...Array.from({length:quantity-ids.length},uuid)]}
+
+/** Reuse unreserved, unselected physical copies before creating newly attested
+ * ownership. Certified copies remain separate rows rather than pooled serials. */
+export function availableOwnedCopies(issueId:number|null,books:{id:string;catalogId?:number;externalCatalog?:{provider:string;id:number};condition?:Partial<EstimateCondition>;ownership?:{format:string;certificationNumber?:string|null}}[],selected:string[],reserved:Set<string>){
+ if(issueId===null)return [];const used=new Set(selected);return books.filter(book=>listingDirectoryId(book)===issueId&&!used.has(book.id)&&!reserved.has(book.id)&&!book.condition?.certificationNumber&&book.ownership?.format!=='GRADED').map(book=>book.id);
+}
