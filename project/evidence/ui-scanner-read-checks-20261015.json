@@ -1,0 +1,81 @@
+{
+  "observedAt": "2026-10-15T02:34:48Z",
+  "runtimeSource": "ccb8567",
+  "deploymentId": "dpl_EvQEkSRCNZMNbmyLpbkXdRHWB7xu",
+  "deploymentStatus": "READY",
+  "publicUrl": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "seconds": 4.6,
+      "data": {
+        "status": "ok"
+      }
+    },
+    {
+      "path": "/api/catalog?limit=2&offset=7000",
+      "status": 200,
+      "seconds": 10.13,
+      "data": {
+        "total": 2620274,
+        "gcdIssueCount": 2620231,
+        "coverIssueCount": 2094,
+        "catalogSchema": "gcd",
+        "coverageObservedAt": "2026-10-15T02:22:07.465Z",
+        "rows": 2
+      }
+    },
+    {
+      "path": "/api/recognition",
+      "status": 200,
+      "seconds": 4.67,
+      "data": {
+        "engine": "catalog-phash-v2",
+        "indexedCovers": 6,
+        "updatedAt": "2026-10-15T02:15:29.883Z",
+        "ocr": "on-device",
+        "identitySource": "central-catalog",
+        "authenticityVerification": false
+      }
+    },
+    {
+      "path": "/api/recognition/vision",
+      "status": 200,
+      "seconds": 4.54,
+      "data": {
+        "available": false,
+        "reason": "Enhanced vision needs available AI Gateway credits.",
+        "processor": "Vercel AI Gateway / OpenAI",
+        "purpose": "Comic identification only",
+        "model": "openai/gpt-4.1-mini"
+      }
+    }
+  ],
+  "browserChecks": {
+    "authModeSwitch": "rendered sign-up fields and 12-character requirement",
+    "walletTheme": "cream body/main, no horizontal overflow",
+    "marketplace": "side-by-side collapsed protection details and aligned inputs",
+    "scanner": "Planet Comics #12 (1941) matched using database fingerprints",
+    "directory": "showing 1\u201312 of 2,620,274 matches",
+    "publisherChoices": {
+      "sidebarButtons": 16,
+      "visibleMarvelOptions": 20,
+      "fullSetSearchable": true,
+      "horizontalOverflow": false
+    }
+  },
+  "optionalSuites": "skipped",
+  "newAccountsCreated": 0,
+  "transactionsExecuted": 0,
+  "secretWarsRecognition": "not verified: no cover fingerprint and local OCR misread supplied screenshot",
+  "nativeDataDiagnostic": {
+    "observedAt": "2026-10-15T02:22:10.670Z",
+    "seriesRows": 220000,
+    "publisherRows": 17725,
+    "gcdCoverTablePresent": false,
+    "seriesLeftJoin": true,
+    "publisherLeftJoin": true,
+    "usableVisualFingerprints": 6
+  }
+}
