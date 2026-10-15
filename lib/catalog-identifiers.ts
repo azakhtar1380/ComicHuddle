@@ -14,8 +14,8 @@ export async function syncIdentifierBatch(limit=10000){
   await client.query("UPDATE ch_web.directory_identifier_sync SET last_issue_id=$1,scanned_count=scanned_count+$2,matched_issue_count=matched_issue_count+$3,identifier_count=identifier_count+$4,completed_at=CASE WHEN $2=0 THEN now() ELSE NULL END,updated_at=now() WHERE id='native-gcd'",[rows.at(-1)?.id??state.last_issue_id,rows.length,matched,entries]);await client.query('COMMIT');return {complete:rows.length===0,scanned:rows.length,identifiers:entries};
  }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
 }
-export async function lookupComicIdentifier(value:string,supplement=''){
- const code=parseComicIdentifier(value,supplement);if(!code)return null;
+export async function lookupComicIdentifier(value:string,supplement='',format=''){
+ const code=parseComicIdentifier(value,supplement,format);if(!code)return null;
  const pool=getPool(),result=await pool.query(`SELECT DISTINCT issue_id FROM ch_web.directory_identifiers WHERE lookup_key=$1 AND ($2='' OR supplement=$2) ORDER BY issue_id LIMIT 13`,[code.lookupKey,code.supplement]);
  const state=await pool.query("SELECT scanned_count,matched_issue_count,identifier_count,completed_at,updated_at FROM ch_web.directory_identifier_sync WHERE id='native-gcd'");
  const issues=await catalogIssuesById(getDb(),result.rows.slice(0,12).map(row=>Number(row.issue_id)));

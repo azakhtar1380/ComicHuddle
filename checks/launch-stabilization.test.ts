@@ -19,7 +19,7 @@ test('UPC/EAN aliases preserve leading zeros and supplements; ISBN10 aliases ISB
  const base=parseComicIdentifier('036000291452')!,extended=parseComicIdentifier('03600029145212345')!;
  assert.equal(base.lookupKey,'0036000291452');assert.equal(extended.base,'036000291452');assert.equal(extended.supplement,'12345');assert.equal(extended.identifier,'03600029145212345');
  assert.equal(parseComicIdentifier('0036000291452')?.lookupKey,base.lookupKey);assert.equal(parseComicIdentifier('0-306-40615-2')?.lookupKey,'9780306406157');
- assert.equal(parseComicIdentifier('036000291451'),null);assert.equal(parseComicIdentifier('036000291452','1234'),null);assert.equal(identifiersFromRecord({barcode:'036000291452; 03600029145212345'}).length,2);
+ assert.equal(parseComicIdentifier('04252614','12','UPC_E')?.lookupKey,'0042100005264');assert.equal(parseComicIdentifier('04252614','12','UPC_E')?.identifier,'0425261412');assert.equal(parseComicIdentifier('036000291451'),null);assert.equal(parseComicIdentifier('036000291452','1234'),null);assert.equal(identifiersFromRecord({barcode:'036000291452; 03600029145212345'}).length,2);
 });
 test('actual fallback decoder recognizes a generated UPC at two orientations without BarcodeDetector or an AI model',async()=>{
  const image=await bwipjs.toBuffer({bcid:'upca',text:'036000291452',scale:3,height:18,paddingwidth:16,paddingheight:12});

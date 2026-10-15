@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   ] },
   serverExternalPackages: ['pg', 'better-auth'],
   outputFileTracingIncludes: { '/**': ['./certificates/rds-ca.pem'] },
+  async redirects() {
+    const origin=process.env.BETTER_AUTH_URL;
+    // Keep account cookies, CSRF origin checks and checkout returns on the
+    // existing canonical production domain when Vercel adds its short alias.
+    if(process.env.VERCEL_ENV==='production'&&origin&&/^https:\/\/[a-z0-9.-]+$/i.test(origin)&&origin!=='https://comichuddle.vercel.app')return [{source:'/:path*',has:[{type:'host' as const,value:'comichuddle.vercel.app'}],destination:origin+'/:path*',permanent:false}];
+    return [];
+  },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

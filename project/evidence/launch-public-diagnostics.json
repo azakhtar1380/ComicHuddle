@@ -1,0 +1,251 @@
+{
+  "observedAt": "2026-10-15T16:44:10.118Z",
+  "base": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app",
+  "checks": [
+    {
+      "name": "RDS health",
+      "status": 200
+    },
+    {
+      "name": "/api/estimates",
+      "status": 410
+    },
+    {
+      "name": "/api/estimates/compose",
+      "status": 410
+    },
+    {
+      "name": "/api/home-feed",
+      "status": 410
+    },
+    {
+      "name": "/api/values",
+      "status": 410
+    },
+    {
+      "name": "/api/recognition/vision",
+      "status": 410
+    },
+    {
+      "name": "/api/cron/fmv",
+      "status": 410
+    },
+    {
+      "name": "obsolete FMV redirect",
+      "to": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/upcoming",
+      "status": 200
+    },
+    {
+      "name": "/api/cron/enrichment unauthorized",
+      "status": 401
+    },
+    {
+      "name": "/api/cron/new-releases unauthorized",
+      "status": 401
+    }
+  ],
+  "samples": [
+    {
+      "id": 4000001400,
+      "title": "Planet Comics",
+      "number": "12",
+      "publisher": "Fiction House",
+      "year": 1941,
+      "cover": "/covers/planet-12.jpg",
+      "credit": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decodedFormat": "jpeg",
+      "width": 975,
+      "height": 1338
+    },
+    {
+      "id": 4000002506,
+      "title": "Planet Comics",
+      "number": "21",
+      "publisher": "Fiction House",
+      "year": 1942,
+      "cover": "/covers/planet-21.jpg",
+      "credit": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decodedFormat": "jpeg",
+      "width": 800,
+      "height": 1105
+    },
+    {
+      "id": 4000003244,
+      "title": "Planet Comics",
+      "number": "27",
+      "publisher": "Fiction House",
+      "year": 1943,
+      "cover": "/covers/planet-27.jpg",
+      "credit": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decodedFormat": "jpeg",
+      "width": 831,
+      "height": 1172
+    },
+    {
+      "id": 4000005068,
+      "title": "Planet Comics",
+      "number": "42",
+      "publisher": "Fiction House",
+      "year": 1946,
+      "cover": "/covers/planet-42.jpg",
+      "credit": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decodedFormat": "jpeg",
+      "width": 450,
+      "height": 676
+    },
+    {
+      "id": 4000006567,
+      "title": "Planet Comics",
+      "number": "53",
+      "publisher": "Fiction House",
+      "year": 1948,
+      "cover": "/covers/planet-53.jpg",
+      "credit": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decodedFormat": "jpeg",
+      "width": 975,
+      "height": 1498
+    },
+    {
+      "id": 4000006841,
+      "title": "Planet Comics",
+      "number": "55",
+      "publisher": "Fiction House",
+      "year": 1948,
+      "cover": "/covers/planet-55.jpg",
+      "credit": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decodedFormat": "jpeg",
+      "width": 975,
+      "height": 1464
+    },
+    {
+      "id": 0,
+      "title": "Amazing Spider-Man",
+      "number": "300",
+      "publisher": "Marvel",
+      "year": 1988,
+      "cover": null,
+      "credit": null
+    },
+    {
+      "id": 1,
+      "title": "Batman",
+      "number": "423",
+      "publisher": "DC",
+      "year": 1988,
+      "cover": null,
+      "credit": null
+    },
+    {
+      "id": 2,
+      "title": "Invincible",
+      "number": "1",
+      "publisher": "Image",
+      "year": 2003,
+      "cover": null,
+      "credit": null
+    },
+    {
+      "id": 11,
+      "title": "Amazing Fantasy",
+      "number": "15",
+      "publisher": "Marvel",
+      "year": 1962,
+      "cover": null,
+      "credit": null
+    },
+    {
+      "query": "Secret Wars #1 (1984)",
+      "matchingRecords": 4,
+      "issues": [
+        {
+          "id": 4000076314,
+          "title": "Marvel Super-Heroes Secret Wars",
+          "number": "1",
+          "year": 1984,
+          "variant": "Direct",
+          "cover": null
+        },
+        {
+          "id": 4000870705,
+          "title": "Marvel Super-Heroes Secret Wars",
+          "number": "1",
+          "year": 1984,
+          "variant": "Newsstand",
+          "cover": null
+        }
+      ]
+    },
+    {
+      "query": "Facsimile",
+      "matchingRecords": 958,
+      "issues": [
+        {
+          "id": 4001525206,
+          "title": "Superman vs. Muhammad Ali Facsimile Edition",
+          "number": "[nn]",
+          "year": 2011,
+          "variant": "Edition record · printing must be confirmed",
+          "cover": null
+        },
+        {
+          "id": 4001595636,
+          "title": "The Broons Annual No. 1 Special Facsimile Edition",
+          "number": "[nn]",
+          "year": 2006,
+          "variant": "Edition record · printing must be confirmed",
+          "cover": null
+        }
+      ]
+    }
+  ],
+  "catalog": {
+    "indexed": 2620274,
+    "gcd": 2620231,
+    "coverReferences": 2094,
+    "pageTotal": 2620274,
+    "hasMore": true
+  },
+  "coverResolution": [
+    {
+      "issueId": 4000001400,
+      "status": "CACHED",
+      "url": "/covers/planet-12.jpg",
+      "attribution": "Wikimedia Commons · reviewed public-domain US edition · original publisher: Fiction House",
+      "message": "Reviewed local reference cover"
+    },
+    {
+      "issueId": 0,
+      "status": "DISABLED",
+      "url": null,
+      "attribution": "",
+      "message": "Cover temporarily unavailable"
+    }
+  ],
+  "commerce": {
+    "newCheckoutEnabled": false,
+    "reason": "new_checkout_paused",
+    "livePaymentsEnabled": false,
+    "payoutsEnabled": false,
+    "carrierConnected": false
+  },
+  "recognition": {
+    "engine": "catalog-phash-v2",
+    "indexedCovers": 6,
+    "updatedAt": "2026-10-15T02:15:29.883Z",
+    "ocr": "on-device",
+    "identitySource": "central-catalog",
+    "authenticityVerification": false
+  }
+}

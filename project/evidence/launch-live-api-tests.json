@@ -1,0 +1,101 @@
+{
+  "observedAt": "2026-10-15T16:41:32.296Z",
+  "environment": "https://comichuddle-launch-qa-abdul-aziz-akhtars-projects.vercel.app",
+  "database": "comichuddle_launch_qa_20261015",
+  "tests": [
+    {
+      "test": "seller API authentication and persisted profile",
+      "detail": {
+        "durationMs": 7850
+      },
+      "passed": true
+    },
+    {
+      "test": "buyer API authentication and persisted profile",
+      "detail": {
+        "durationMs": 430
+      },
+      "passed": true
+    },
+    {
+      "test": "outsider API authentication and persisted profile",
+      "detail": {
+        "durationMs": 480
+      },
+      "passed": true
+    },
+    {
+      "test": "actual RDS concurrent listings reserve one physical copy exactly once",
+      "detail": {
+        "statuses": [
+          200,
+          409
+        ]
+      },
+      "passed": true
+    },
+    {
+      "test": "actual edit-to-draft persists exact copy and withdraws buyer listing",
+      "passed": true
+    },
+    {
+      "test": "actual stale draft write rejects instead of overwriting",
+      "passed": true
+    },
+    {
+      "test": "actual wallet receipt read and unearned-credit conversion rejection",
+      "passed": true
+    },
+    {
+      "test": "actual city/ZIP autocomplete route",
+      "detail": {
+        "returnedChoices": 1
+      },
+      "passed": true
+    },
+    {
+      "test": "actual checksum-validated barcode directory lookup",
+      "detail": {
+        "candidateCount": 0,
+        "index": null
+      },
+      "passed": true
+    },
+    {
+      "test": "actual buyer/seller conversation and unrelated-user write isolation",
+      "passed": true
+    },
+    {
+      "test": "actual specialist registration retains collector profile",
+      "passed": true
+    },
+    {
+      "test": "actual specialist discovery omits private intake address",
+      "passed": true
+    },
+    {
+      "test": "actual workshop quote request, provider response and nonparticipant privacy",
+      "detail": {
+        "jobId": "4a07b63e-5f17-4295-8e51-ac5de5350c02",
+        "paid": false
+      },
+      "passed": true
+    }
+  ],
+  "fixtures": {
+    "users": {
+      "seller": {
+        "userId": "ed342bcc-42fc-4bee-80ed-91e585faffd8",
+        "profileId": "b8802776-fe9b-467f-aaf0-000e55df2d6b"
+      },
+      "buyer": {
+        "userId": "2a042e6a-8a01-415d-9133-486bedaf95a6",
+        "profileId": "b8fd88db-0db3-419c-8a74-b66bfaf2cb3a"
+      },
+      "outsider": {
+        "userId": "71ec2e42-c24e-40b1-9ea4-4aa0defc62b6",
+        "profileId": "08517af2-61fb-4384-b291-8d685415f6db"
+      }
+    }
+  }
+}
