@@ -43,7 +43,7 @@ export default function MetronDirectory({signedIn,onJoin,onAdd}:Props){
  async function addCopy(issue:MetronIssue){
   if(!signedInRef.current){onJoin();return}if(!onAdd||workingRef.current||!session.hasToken())return;
   workingRef.current=true;const request=++viewRequestRef.current,current=()=>mountedRef.current&&signedInRef.current&&request===viewRequestRef.current&&session.hasToken();setAdding(issue.id);setError('');setNotice('');
-  try{if(await onAdd(metronPersonalEntry(issue))&&current())setNotice('Personal copy added. Record its condition in My collection. No FMV was inferred.');else if(current())setError('The copy could not be saved. Check your collection and retry.')}
+  try{if(await onAdd(metronPersonalEntry(issue))&&current())setNotice('Personal copy added. Record its condition in My collection.');else if(current())setError('The copy could not be saved. Check your collection and retry.')}
   catch{if(current())setError('The copy could not be saved. Check your collection and retry.')}
   finally{if(current()){workingRef.current=false;setAdding(null)}}
  }

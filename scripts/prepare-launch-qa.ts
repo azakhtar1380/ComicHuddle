@@ -30,6 +30,8 @@ try{
   }
   await client.query('CREATE SCHEMA IF NOT EXISTS ch_web');await client.query('CREATE TABLE IF NOT EXISTS ch_web.schema_migrations(name text PRIMARY KEY,sha256 text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');
   for(const name of (await readdir('db/postgres-migrations')).filter(name=>name.endsWith('.sql')).sort()){const bytes=await readFile('db/postgres-migrations/'+name,'utf8'),hash=createHash('sha256').update(bytes).digest('hex'),applied=await client.query('SELECT sha256 FROM ch_web.schema_migrations WHERE name=$1',[name]);if(applied.rows[0]){if(applied.rows[0].sha256!==hash)throw Error('QA migration checksum changed.');continue}await client.query('BEGIN');try{await client.query(bytes);await client.query('INSERT INTO ch_web.schema_migrations(name,sha256) VALUES($1,$2)',[name,hash]);await client.query('COMMIT')}catch(error){await client.query('ROLLBACK');throw error}}
+  const postal=(await source.query("SELECT * FROM ch_web.us_postal_centroids WHERE zip IN ('55401','55421','10001','90001')")).rows;
+  for(const row of postal)await client.query(`INSERT INTO ch_web.us_postal_centroids(zip,city,state,latitude,longitude,accuracy,source_url,source_sha256,fetched_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(zip) DO NOTHING`,[row.zip,row.city,row.state,row.latitude,row.longitude,row.accuracy,row.source_url,row.source_sha256,row.fetched_at]);
   await client.query('SET search_path=ch_web,gcd,public');
   await(await getMigrations(authOptions(pool))).runMigrations();await getDb().batch(seedStarterStatements(getDb(),new Date().toISOString()));
   const password=process.env.QA_TEST_PASSWORD;if(!password||password.length<20)throw Error('Secure QA fixture password is not configured.');
@@ -39,6 +41,17 @@ try{
    const userId=found.rows[0]?.id||(await auth.api.signUpEmail({body:{email,password,name:'QA '+role+' · TEST DATA'},headers:new Headers({Origin:process.env.BETTER_AUTH_URL!})})).user.id;
    const current=await db.select().from(profiles).where(eq(profiles.userId,userId));
    if(!current.length){const stamp=new Date().toISOString();await db.insert(profiles).values({id:crypto.randomUUID(),userId,handle:'qa_launch_'+role,name:'QA '+role+' · TEST DATA',bio:'Isolated test fixture. No actual comic, service or sale is offered.',tagline:'SANDBOX QA ONLY',location:'Minneapolis, MN',favorite:'Sandbox verification',since:2026,color:'blue',featured:'[]',visible:1,dmOpen:1,createdAt:stamp,rulesVersion:previewRulesVersion,rulesAcceptedAt:stamp})}
+  }
+  if(process.env.QA_TEST_RECEIVER_ACCOUNT_ID){
+   const [seller]=await db.select().from(profiles).where(eq(profiles.handle,'qa_launch_seller'));
+   const key=process.env.COMMERCE_STRIPE_TEST_SECRET_KEY||'';if(!/^[rs]k_test_/.test(key))throw Error('QA recipient binding requires a test key.');
+   const response=await fetch('https://api.stripe.com/v1/accounts/'+process.env.QA_TEST_RECEIVER_ACCOUNT_ID,{headers:{Authorization:'Bearer '+key,'Stripe-Version':'2026-09-30.endive'},signal:AbortSignal.timeout(15000)});
+   if(!response.ok)throw Error('QA test recipient could not be retrieved.');const account=await response.json();
+   if(account.country!=='US'||account.metadata?.qa_database!==target||account.metadata?.profile_id!==seller.id||account.metadata?.user_id!==seller.userId||account.details_submitted!==true||account.payouts_enabled!==true||account.capabilities?.transfers!=='active')throw Error('Dedicated QA recipient is not verified or does not match the fixture.');
+   const [existing]=await db.select().from(commerceSellers).where(eq(commerceSellers.profileId,seller.id));if(existing?.stripeAccountId&&existing.stripeAccountId!==account.id)throw Error('QA recipient already bound to a different account.');
+   const state=JSON.stringify({ready:true,status:'verified',syntheticQaFixture:true,note:'Custom test recipient only; this does not test Express business onboarding.'});
+   await db.insert(commerceSellers).values({profileId:seller.id,userId:seller.userId,stripeAccountId:account.id,state,updatedAt:new Date().toISOString()}).onConflictDoUpdate({target:commerceSellers.profileId,set:{stripeAccountId:account.id,state,updatedAt:new Date().toISOString()}});
+   console.log('Dedicated Stripe test recipient bound only to isolated QA seller. No production seller was changed.');
   }
   console.log('Isolated launch QA database initialized with a small real catalog sample. Production rows were read only. No test financial records were inserted into production.');
  }finally{await client.query("SELECT pg_advisory_unlock(hashtext('comichuddle-qa-setup'))");client.release();await pool.end()}

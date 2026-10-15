@@ -1,3 +1,4 @@
+import {getPool} from '../db/postgres';
 import {createListing} from '../lib/marketplace';
 import {profileGrails,directoryGrail} from '../lib/profile-grails';
 import {emptyVault} from '../lib/vault';
@@ -16,7 +17,7 @@ import {previewRulesVersion} from '../lib/community';
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web');
- for(const file of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+file,'utf8'));
+ for(const file of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+file,'utf8'));
  await engine.exec('SET search_path TO ch_web,gcd,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);return {...result,rowCount:result.affectedRows,command:'',rows:typeof config!=='string'&&config.rowMode==='array'?result.rows.map(row=>result.fields.map(field=>row[field.name])):result.rows}};
  Object.assign(pool,{query,connect:async()=>({query,release(){}})});(globalThis as typeof globalThis&{comicHuddlePool:Pool}).comicHuddlePool=pool;await getDb().batch(seedStarterStatements(getDb(),new Date().toISOString()));
@@ -67,7 +68,7 @@ test('incomplete native issue import cannot hide a verified older directory reco
 
 test('an owned native GCD copy can be listed without duplicating its master catalog record',async()=>{
  const seller=await profile('nativeSeller'),book=crypto.randomUUID(),photo=crypto.randomUUID(),vault=emptyVault(seller.name);vault.books.push({id:book,title:'Exact Native Comic',issue:'#7',grade:'Raw 9.0',price:10,externalCatalog:{provider:'GCD',id:123,sourceUrl:'https://www.comics.org/issue/123/',license:'CC BY-SA 4.0'}});
- await getDb().insert(collections).values({userId:seller.userId,data:JSON.stringify(vault),revision:crypto.randomUUID()});await getDb().insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});
+ await getDb().insert(collections).values({userId:seller.userId,data:JSON.stringify(vault),revision:crypto.randomUUID()});await getDb().insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});await getPool().query('INSERT INTO ch_web.photo_bytes(key,body,content_type) VALUES($1,$2,$3)',['photos/'+photo,readFileSync('public/covers/planet-12.jpg'),'image/jpeg']);
  const result=await createListing(getDb(),seller,{action:'listing',kind:'single',saleType:'fixed',bookIds:[book],description:'Owned native edition with seller photos.',price:1000,shipping:100,photos:[photo],attest:true,usaAttest:true});assert.ok(result.listingId);
  assert.equal((await engine.query('SELECT count(*) AS n FROM ch_web.catalog_issues WHERE gcd_id=123')).rows[0].n,0);
 });
@@ -77,7 +78,7 @@ test('native GCD collection listing reserves every selected owned copy and rejec
  const seller=await profile('nativeBundle'),photo=crypto.randomUUID(),vault=emptyVault(seller.name);
  vault.books=[123,124].map((id,index)=>({id:crypto.randomUUID(),title:'Exact Native Comic',issue:'#'+(7+index),grade:'Raw VF',price:123.45,externalCatalog:{provider:'GCD' as const,id,sourceUrl:'https://www.comics.org/issue/'+id+'/',license:'CC BY-SA 4.0' as const}}));
  await getDb().insert(collections).values({userId:seller.userId,data:JSON.stringify(vault),revision:crypto.randomUUID()});
- await getDb().insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});
+ await getDb().insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});await getPool().query('INSERT INTO ch_web.photo_bytes(key,body,content_type) VALUES($1,$2,$3)',['photos/'+photo,readFileSync('public/covers/planet-12.jpg'),'image/jpeg']);
  const input={action:'listing',kind:'collection',saleType:'fixed',title:'Two exact GCD issues',bookIds:vault.books.map(copy=>copy.id),description:'Both selected owned copies are included.',price:1000,shipping:100,photos:[photo],attest:true,usaAttest:true};
  const result=await createListing(getDb(),seller,input),row=(await engine.query<{items:string;item_count:number}>('SELECT items,item_count FROM ch_web.listings WHERE id=$1',[result.listingId])).rows[0];
  assert.equal(row.item_count,2);const items=JSON.parse(row.items);assert.equal(items.length,2);assert.ok(items.every((item:Record<string,unknown>)=>!Object.hasOwn(item,'price')));

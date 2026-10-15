@@ -1,3 +1,4 @@
+import {getPool} from '../db/postgres';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,8 +25,9 @@ const pool = new Pool();
 before(async () => {
   engine = new PGlite();
   await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web; BEGIN;');
-  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
+  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
   await engine.exec('COMMIT; SET search_path TO ch_web,public;');
+  await engine.exec("INSERT INTO gcd.gcd_publisher VALUES(777,'Marvel',0);INSERT INTO gcd.gcd_series VALUES(777,'Amazing Spider-Man',777,0);INSERT INTO gcd.gcd_issue(id,series_id,number,publication_date,deleted) VALUES(7770,777,'300','1988',0),(7771,777,'301','1988',0);");
   const query = async (config: string | { text: string; rowMode?: string }, values: unknown[] = []) => {
     const result = await engine.query<Record<string, unknown>>(typeof config === 'string' ? config : config.text, values);
     return { ...result, rowCount: result.affectedRows, command: '', rows: typeof config !== 'string' && config.rowMode === 'array' ? result.rows.map(row => result.fields.map(field => row[field.name])) : result.rows };
@@ -90,7 +92,7 @@ test('listing an owned comic reserves its copy and blocks duplicate listings', a
   const [profile] = await db.insert(profiles).values({ id: profileId, userId, handle: 'pg_seller', name: 'PG Seller', bio: '', tagline: '', location: 'Minnesota', favorite: '', since: 2026, color: 'red', featured: '[]', visible: 1, dmOpen: 1, createdAt: stamp, rulesVersion: previewRulesVersion, rulesAcceptedAt: stamp }).returning();
   const vault = { ...emptyVault('PG Seller'), books: [{ id: 'owned-1', title: 'Amazing Spider-Man', issue: '#300', grade: 'Raw 9.0', price: 200, catalogId: 0 }] };
   await db.insert(collections).values({ userId, data: JSON.stringify(vault), revision: 'pg-revision' });
-  await db.insert(media).values({ id: photoId, userId, contentType: 'image/jpeg', createdAt: stamp });
+  await db.insert(media).values({ id: photoId, userId, contentType: 'image/jpeg', createdAt: stamp });await getPool().query('INSERT INTO ch_web.photo_bytes(key,body,content_type) VALUES($1,$2,$3)',['photos/'+photoId,readFileSync('public/covers/planet-12.jpg'),'image/jpeg']);
   const input = { action: 'listing', kind: 'single', saleType: 'fixed', bookIds: ['owned-1'], description: 'Actual owned comic with photographed defects.', price: 60000, shipping: 1500, photos: [photoId], attest: true, usaAttest: true };
   const result = await createListing(db, profile, input); assert.ok(result.listingId);
   await assert.rejects(createListing(db, profile, input), error => (error as { status?: number }).status === 409);
