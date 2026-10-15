@@ -17,6 +17,9 @@ export async function refreshNativeCatalogState(){
   const metadata={scope:'shared',issueCount:Number(counts.total),syncedIssueCount:Number(legacy.metron),lastSyncedAt:null,gcdIssueCount:Number(counts.gcd),gcdIndexIssueCount:Number(legacy.partial),coverIssueCount:Number(covers),lastGcdSyncedAt:legacy.last_gcd,catalogSchema:'gcd',nativeIssueCountEstimate:Number(native),nativeSnapshotStatus:'All active native issue rows are accessible; unresolved metadata is labeled.',gcdCoverage:'Native snapshot and exact retained additions. Missing titles, artwork and prices are not inferred.',publishers:names,rights:'GCD metadata under CC BY-SA 4.0; artwork rights remain with publishers and artists.',coverageObservedAt:new Date().toISOString()};
   await client.query("INSERT INTO gcd.comichuddle_catalog_read_state(id,metadata,retained_ids,refreshed_at) VALUES('directory',$1::jsonb,$2::jsonb,now()) ON CONFLICT(id) DO UPDATE SET metadata=EXCLUDED.metadata,retained_ids=EXCLUDED.retained_ids,refreshed_at=EXCLUDED.refreshed_at",[JSON.stringify(metadata),JSON.stringify(counts.retained_ids)]);
   return {status:'refreshed',issueCount:metadata.issueCount,observedAt:metadata.coverageObservedAt};
+ }catch(error){
+  if(['57014','55P03'].includes((error as {code?:string}).code||''))return {status:'deferred',reason:'Native snapshot database is busy; previous observed counts retained.'};
+  throw error;
  }finally{
   await client.query("SELECT pg_advisory_unlock(hashtext('comichuddle-read-state'))");
   await client.query("SET statement_timeout='15s'; SET lock_timeout='0'");
