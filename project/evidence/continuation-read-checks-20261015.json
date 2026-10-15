@@ -1,0 +1,134 @@
+{
+  "observedAt": "2026-10-15T06:05:24.722076+00:00",
+  "runtimeSource": "cf14a57",
+  "deploymentId": "dpl_H9zFaHnmK85QAV343uczexRYwSTF",
+  "deploymentStatus": "READY",
+  "publicUrl": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "checks": [
+    {
+      "path": "/health",
+      "http": 200,
+      "seconds": 3.71,
+      "data": {
+        "status": "ok",
+        "application": "ComicHuddle original app",
+        "database": "AWS RDS PostgreSQL"
+      }
+    },
+    {
+      "path": "/api/catalog?limit=2&offset=7000",
+      "http": 200,
+      "seconds": 3.83,
+      "data": {
+        "total": 2620274,
+        "gcdIssueCount": 2620231,
+        "coverIssueCount": 2094,
+        "catalogSchema": "gcd",
+        "coverageObservedAt": "2026-10-15T06:02:09.098Z",
+        "issues": [
+          {
+            "id": 4000007009,
+            "title": "Shadow Comics",
+            "number": "6 [90]",
+            "publisher": "Street & Smith",
+            "year": 1948,
+            "cover": null,
+            "gcdId": 7009
+          },
+          {
+            "id": 4000007010,
+            "title": "Supersnipe Comics",
+            "number": "7 [43]",
+            "publisher": "Street & Smith",
+            "year": 1948,
+            "cover": null,
+            "gcdId": 7010
+          }
+        ]
+      }
+    },
+    {
+      "path": "/api/catalog?id=4000076314",
+      "http": 200,
+      "seconds": 3.75,
+      "data": {
+        "total": 1,
+        "gcdIssueCount": 2620231,
+        "coverIssueCount": 2094,
+        "catalogSchema": "gcd",
+        "coverageObservedAt": "2026-10-15T06:02:09.098Z",
+        "issues": [
+          {
+            "id": 4000076314,
+            "title": "Marvel Super-Heroes Secret Wars",
+            "number": "1",
+            "publisher": "Marvel",
+            "year": 1984,
+            "cover": null,
+            "gcdId": 76314
+          }
+        ]
+      }
+    },
+    {
+      "path": "/api/recognition",
+      "http": 200,
+      "seconds": 3.22,
+      "data": {
+        "engine": "catalog-phash-v2",
+        "indexedCovers": 6,
+        "updatedAt": "2026-10-15T02:15:29.883Z",
+        "ocr": "on-device",
+        "identitySource": "central-catalog",
+        "authenticityVerification": false
+      }
+    },
+    {
+      "path": "/api/recognition/vision",
+      "http": 200,
+      "seconds": 3.64,
+      "data": {
+        "available": false,
+        "reason": "Enhanced vision needs available AI Gateway credits.",
+        "processor": "Vercel AI Gateway / OpenAI",
+        "purpose": "Comic identification only",
+        "model": "openai/gpt-4.1-mini"
+      }
+    }
+  ],
+  "nativeDataDiagnostic": {
+    "observedAt": "2026-10-15T06:02:11.127Z",
+    "seriesRows": 233455,
+    "publisherRows": 17725,
+    "gcdCoverTablePresent": false,
+    "seriesLeftJoin": true,
+    "publisherLeftJoin": true
+  },
+  "optionalSuites": "skipped",
+  "newAccountsCreated": 0,
+  "transactionsExecuted": 0,
+  "build": {
+    "typescript": "passed",
+    "productionCompilation": "passed",
+    "cloudBuildDuration": "2 minutes (Vercel reported)"
+  },
+  "browserChecks": {
+    "cropFrame": "rendered with pointer handles and keyboard controls; width/height changed to 99% using keyboard",
+    "croppedCoverRecognition": "Planet Comics #12 (1941), database cover features",
+    "actionsRendered": [
+      "Add to shelf",
+      "View FMV & info",
+      "Find copies to buy"
+    ],
+    "photoSentToEnhancedProvider": false
+  },
+  "runtimeErrorScan": {
+    "start": "2026-10-15T05:55:43.944Z",
+    "end": "2026-10-15T06:05:43.944Z",
+    "recordsReturned": 0,
+    "query": "level:error",
+    "hasMore": false
+  },
+  "secretWarsRecognition": "not verified; exact catalog record exists without a cover reference and enhanced vision has no credits",
+  "newSchemaMigrations": 0
+}
