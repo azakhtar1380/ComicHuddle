@@ -36,3 +36,11 @@ if (process.env.INDEX_GCD_SEARCH === 'true') {
   const indexes = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/ensure-gcd-search-indexes.ts'], { stdio: 'inherit' });
   if (indexes.status !== 0) throw new Error('Native search index maintenance did not complete.');
 }
+
+// Refresh native snapshot reads independently of legacy seed/index maintenance.
+if (process.env.REFRESH_NATIVE_CATALOG_ON_BUILD === 'true') {
+  for (const file of ['refresh-gcd-cover-view.ts', 'refresh-native-catalog.ts']) {
+    const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/' + file], { stdio: 'inherit' });
+    if (result.status !== 0) throw new Error('Native catalog refresh did not complete.');
+  }
+}
