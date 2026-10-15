@@ -12,7 +12,17 @@ The existing isolated PostgreSQL/authentication check was extended and passed ac
 
 Fresh production checks on 15 October 2026 reconfirmed healthy RDS/catalog responses and 2,620,274 indexed issues. Provider prerequisites below remain unchanged: Gateway has no credits, no external comps feed is configured, and approved cover source/storage access is absent. The existing Vercel connector lacks this team scope; the already-authorized CLI credential successfully read the exact same project/team instead. No provider access, secrets, publication settings, database schema or paid plan was changed by these fixes.
 
-Deployment details for this continuation are recorded below after release verification.
+Continuation runtime: `9fd82f9`.
+
+Vercel deployment: `dpl_7z2xfrjEY8iHgG45Yhr1gpoPptYS` — READY, production, no deployment protection. Production compilation, TypeScript and static generation passed. The existing enrichment migration checksum was verified; imported GCD tables were unchanged.
+
+Immutable deployment: https://comichuddle-rn7mfl8ew-abdul-aziz-akhtars-projects.vercel.app
+
+Post-activation live browser verification found 14 automatically displayed estimated-FMV badges, zero broken loaded image elements and no document-level horizontal overflow at the checked desktop viewport. Existing approved art loaded; unavailable modern artwork still uses the styled fallback. `/health` and the paginated catalog returned 200, and the private draft endpoint returned 401 without authentication. This remains an unsigned browser check; no live authenticated checkout or real-device camera assertion is added.
+
+Screenshot: `evidence/comichuddle-draft-recovery-release-1792076638032.jpg` (live homepage after activation; not an authenticated draft-recovery screenshot).
+
+## Earlier coordinated release
 
 Runtime commit: `03595e8` (followed by documentation-only verification reporting).
 
