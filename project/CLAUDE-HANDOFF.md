@@ -1,4 +1,4 @@
-> Current coordinated implementation: [15 October collector upgrade](COORDINATED-COLLECTOR-UPGRADE-2026-10-15.md). Earlier capability descriptions below are historical.
+> **Current deployed implementation:** [15 October launch stabilization](LAUNCH-STABILIZATION-20261015.md). The launch reset supersedes the coordinated FMV/AI/Pulse scope. Actual hosting is Vercel Next.js / AWS RDS, seller photos are RDS-backed, and new checkout is paused. The D1/R2/mobile and feature descriptions below are retained historical records, not current infrastructure or readiness claims.
 
 # ComicHuddle complete source handoff
 

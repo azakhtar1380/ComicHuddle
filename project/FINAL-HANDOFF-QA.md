@@ -1,3 +1,5 @@
+> Historical QA record, 13 October. For the current Vercel/RDS app, actual sandbox receipts and incomplete release gates, use [Launch stabilization — 15 October](LAUNCH-STABILIZATION-20261015.md). These earlier test totals do not certify the current deployed system.
+
 # Mobile directory, bulk importer and source handoff — independent QA
 
 **13 October 2026: frozen automated candidate PASS, exit 0.** The final aggregate passes **820 named Node groups** and **28 Python tests**. This preserves the previous 792/16 baseline and adds 7 mobile two-column groups, 5 independent containment groups, 16 bulk integration groups and 12 Python SQLite archive tests. All **239** recorded source/configuration/export hashes match after the run.

@@ -1,5 +1,7 @@
 # Coordinated collector upgrade — 15 October 2026
 
+> **Superseded launch scope:** [Launch stabilization](LAUNCH-STABILIZATION-20261015.md) is the current source of truth. FMV, AI scanning and Market Pulse described here are deferred/removed from public experiences; Upcoming is restored. This document is retained as implementation history, not current capability or deployment instructions.
+
 Live results and provider prerequisites: [verification report](COORDINATED-UPGRADE-VERIFICATION-2026-10-15.md).
 
 This is an additive continuation of the current ComicHuddle app. No branch reset, imported GCD mutation, catalog reimport, payment-mode promotion, or new paid infrastructure is part of this release. The current repository and Vercel project remain the source of truth. The Upcoming page stays removed; existing release ingestion remains intact.

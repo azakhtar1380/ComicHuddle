@@ -1,3 +1,5 @@
+> Historical release record. Current deployment/runtime, source state, image diagnosis and payment readiness are in [Launch stabilization — 15 October 2026](LAUNCH-STABILIZATION-20261015.md). The D1/R2 description below is not the current deployed Vercel/RDS backend.
+
 # Mobile directory and source handoff — 13 October 2026
 
 The reported phone screenshot showed the header and intro at normal logical width while the publisher strip, filters and cards extended sideways. The publisher strip's nowrap content and its intrinsic grid track could expand the page; iOS then fit that overflow into the screen. The revised directory contains its grid children, inputs/selects and text. Mobile has two vertical cards per row with bounded portrait artwork and wrapping titles/issue numbers. Saved desktop List choices render the same mobile gallery. The publisher/series strip is removed on mobile and breadcrumbs are removed everywhere; search and Publisher filters remain. Desktop retains a contained publisher/series sidebar.

@@ -1,5 +1,5 @@
 {
-  "observedAt": "2026-10-15T16:44:10.118Z",
+  "observedAt": "2026-10-15T16:58:33.310Z",
   "base": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app",
   "checks": [
     {
@@ -230,7 +230,7 @@
       "status": "DISABLED",
       "url": null,
       "attribution": "",
-      "message": "Cover temporarily unavailable"
+      "message": "Cover not available for display"
     }
   ],
   "commerce": {
@@ -247,5 +247,41 @@
     "ocr": "on-device",
     "identitySource": "central-catalog",
     "authenticityVerification": false
+  },
+  "identifiers": {
+    "index": {
+      "scanned_count": 40000,
+      "matched_issue_count": 618,
+      "identifier_count": 624,
+      "completed_at": null,
+      "updated_at": "2026-10-15T16:56:03.585Z"
+    },
+    "example": [
+      {
+        "id": 4000000033,
+        "title": "Sin City",
+        "number": "[nn]",
+        "year": 1992
+      }
+    ],
+    "input": {
+      "identifier": "1878574590",
+      "base": "1878574590",
+      "lookupKey": "9781878574596",
+      "supplement": "",
+      "kind": "ISBN"
+    },
+    "supplementExample": {
+      "input": {
+        "identifier": "978067172440551095",
+        "base": "9780671724405",
+        "lookupKey": "9780671724405",
+        "supplement": "51095",
+        "kind": "ISBN"
+      },
+      "issueIds": [
+        4000023194
+      ]
+    }
   }
 }
