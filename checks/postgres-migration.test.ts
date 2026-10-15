@@ -67,7 +67,9 @@ test('persistent write budgets handle millisecond timestamps and enforce limits'
 });
 test('real account creation and cookie verification work without trusting identity headers', async () => {
   const auth = betterAuth(authOptions(pool));
-  const request = new Request('https://comichuddle.test/api/auth/sign-up/email', { method: 'POST', headers: { Origin: 'https://comichuddle.test', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'QA Collector', email: 'migration-qa@example.invalid', password: crypto.randomUUID() }) });
+  const password=crypto.randomUUID(),email='migration-qa@example.invalid';
+  const authRequest=(action:string,body:Record<string,unknown>,cookie?:string,origin='https://comichuddle.test')=>new Request('https://comichuddle.test/api/auth/'+action,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
+  const request = authRequest('sign-up/email',{name:'QA Collector',email,password});
   const response = await auth.handler(request); assert.equal(response.status, 200);
   const data = await response.json() as { user: { id: string } };
   const cookie = response.headers.get('set-cookie'); assert.ok(cookie);
@@ -75,6 +77,11 @@ test('real account creation and cookie verification work without trusting identi
   assert.equal(session?.user.id, data.user.id);
   const spoof = await auth.api.getSession({ headers: new Headers({ 'oai-authenticated-user-id': data.user.id, 'oai-authenticated-user-email': 'migration-qa@example.invalid' }) });
   assert.equal(spoof, null);
+  const denied=await auth.handler(authRequest('sign-in/email',{email,password:crypto.randomUUID()}));assert.equal(denied.status,401);
+  const loggedIn=await auth.handler(authRequest('sign-in/email',{email,password}));assert.equal(loggedIn.status,200);
+  const loginCookie=loggedIn.headers.get('set-cookie')!;assert.ok(loginCookie);assert.equal((await auth.api.getSession({headers:new Headers({Cookie:loginCookie})}))?.user.id,data.user.id);
+  const crossOrigin=await auth.handler(authRequest('sign-in/email',{email,password},undefined,'https://untrusted.example'));assert.equal(crossOrigin.status,403);
+  const loggedOut=await auth.handler(authRequest('sign-out',{},loginCookie));assert.equal(loggedOut.status,200);assert.equal(await auth.api.getSession({headers:new Headers({Cookie:loginCookie})}),null);
   const migration = await getMigrations(authOptions(pool)); assert.equal(migration.toBeCreated.length, 0); assert.equal(migration.toBeAdded.length, 0);
 });
 test('listing an owned comic reserves its copy and blocks duplicate listings', async () => {

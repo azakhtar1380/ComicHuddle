@@ -2,6 +2,18 @@
 
 Public preview: https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/
 
+## Continuation: draft recovery and account verification
+
+The continuation found and corrected a browser-recovery defect: an older server draft previously replaced a different browser draft. The listing builder now preserves the current selection, displays a comparison/recovery control, and only replaces a differing version after the collector chooses. Initial connection failures and concurrent-tab 409 conflicts can reconnect without a reload or automatic overwrite loop. An identical manual save does not generate another revision. Invalid/oversized draft request bodies preserve their 400/413 status rather than being reported as a database outage.
+
+Five controlled-hook builder scenarios passed, including the original selection/publication checks and three new recovery cases: differing browser/server versions with stable physical-copy IDs; an initial connection failure followed by reconnection; and a concurrent-tab conflict followed by loading the latest server version. These use actual component callbacks with isolated network/storage, not a signed-in browser.
+
+The existing isolated PostgreSQL/authentication check was extended and passed account creation, cookie verification, wrong-password rejection, successful password login, untrusted-origin rejection, logout/session invalidation and spoofed-identity rejection. Its migration check reported no pending authentication columns/tables. The isolated adapter emits an int8 introspection warning for Better Auth's rate-limit timestamp; this does not indicate a failed migration. No test accounts, listings, sales or prices were inserted into the live database. TypeScript passed.
+
+Fresh production checks on 15 October 2026 reconfirmed healthy RDS/catalog responses and 2,620,274 indexed issues. Provider prerequisites below remain unchanged: Gateway has no credits, no external comps feed is configured, and approved cover source/storage access is absent. The existing Vercel connector lacks this team scope; the already-authorized CLI credential successfully read the exact same project/team instead. No provider access, secrets, publication settings, database schema or paid plan was changed by these fixes.
+
+Deployment details for this continuation are recorded below after release verification.
+
 Runtime commit: `03595e8` (followed by documentation-only verification reporting).
 
 Final Vercel deployment: `dpl_6g5vCKSN73hojyJUTT6TvvuVyjDN` — READY, production, no deployment protection.
