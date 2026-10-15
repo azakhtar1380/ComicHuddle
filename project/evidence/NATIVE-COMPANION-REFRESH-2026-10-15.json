@@ -1,0 +1,113 @@
+{
+  "sourceCommit": "fb219d3",
+  "optionalTestsRun": false,
+  "upstreamBulkRequests": 0,
+  "scope": "Native cover reference mapping and coverage refresh; no artwork binaries or price estimates imported.",
+  "previousCoverageObservedAt": "2026-10-15T00:06:09.943Z",
+  "previousDirectoryCount": 2390305,
+  "previousNativeSeriesRows": 0,
+  "previousNativeCoverTablePresent": false,
+  "status": "READY",
+  "inspectionCollectedAt": "2026-10-15T01:27:25.670995+00:00",
+  "nativeSeriesRows": 0,
+  "nativePublisherRows": 17725,
+  "nativeCoverTablePresent": false,
+  "nativeIssueRowsEstimate": 2621681,
+  "nativeStoryRowsEstimate": 0,
+  "freshExactIssueCount": "deferred: database statement timeout",
+  "coverageRefresh": "deferred: prior observed counts retained",
+  "sourceDataImportedThisRun": false,
+  "newIndexesCreatedThisRun": 0,
+  "userIndexes": [
+    {
+      "table": "gcd.gcd_story",
+      "columns": [
+        "issue_id",
+        "type_id",
+        "sequence_number"
+      ],
+      "name": "gcd_story_issue_id_type_id_sequence_number_idx",
+      "valid": true
+    },
+    {
+      "table": "gcd.gcd_issue",
+      "columns": [
+        "series_id"
+      ],
+      "name": "gcd_issue_series_id_idx",
+      "valid": true
+    },
+    {
+      "table": "gcd.gcd_series",
+      "columns": [
+        "name"
+      ],
+      "name": "gcd_series_name_idx",
+      "valid": true
+    },
+    {
+      "table": "gcd.gcd_series",
+      "columns": [
+        "publisher_id"
+      ],
+      "name": "gcd_series_publisher_id_idx",
+      "valid": true
+    }
+  ],
+  "nativeCoverDetectionCacheSeconds": 60,
+  "nativeImageMapping": "Actual cover ID, official covers_by_id layout, width 400; never issue-ID filenames.",
+  "restrictedDeletedWithdrawnImages": "excluded",
+  "deploymentId": "dpl_6XvwHMQicEuXrgbdQFLqCt8KFUup",
+  "deploymentUrl": "https://comichuddle-nqj92rb63-abdul-aziz-akhtars-projects.vercel.app",
+  "publicUrl": "https://comichuddle-abdul-aziz-akhtars-projects.vercel.app/",
+  "databaseProbe": {
+    "connected": true,
+    "elapsedMs": 178,
+    "maxConnections": 79,
+    "currentDatabaseActivity": [
+      {
+        "state": "active",
+        "connections": 1
+      },
+      {
+        "state": "idle",
+        "connections": 19
+      }
+    ]
+  },
+  "publicReadChecks": [
+    {
+      "route": "/api/catalog?limit=12&offset=0",
+      "status": 200,
+      "rows": 12,
+      "total": 2390305,
+      "issueCount": 2390305,
+      "coverIssueCount": 2094,
+      "observedAt": "2026-10-15T00:06:09.943Z",
+      "seconds": 4.16,
+      "error": null
+    },
+    {
+      "route": "/api/catalog?q=Amazing+Spider-Man+%23300&limit=6&offset=0",
+      "status": 200,
+      "rows": 3,
+      "total": 3,
+      "issueCount": 2390305,
+      "coverIssueCount": 2094,
+      "observedAt": "2026-10-15T00:06:09.943Z",
+      "seconds": 3.76,
+      "error": null
+    },
+    {
+      "route": "/api/catalog?limit=2&offset=7000",
+      "status": 200,
+      "rows": 2,
+      "issueCount": 2390305,
+      "seconds": 3.53
+    }
+  ],
+  "connectionPoolCleanup": "@vercel/functions 3.10.1 attachDatabasePool; five-second idle cleanup; sanitized idle-error handling; TLS verification preserved.",
+  "releaseRecordedAt": "2026-10-15T01:37:28.909597+00:00",
+  "screenshot": "project/evidence/comichuddle-companion-refresh-1792028306928.jpg",
+  "browserObservedStatus": "Showing 1\u201312 of 2,390,305 matches"
+}
