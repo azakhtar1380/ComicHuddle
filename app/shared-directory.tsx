@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, Filter, Grid3X3, List, RefreshCw, Search} from 'lucide-react';
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
@@ -8,6 +8,7 @@ import './shared-directory.css';
 import CatalogFmv from './catalog-fmv';
 import ComicPicker from './comic-picker';
 import DirectoryTree from './directory-tree';
+import PublisherFilter from './publisher-filter';
 import ComicCoverPlaceholder from '../components/comic-cover-placeholder';
 
 type CatalogPage = {
@@ -101,7 +102,7 @@ export default function SharedDirectory({onOpen}: Props) {
     return () => {abort.abort(); if (generation.current === request) generation.current++;};
   }, [query, debouncedQuery, publisher, series, era, kind, sort, offset, retry]);
 
-  const publisherOptions = [...new Set([...(data?.publishers || []), ...(publisher ? [publisher] : [])])];
+  const publisherOptions = useMemo(()=>{const available=[...new Set([...(data?.publishers||[]),...(publisher?[publisher]:[])])];const preferred=['Marvel','DC','DC Comics','Image','Image Comics Inc.','Dark Horse','Dark Horse Comics LLC','IDW Publishing','Boom! Studios','Fiction House'].filter(name=>available.includes(name));const chosen=new Set(preferred);return [...preferred,...available.filter(name=>!chosen.has(name))]},[data?.publishers,publisher]);
   const pageNumber = data ? Math.floor(data.offset / data.limit) + 1 : 1;
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   return <section className="shared-directory directory-page">
@@ -110,7 +111,7 @@ export default function SharedDirectory({onOpen}: Props) {
     <div className="sd-quick-find"><ComicPicker key={publisher+'|'+series} value={matched} label="Search the comic directory" onQueryChange={changeQuery} onChange={issue=>{setMatched(issue);if(issue)onOpen(issue)}}/></div>
     <div className="sd-browser"><DirectoryTree key={publisher} publishers={publisherOptions} publisher={publisher} series={series} onPublisher={value=>{invalidate();setPublisher(value);setSeries('');setQuery('');setMatched(null);setOffset(0)}} onSeries={value=>{invalidate();setSeries(value);setQuery('');setMatched(null);setOffset(0)}}/><div className="sd-browser-main">
     <div className="sd-filters">
-      <label><span><Filter size={13}/> Publisher</span><select aria-label="Filter publisher" value={publisher} onChange={event => {setSeries('');changeFilter(setPublisher, event.target.value)}}><option value="">All publishers</option>{publisherOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+      <PublisherFilter options={publisherOptions} value={publisher} onChange={value=>{setSeries('');changeFilter(setPublisher,value)}}/>
       <label><span>Era</span><select aria-label="Filter era" value={era} onChange={event => changeFilter(setEra, event.target.value)}><option value="">All eras</option>{eras.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       <label><span>Issue type</span><select aria-label="Filter issue type" value={kind} onChange={event => changeFilter(setKind, event.target.value)}><option value="">All types</option>{kinds.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       <label className="sd-sort"><span>Sort</span><select aria-label="Sort directory" value={sort} onChange={event => changeFilter(setSort, event.target.value)}><option value="featured">Featured</option><option value="title">Title A–Z</option><option value="oldest">Oldest first</option><option value="newest">Newest first</option></select></label>
