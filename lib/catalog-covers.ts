@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { directoryCoverReferences } from '../db/schema';
+import { catalogCoverReferences } from '../db/schema';
 import type { CatalogDb } from './catalog-store';
 import type { Issue } from './catalog';
 
@@ -60,9 +60,12 @@ async function withNativeCoverRows(db:CatalogDb,issues:Issue[]):Promise<Issue[]>
 
 export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise<Issue[]> {
   if (!issues.length) return issues;
-  const rows = await db.select().from(directoryCoverReferences).where(and(
-    inArray(directoryCoverReferences.issueId, issues.map(issue => issue.id)),
-    eq(directoryCoverReferences.status, 'active')));
+  // Read the small retained source independently. Native rows are queried by
+  // raw issue_id below so its ordinary FK index can serve an exact page;
+  // filtering the canonical-ID UNION view would scan the full cover table.
+  const rows = await db.select().from(catalogCoverReferences).where(and(
+    inArray(catalogCoverReferences.issueId, issues.map(issue => issue.id)),
+    eq(catalogCoverReferences.status, 'active')));
   const byId = new Map(rows.map(row => [row.issueId, row]));
   const retained=issues.map(issue => {
     const reference = byId.get(issue.id), url = reference && gcdThumbnailUrl(reference.imageUrl);
