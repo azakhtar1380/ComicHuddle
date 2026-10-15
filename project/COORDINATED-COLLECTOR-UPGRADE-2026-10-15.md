@@ -1,5 +1,7 @@
 # Coordinated collector upgrade — 15 October 2026
 
+Live results and provider prerequisites: [verification report](COORDINATED-UPGRADE-VERIFICATION-2026-10-15.md).
+
 This is an additive continuation of the current ComicHuddle app. No branch reset, imported GCD mutation, catalog reimport, payment-mode promotion, or new paid infrastructure is part of this release. The current repository and Vercel project remain the source of truth. The Upcoming page stays removed; existing release ingestion remains intact.
 
 ## Listing builder and persistence
