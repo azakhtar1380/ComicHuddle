@@ -1,6 +1,6 @@
 export type AccountRole='collector'|'provider';
 import {publicSection} from './section-navigation';
-const sections=new Set(['Home','Directory','Upcoming','Marketplace','Community','My Profile','Messages','Account','Comic Workshop']);
+const sections=new Set(['Home','Directory','Marketplace','My Profile','Messages','Account','Comic Workshop']);
 
 export function readAccountIntent(search:string):AccountRole|null{
  const role=new URLSearchParams(search).get('join');
@@ -17,7 +17,7 @@ export function accountReturnPath(pathname:string,search:string,role:AccountRole
 }
 
 export function accountSignInPath(pathname:string,search:string,role:AccountRole,section:string):string{
- return '/signin-with-chatgpt?return_to='+encodeURIComponent(accountReturnPath(pathname,search,role,section));
+ return '/sign-in?return_to='+encodeURIComponent(accountReturnPath(pathname,search,role,section));
 }
 
 export function clearAccountIntent(pathname:string,search:string):string{

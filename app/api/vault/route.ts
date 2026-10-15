@@ -1,4 +1,4 @@
-import {readableCatalog} from '../../../lib/catalog-store';
+import {catalogIssuesById} from '../../../lib/catalog-store';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {collections,media,profiles,directoryIssues} from '../../../db/schema';
@@ -35,12 +35,11 @@ export async function POST(req:Request){try{
  if(!profile)return privateJson({error:'Create your free collector profile first.'},403);
  if(profile.moderated)return privateJson({error:'Your account is restricted pending moderation review.'},403);
  if(profile.rulesVersion!==previewRulesVersion||!profile.rulesAcceptedAt)return privateJson({error:'Open your collector profile and accept the current community rules before saving.'},403);
- const readCatalog=await readableCatalog(db);
  const wanted=data.wants.filter(id=>sharedProviderIdentity(id)!==null);
- for(const batch of chunks(wanted)){const rows=await db.select({id:readCatalog.id}).from(readCatalog).where(inArray(readCatalog.id,batch));if(rows.length!==batch.length)return privateJson({error:'Select a comic already imported into the shared directory.'},400)}
+ for(const batch of chunks(wanted)){const rows=await catalogIssuesById(db,batch);if(rows.length!==batch.length)return privateJson({error:'Select a comic already imported into the shared directory.'},400)}
  const external=[...new Set(data.books.flatMap(b=>{const id=b.externalCatalog?listingDirectoryId(b):null;return id===null?[]:[id]}))];
  const externalRecords=new Map<number,{title:string;number:string}>();
- for(const batch of chunks(external)){const rows=await db.select({id:readCatalog.id,data:readCatalog.data}).from(readCatalog).where(inArray(readCatalog.id,batch));for(const row of rows)externalRecords.set(row.id,JSON.parse(row.data!) as {title:string;number:string})}
+ for(const batch of chunks(external)){const rows=await catalogIssuesById(db,batch);for(const row of rows)externalRecords.set(row.id,{title:row.title,number:row.number})}
  for(const book of data.books){if(!book.externalCatalog)continue;const directoryId=listingDirectoryId(book),record=directoryId===null?undefined:externalRecords.get(directoryId);if(!record&&book.externalCatalog.provider==='GCD')return privateJson({error:'Select a GCD issue already imported into the shared directory.'},400);if(record){book.title=record.title;book.issue='#'+record.number}}
  const ids=[...new Set(data.books.flatMap(b=>b.photoId?[b.photoId]:[]))];
  for(const batch of chunks(ids)){const assets=await db.select().from(media).where(inArray(media.id,batch));if(assets.length!==batch.length||assets.some(m=>m.userId!==user.userId))return privateJson({error:'Only your own photos may be saved.'},403)}

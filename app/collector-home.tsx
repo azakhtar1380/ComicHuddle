@@ -31,7 +31,7 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
  },[]);
  return <><Homepage feed={feed} loading={loading} search={search} onScan={onScan} onOpenComic={onOpenComic}
   onValueCollection={onValueCollection} onBrowseKeys={()=>go('Directory')} onMarketplace={()=>go('Marketplace')}
-  onProfile={onProfile} onWorkshop={()=>go('Comic Workshop')} onUpcoming={()=>go('Upcoming')}/>
+  onProfile={onProfile} onWorkshop={()=>go('Comic Workshop')} onRegisterSpecialist={onProvider}/>
   {error&&<div role="alert" className="home-directory-error"><p>{error}</p><button className="button outline small-button" onClick={()=>void reload(new AbortController().signal)}>Retry directory</button></div>}
   <div className="home-provider-link"><button className="inline-button" onClick={onProvider}>List my pressing studio</button><span>Vintage cover spotlight: Planet Comics #12, #55 and #27. Public-domain US editions; cover credits appear in the directory.</span></div>
  </>;

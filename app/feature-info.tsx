@@ -1,5 +1,6 @@
 import {ArrowLeft,ArrowRight,BookOpen,Camera,Gift,ShieldCheck,UserRound,Wallet} from 'lucide-react';
 import './feature-info.css';
+import SiteHeader from './site-header';
 export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
  const wallet=kind==='wallet';
  const steps=wallet?[
@@ -15,7 +16,7 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
   ['Review delivery','The buyer has a 48-hour inspection window after verified delivery to report damage, a wrong item or a material mismatch through Orders. Provide photos and keep the packaging. An open dispute freezes release while support reviews the evidence.'],
   ['Resolve & release','Verified delivery, the inspection window and an absence of unresolved disputes are required before a connected payout service can release seller proceeds. Approved refunds go to the original payment method, with on-site credit restored separately. Return instructions come from support.'],
  ];
- return <div className="feature-page"><div className="feature-page-strip"><span>COMICHUDDLE / COLLECTOR FIELD GUIDE</span><span>COLLECT · BUY · CARE</span></div><main className="feature-info"><header><a href="/" className="brand" aria-label="ComicHuddle home"><img src="/brand/comichuddle-hero-logo.svg" alt="ComicHuddle" width="150" height="120"/></a><nav aria-label="Feature information"><a href="/safepurchase" aria-current={!wallet?'page':undefined}><ShieldCheck size={17}/> SafePurchase</a><a href="/wallet" aria-current={wallet?'page':undefined}><Wallet size={17}/> Wallet</a><a href="/?section=Directory"><BookOpen size={17}/> Directory</a><a href="/?section=My%20Profile"><UserRound size={17}/> My Profile</a></nav></header>
+ return <div className="feature-page"><a className="skip-link" href="#main-content">Skip to content</a><SiteHeader section={wallet?'Wallet':'SafePurchase'} standalone/><main id="main-content" tabIndex={-1} className="feature-info">
   <a className="info-back" href="/"><ArrowLeft size={16}/> Back to ComicHuddle</a>
   <section className={'info-hero '+(wallet?'info-wallet':'info-safe')}><span className="info-eyebrow">{wallet?<Gift size={20}/>:<ShieldCheck size={20}/>} {wallet?'COLLECTOR WALLET':'SAFEPURCHASE'}</span><h1>{wallet?'Your next chapter, rewarded.':'A careful path for a valuable book.'}</h1><p>{wallet?'Earn points. Convert them to store credit. Keep the next great find within reach.':'Optional inspection and a protected order workflow for collectors buying one grail or a whole longbox.'}</p><div className="info-badges">{(wallet?['100 points = $1 credit','On-site purchases only','No cash-outs']:['Verified tracking','48-hour buyer inspection','Disputes freeze release']).map(item=><span key={item}>{item}</span>)}</div></section>
   <section className="info-steps" aria-label={wallet?'How rewards work':'SafePurchase workflow'}>{steps.map(([title,body],index)=><article key={title}><span className="info-step">{index+1}</span><div><h2>{title}</h2><p>{body}</p></div></article>)}</section>

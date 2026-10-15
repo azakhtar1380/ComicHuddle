@@ -6,7 +6,7 @@ export const starterGroups=[
 {id:'twin-cities',name:'Twin Cities Collectors',description:'Minnesota collectors, local shop discoveries and community conversations.',color:'teal'}
 ];
 export const groupChannels=[{id:'general',label:'general'},{id:'showcase',label:'show-your-shelf'},{id:'trading',label:'buy-sell-trade'}];
-export type ShowcaseBook={id:string;title:string;issue:string;grade:string;catalogId?:number;photoId?:string};
+export type ShowcaseBook={id:string;title:string;issue:string;grade:string;catalogId?:number;photoId?:string;directoryIssueId?:number;cover?:string;coverCredit?:string};
 export type CollectorProfile={id:string;handle:string;name:string;bio:string;tagline:string;location:string;favorite:string;since:number;color:string;visible:boolean;dmOpen:boolean;createdAt:string;featured:string[];stats:{comics:number;wants:number;trades:number;publishers:{name:string;count:number}[]};showcase:ShowcaseBook[];tradeBooks:ShowcaseBook[];wantIds:number[];example?:boolean;provider?:{id:string;name:string};consent?:{version:string;acceptedAt:string};moderated?:boolean};
 export type Group={id:string;ownerId:string|null;name:string;description:string;color:string;members:number;joined:boolean};
 export type GroupPost={id:string;body:string;createdAt:string;author:{id:string;name:string;handle:string};channel:string;canDelete:boolean};

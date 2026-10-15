@@ -13,7 +13,7 @@ function Cover({issue,selected=false}:{issue:Issue;selected?:boolean}){
  </span>;
 }
 
-export default function ComicPicker({value,onChange,disabled=false,initialQuery='',onQueryChange,label='Find your comic'}:{value:Issue|null;onChange:(issue:Issue|null)=>void;disabled?:boolean;initialQuery?:string;onQueryChange?:(value:string)=>void;label?:string}){
+export default function ComicPicker({value,onChange,disabled=false,initialQuery='',onQueryChange,label='Find your comic',clearOnChoose=false}:{value:Issue|null;onChange:(issue:Issue|null)=>void;disabled?:boolean;initialQuery?:string;onQueryChange?:(value:string)=>void;label?:string;clearOnChoose?:boolean}){
  const id=useId(),inputRef=useRef<HTMLInputElement>(null),session=useRef(createCatalogSearchSession());
   const [query,setQuery]=useState(value?value.title+' #'+value.number:initialQuery),[open,setOpen]=useState(false),[page,setPage]=useState(0),[active,setActive]=useState(-1),[retry,setRetry]=useState(0);
  const [results,setResults]=useState<CatalogSearchPage|null>(null),[pending,setPending]=useState(false),[error,setError]=useState('');
@@ -34,12 +34,12 @@ export default function ComicPicker({value,onChange,disabled=false,initialQuery=
   if(row.top<frame.top)list.scrollTop+=row.top-frame.top;
   else if(row.bottom>frame.bottom)list.scrollTop+=row.bottom-frame.bottom;
  },[active,show,listId]);
- function choose(issue:Issue){onChange(issue);setQuery(issue.title+' #'+issue.number);setOpen(false);setResults(null);setPage(0);setError('')}
+ function choose(issue:Issue){onChange(issue);setQuery(clearOnChoose?'':issue.title+' #'+issue.number);if(clearOnChoose)onQueryChange?.('');setOpen(false);setResults(null);setPage(0);setError('')}
   function clear(){onChange(null);onQueryChange?.('');setQuery('');setPage(0);setResults(null);setOpen(true);inputRef.current?.focus({preventScroll:true})}
  const summary=pending?'Searching the directory…':(error||results)?(error||results!.total+' matching '+(results!.total===1?'issue':'issues')):'';
  return <div className="comic-picker" onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setOpen(false)}}>
    <label htmlFor={id}>{label}</label>
-  <div className="picker-input"><Search size={18}/><input ref={inputRef} id={id} role="combobox" aria-autocomplete="list" aria-expanded={show} aria-controls={show?listId:undefined} aria-activedescendant={show&&active>=0&&rows[active]?listId+'-'+active:undefined} aria-describedby={id+'-help'} autoComplete="off" maxLength={160} disabled={disabled} value={query} placeholder="Try Amazing Spider-Man #300…" onFocus={()=>{if(!value)setOpen(true)}} onChange={event=>{onChange(null);onQueryChange?.(event.target.value);setQuery(event.target.value);setPage(0);setResults(null);setOpen(true)}} onKeyDown={event=>{
+  <div className="picker-input"><Search size={18}/><input ref={inputRef} id={id} role="combobox" aria-autocomplete="list" aria-expanded={show} aria-controls={show?listId:undefined} aria-activedescendant={show&&active>=0&&rows[active]?listId+'-'+active:undefined} aria-describedby={id+'-help'} autoComplete="off" maxLength={160} disabled={disabled} value={query} placeholder="Try Amazing Spider-Man #300…" onClick={()=>setOpen(true)} onFocus={()=>{if(!value)setOpen(true)}} onChange={event=>{onChange(null);onQueryChange?.(event.target.value);setQuery(event.target.value);setPage(0);setResults(null);setOpen(true)}} onKeyDown={event=>{
    if(event.key==='Escape'&&show){event.preventDefault();event.stopPropagation();setOpen(false);return}
    if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();if(!show)setOpen(true);else if(!pending&&!error)setActive(index=>nextPickerIndex(event.key,index,rows.length));return}
    if(event.key==='Enter'){event.preventDefault();if(show&&!pending&&!error&&active>=0&&rows[active])choose(rows[active])}

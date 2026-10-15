@@ -1,4 +1,4 @@
-import {readableCatalog} from './catalog-store';
+import {catalogIssuesById} from './catalog-store';
 import {resolveLocation} from './location-search';
 import {and,asc,desc,eq,gt,gte,inArray,lt,lte,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
@@ -165,13 +165,13 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  if(selected.some(id=>!owned.has(id)))throw new ApiRequestError('Only copies in your own current collection may be listed.',400);
  if(Object.keys(value.conditions).some(id=>!selected.includes(id)))throw new ApiRequestError('Set conditions only for the selected copies.',400);
  const copies=selected.map(id=>owned.get(id)!),items=copies.map(copy=>snapshot(copy,value.conditions[copy.id]));
- const readCatalog=await readableCatalog(db);
  const externalIds=[...new Set(copies.flatMap(copy=>{const id=copy.externalCatalog?listingDirectoryId(copy):null;return id===null?[]:[id]}))],externalRows=new Map<number,{id:number;metronId:number|null;gcdId:number|null;title:string;number:string}>();
- for(const batch of chunks(externalIds)){const rows=await db.select({id:readCatalog.id,metronId:readCatalog.metronId,gcdId:readCatalog.gcdId,title:readCatalog.title,number:readCatalog.number}).from(readCatalog).where(inArray(readCatalog.id,batch));for(const row of rows)externalRows.set(row.id,row)}
+ for(const batch of chunks(externalIds)){const rows=await catalogIssuesById(db,batch);for(const row of rows)externalRows.set(row.id,{id:row.id,metronId:row.metronId??null,gcdId:row.gcdId??null,title:row.title,number:row.number})}
  const legacyAliases=new Map<number,string>();for(const batch of chunks(externalIds)){const aliases=await db.execute(sql`SELECT id,title FROM ch_web.catalog_issues WHERE id IN (${sql.join(batch.map(id=>sql`${id}`),sql`, `)})`);for(const alias of aliases.rows)legacyAliases.set(Number(alias.id),String(alias.title))}
  const numberKey=(value:string)=>value.trim().replace(/^#\s*/,'').replace(/\s/g,'').toLowerCase();
  for(const copy of copies){if(!copy.externalCatalog)continue;const directoryId=listingDirectoryId(copy),record=directoryId===null?undefined:externalRows.get(directoryId),providerMatches=record&&(copy.externalCatalog.provider==='Metron'?record.metronId===copy.externalCatalog.id&&record.gcdId===null:record.gcdId===copy.externalCatalog.id&&record.metronId===null);if(!record||!providerMatches||(normalize(record.title)!==normalize(copy.title)&&normalize(legacyAliases.get(directoryId!)||'')!==normalize(copy.title))||numberKey(record.number)!==numberKey(copy.issue))throw new ApiRequestError('Correct the linked directory edition for each selected comic, or save it as an unlinked personal record before listing.',400)}
- const externalSnapshot=JSON.stringify([...externalRows.values()]);
+ const identityChecks=[...externalRows.values()].map(record=>sql`EXISTS(SELECT 1 FROM gcd.comichuddle_directory canonical WHERE canonical.id=${record.id} AND ${record.gcdId!==null?sql`canonical.gcd_id=${record.gcdId}`:sql`canonical.metron_id=${record.metronId}`} AND canonical.metron_id IS NOT DISTINCT FROM ${record.metronId}::bigint AND canonical.gcd_id IS NOT DISTINCT FROM ${record.gcdId}::bigint AND canonical.title=${record.title} AND canonical.number=${record.number})`);
+ const identitiesCurrent=identityChecks.length?sql.join(identityChecks,sql` AND `):sql`true`;
  if(copies.some(copy=>copy.catalogId!==undefined&&!linkedCatalogIssue(copy)))throw new ApiRequestError('Correct the directory issue for each selected comic before publishing, or unlink it as a personal record.',400);
  await ownPhotos(db,me.userId,[...value.photos,...items.flatMap(item=>item.photoId?[item.photoId]:[])]);
  const stamp=new Date().toISOString(),selectedJSON=JSON.stringify(selected);
@@ -179,8 +179,7 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
   WHERE p.id = ${me.id} AND p.user_id = ${me.userId} AND p.visible = 1 AND p.moderated = 0 AND p.deletion_started_at IS NULL
    AND c.revision = ${source.revision} AND NOT EXISTS
     (SELECT 1 FROM account_restrictions r WHERE r.user_id = p.user_id AND r.scope = 'account'))
-  AND NOT EXISTS (SELECT 1 FROM json_each(${externalSnapshot}) selected LEFT JOIN gcd.comichuddle_directory canonical ON canonical.id = json_extract(selected.value,'$.id')::bigint
-   WHERE canonical.id IS NULL OR canonical.metron_id IS DISTINCT FROM json_extract(selected.value,'$.metronId')::bigint OR canonical.gcd_id IS DISTINCT FROM json_extract(selected.value,'$.gcdId')::bigint OR canonical.title != json_extract(selected.value,'$.title') OR canonical.number != json_extract(selected.value,'$.number'))
+  AND (${identitiesCurrent})
   AND json_array_length(${selectedJSON}) BETWEEN 1 AND 1000
   AND (${value.kind} != 'single' OR json_array_length(${selectedJSON}) = 1)
   AND (SELECT count(DISTINCT item.value) FROM json_each(${selectedJSON}) item) = ${selected.length}
