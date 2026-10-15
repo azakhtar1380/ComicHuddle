@@ -7,7 +7,7 @@
 .picker-input{position:relative;display:flex;align-items:center;border:1.5px solid #cbc3b4;background:#fffdf8;min-height:52px}
 .picker-input:focus-within{border-color:var(--ink);outline:2px solid var(--yellow,#f6cc5c);outline-offset:2px}
 .picker-input>svg{flex-shrink:0;margin-left:13px;color:#706b61}
-.collection-comic-form .picker-input>input{border:0;background:transparent;min-width:0;width:100%;margin:0;padding:14px 10px;box-shadow:none;outline:none;font-size:16px}
+.comic-picker .picker-input>input{border:0;background:transparent;min-width:0;width:100%;margin:0;padding:14px 10px;box-shadow:none;outline:none;font-size:16px}
 .picker-input>button{display:grid;place-items:center;flex-shrink:0;min-width:44px;min-height:44px;background:transparent;padding:0;color:var(--ink)}
 .picker-help{display:block;font-size:11px;line-height:1.6;color:#6e6b64;margin-top:8px}
 .picker-dropdown{border:1.5px solid var(--ink);background:#fffdf8;margin-top:10px;box-shadow:3px 3px 0 var(--ink);overflow:hidden}
@@ -53,3 +53,5 @@
  .picker-option-copy>strong{font-size:12px}
  .picker-selected{padding:12px;gap:10px}
 }
+
+.comic-picker .picker-input>input:focus{outline:none!important;border:0!important;box-shadow:none}.comic-picker .picker-input:focus-within{outline:2px solid var(--red,#b7322a);outline-offset:2px}
