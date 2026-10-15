@@ -77,12 +77,12 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const state=await db.execute(sql`SELECT retained_ids FROM gcd.comichuddle_catalog_read_state WHERE id='directory'`);
  const retained=Array.isArray(state.rows[0]?.retained_ids)?state.rows[0].retained_ids.map(Number).filter(Number.isSafeInteger):[];
  const retainedGcd=retained.filter(id=>id>=4000000000).map(id=>id-4000000000);
- const excluded=retainedGcd.length?sql`AND n.gcd_id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`:sql``;
+ const excluded=retainedGcd.length?sql`AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)}]::bigint[]) excluded(gcd_id) WHERE excluded.gcd_id=n.gcd_id)`:sql``;
  const extra=retained.length?sql`SELECT e.id,e.title,e.year FROM gcd.comichuddle_legacy_directory e WHERE e.id IN (${sql.join(retained.map(id=>sql`${id}`),sql`,`)}) AND ${nativeTerms('e')}`:sql`SELECT 0::bigint AS id,''::text AS title,0 AS year WHERE false`;
  let nativeBase=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded}`;
  if((!filter.sort||filter.sort==='featured')&&!filter.era&&!filter.kind){
   const rawTerms=[sql`COALESCE(i.deleted,0)=0`,...numbers.map(n=>sql`lower(i.number)=${n}`)];
-  if(retainedGcd.length)rawTerms.push(sql`i.id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`);
+  if(retainedGcd.length)rawTerms.push(sql`NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)}]::bigint[]) excluded(gcd_id) WHERE excluded.gcd_id=i.id)`);
   if(words.length||filter.publisher||filter.series){
    const st=words.map(w=>sql`lower(s.name) LIKE ${'%'+w+'%'}`);
    if(filter.publisher)st.push(sql`p.name=${filter.publisher}`);

@@ -29,3 +29,5 @@ if (process.env.MIGRATE_ON_BUILD === 'true' && (!process.env.VERCEL || process.e
   const verification = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/verify-rds-directory.ts'], { stdio: 'inherit' });
   if (verification.status !== 0) throw new Error('Native GCD directory verification failed.');
 }
+
+if (process.env.PROFILE_NATIVE_READ === 'true') spawnSync(process.execPath, ['--import', 'tsx', 'scripts/profile-native-read.ts'], { stdio: 'inherit' });
