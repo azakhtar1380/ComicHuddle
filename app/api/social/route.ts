@@ -1,6 +1,4 @@
-import {after} from 'next/server';
 import {markListingSold,requestSafePurchase} from '../../../lib/marketplace-sales';
-import {recordCollectorActivity} from '../../../lib/market-pulse-snapshot';
 import {catalogIssuesById} from '../../../lib/catalog-store';
 import {directoryGrailId,featuredIssueId,profileGrails} from '../../../lib/profile-grails';
 import type {Issue} from '../../../lib/catalog';
@@ -247,7 +245,7 @@ if(a.action==='profile'){
  const [occupied]=await db.select().from(profiles).where(eq(profiles.handle,v.handle));if(occupied&&occupied.userId!==u.userId)return json({error:'That collector handle is taken.'},409);
  const data={...consent,userId:u.userId,handle:v.handle,name:v.name,bio:v.bio,tagline:v.tagline,location:v.location,favorite:v.favorite,since:v.since,color:v.color,featured:JSON.stringify(v.featured),visible:Number(v.visible),dmOpen:Number(v.dmOpen)};
  const [saved]=p?await db.update(profiles).set(data).where(eq(profiles.id,p.id)).returning():await db.insert(profiles).values({...data,id:crypto.randomUUID(),createdAt:now()}).returning();
- const previous=p?JSON.parse(p.featured) as string[]:[];const added=v.featured.filter(key=>!previous.includes(key)).flatMap(key=>{const issueId=featuredIssueId(key,vlt.books);return issueId===null?[]:[issueId]});after(async()=>{await recordCollectorActivity(db,saved,added,'grail').catch(()=>undefined)});
+
  return json({saved:true,profile:await profileDto(db,saved,true)});
 }
 if(!p)return json({error:'Create your free collector profile first.',code:'profile_required'},403);

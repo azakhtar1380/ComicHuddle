@@ -9,9 +9,12 @@ const ca = await response.text();
 if (!ca.includes('-----BEGIN CERTIFICATE-----')) throw new Error('Invalid AWS trust bundle.');
 await mkdir('certificates', { recursive: true });
 await writeFile('certificates/rds-ca.pem', ca);
+if(process.env.VERCEL_ENV==='preview'&&process.env.NEXT_PUBLIC_QA_ENV==='true'){const qa=spawnSync(process.execPath,['--import','tsx','scripts/prepare-launch-qa.ts'],{stdio:'inherit'});if(qa.status!==0)throw new Error('Isolated QA database initialization failed.');}
 if (process.env.MIGRATE_ENRICHMENT_ON_BUILD === 'true') {
   const migration = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/migrate-enrichment.ts'], { stdio: 'inherit' });
   if (migration.status !== 0) throw new Error('Additive enrichment migration failed.');
+  const launch=spawnSync(process.execPath,['--import','tsx','scripts/migrate-launch.ts'],{stdio:'inherit'});
+  if(launch.status!==0)throw new Error('Additive launch migration/diagnostics failed.');
 }
 if (process.env.INSPECT_RDS_CONNECTION === 'true') {
   const probe = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-rds-connection.ts'], { stdio: 'inherit' });

@@ -11,7 +11,7 @@ export function linkedCatalogIssue(book:{catalogId?:number;title:string;issue:st
 
 export type CatalogSearchIssue=Issue&{series:string;issue:string;edition:string;keyInfo:{kind:string;note:string}};
 export function catalogSearchDto(issue:Issue,includeBibliography=false):CatalogSearchIssue{
- const {bibliography,...summary}=issue;
+ const {bibliography,estimatedValue,...summary}=issue;
  return {...summary,...(includeBibliography&&bibliography?{bibliography}:{}),series:issue.title,issue:'#'+issue.number,edition:issue.variant,keyInfo:{kind:issue.kind,note:issue.note}};
 }
 function compact(value:string){return value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]/g,'')}

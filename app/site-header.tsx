@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import {useEffect,useState} from 'react';
-import {BookOpen,Camera,ChevronDown,Home,MessageCircle,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
+import {BookOpen,Camera,ChevronDown,Home,MessageCircle,MoreHorizontal,Clock3,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
 import MobileDock from './mobile-dock';
 import {publicSection} from '../lib/section-navigation';
 import './site-header.css';
@@ -21,13 +21,14 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
  const authenticated=sessionKnown?signedIn:session.signedIn,displayName=sessionKnown?name:session.name;
  const navigate=(next:string)=>{if(onNavigate)onNavigate(next);else window.location.assign(destination(next))};
  return <>
-  <div className="preview-strip"><span>PUBLIC PREVIEW</span><span>Comic directory · Collect, buy &amp; care · Preview</span></div>
+  <div className="preview-strip"><span>{process.env.NEXT_PUBLIC_QA_ENV==='true'?'QA SANDBOX · TEST DATA ONLY':'PUBLIC PREVIEW'}</span><span>Comic directory · Collect, buy &amp; care · Preview</span></div>
   <header className="site-header">
    {onNavigate?<button type="button" className="brand" onClick={()=>navigate('Home')} aria-label="ComicHuddle home"><img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/></button>:<Link href="/" className="brand" aria-label="ComicHuddle home"><img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/></Link>}
    <nav aria-label="Main navigation">
     {entries.map(({id,label,Icon})=>{const active=section===id,className='site-nav-item'+(active?' nav-active':'')+(id==='Wallet'?' nav-wallet':'');return onNavigate&&id!=='Wallet'?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}><Icon size={16}/><span>{label}</span></button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}><Icon size={16}/><span>{label}</span></Link>})}
     {onScan?<button type="button" className="header-scan nav-scan" aria-label="Scan / Lens" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={onScan}><Camera size={22}/><span>Scan / Lens</span></button>:<Link href="/?section=Scan" className="header-scan nav-scan" aria-label="Scan / Lens"><Camera size={22}/><span>Scan / Lens</span></Link>}
    </nav>
+   <details className="site-more"><summary aria-label="More navigation"><MoreHorizontal size={22}/><span>More</span></summary><div><Link href="/upcoming" aria-current={section==='Upcoming'?'page':undefined}><Clock3 size={16}/> Upcoming</Link></div></details>
    {!authenticated&&<Link className="header-signin" href="/sign-in" prefetch><User size={16}/> Sign in</Link>}
    {onMessages?<button type="button" className="header-inbox" aria-label="Open messages" onClick={onMessages}><MessageCircle size={20}/>{messageCount>0&&<span>{messageCount}</span>}</button>:<Link className="header-inbox" href="/?section=Messages" aria-label="Open messages"><MessageCircle size={20}/></Link>}
    {!authenticated&&<Link className="header-signup" href="/sign-in?mode=register" prefetch>Join free</Link>}

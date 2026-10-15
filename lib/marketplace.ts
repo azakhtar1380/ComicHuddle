@@ -1,4 +1,4 @@
-import {combinedListingEstimate} from './estimated-fmv';
+import {ensureSellerPhotos} from './seller-photos';
 import type {CombinedEstimate} from './estimated-fmv-types';
 import {catalogIssuesById} from './catalog-store';
 import {resolveLocation} from './location-search';
@@ -91,26 +91,17 @@ export function auctionView(row:ListingRow,viewerId?:string,ownBid?:Bid,stamp=Da
 export type ListingContext={aiEstimates?:Map<string,CombinedEstimate>;values:Map<string,MarketRow|null>;ownBids:Map<string,Bid>;stamp:number};
 export async function listingContext(db:Db,rows:ListingRow[],viewerId?:string):Promise<ListingContext>{
  const stamp=Date.now(),values=new Map<string,MarketRow|null>(),ownBids=new Map<string,Bid>();
- const issueIds=[...new Set(rows.flatMap(row=>listingItems(row).flatMap(item=>{const id=listingDirectoryId(item);return id===null?[]:[id]})))];
- for(const batch of chunks(issueIds)){
-  const candidates=await db.select().from(marketValues).where(and(inArray(marketValues.issueId,batch),gt(marketValues.rightsExpiresAt,new Date(stamp).toISOString()),gte(marketValues.updatedAt,new Date(stamp-30*86400000).toISOString()),lte(marketValues.updatedAt,new Date(stamp).toISOString())));
-  for(const row of candidates){const key=marketKey(row);values.set(key,values.has(key)?null:row)}
-  const sourced=await db.execute(sql`SELECT issue_id,mode,grade,label,printing,fmv_price,low_price,high_price,sample_size,window_days,last_updated,source_name,source_url,valid_until FROM gcd.fmv_records WHERE issue_id IN (${sql.join(batch.map(id=>sql`${id}`),sql`, `)}) AND valid_until>now()`);
-  for(const record of sourced.rows){const row:MarketRow={id:[record.issue_id,record.mode,record.grade,record.label,record.printing].join('|'),issueId:Number(record.issue_id),mode:String(record.mode),grade:String(record.grade),label:String(record.label),printing:String(record.printing),fmv:Number(record.fmv_price),low:Number(record.low_price),high:Number(record.high_price),sales:Number(record.sample_size),windowDays:Number(record.window_days),updatedAt:new Date(String(record.last_updated)).toISOString(),sourceName:String(record.source_name),sourceUrl:String(record.source_url),licenseReference:'Verified completed comps; each source carries active redistribution provenance',rightsExpiresAt:new Date(String(record.valid_until)).toISOString(),importedAt:new Date(String(record.last_updated)).toISOString()};values.set(marketKey(row),row)}
- }
  if(viewerId){for(const batch of chunks(rows.filter(row=>row.saleType==='auction').map(row=>row.id))){
   const own=await db.select().from(auctionBids).where(inArray(auctionBids.id,db.select({id:sql<string>`(SELECT own.id FROM auction_bids own WHERE own.listing_id = ${sql.raw('listings.id')} AND own.bidder_id = ${viewerId} AND own.status IN ('leading','outbid') ORDER BY own.sequence DESC LIMIT 1)`}).from(listings).where(inArray(listings.id,batch))));
   for(const bid of own)ownBids.set(bid.listingId,bid);
  }}
- const aiEstimates=new Map<string,CombinedEstimate>();
- const estimates=await Promise.allSettled(rows.map(row=>combinedListingEstimate(db,listingItems(row),true)));estimates.forEach((result,index)=>{if(result.status==='fulfilled')aiEstimates.set(rows[index].id,result.value)});
- return {values,ownBids,stamp,aiEstimates};
+ return {values,ownBids,stamp};
 }
 export function listingDto(row:ListingRow,seller:Pick<Profile,'id'|'name'|'handle'|'createdAt'>|undefined,viewerId:string|undefined,context:ListingContext):Listing{
  const items=listingItems(row),auction=auctionView(row,viewerId,context.ownBids.get(row.id),context.stamp),fulfillment=fulfillmentSchema.parse(row.fulfillment);
  // Select every public field explicitly; ledger identities, vault revision,
  // internal CAS versions and private inventory prices never leave this DTO.
- return {id:row.id,sellerId:row.sellerId,bookId:row.bookId,issueId:row.issueId,title:row.title,grade:row.grade,description:row.description,price:row.price,shipping:row.shipping,photos:JSON.parse(row.photos),cert:row.cert,status:row.status==='active'&&auction?.ended?'ended':row.status,createdAt:row.createdAt,safePurchaseOptIn:!!row.safePurchaseOptIn,safePurchaseVerifiedAt:row.safePurchaseVerifiedAt,locationCity:row.locationCity,locationState:row.locationState,seller:{id:seller?.id||'',name:seller?.name||'Former collector',handle:seller?.handle||'',...(seller?.createdAt?{createdAt:seller.createdAt}:{})},fulfillment,pickupCity:fulfillment==='shipping'?'':row.pickupCity,pickupState:fulfillment==='shipping'?'':row.pickupState,kind:row.kind==='collection'?'collection':'single',saleType:row.saleType==='auction'?'auction':'fixed',items,itemCount:items.length,aiEstimate:context.aiEstimates?.get(row.id),valuation:listingValuation(items,context.values,context.stamp),auction};
+ return {id:row.id,sellerId:row.sellerId,bookId:row.bookId,issueId:row.issueId,title:row.title,grade:row.grade,description:row.description,price:row.price,shipping:row.shipping,photos:JSON.parse(row.photos),cert:row.cert,status:row.status==='active'&&auction?.ended?'ended':row.status,createdAt:row.createdAt,safePurchaseOptIn:!!row.safePurchaseOptIn,safePurchaseVerifiedAt:row.safePurchaseVerifiedAt,locationCity:row.locationCity,locationState:row.locationState,seller:{id:seller?.id||'',name:seller?.name||'Former collector',handle:seller?.handle||'',...(seller?.createdAt?{createdAt:seller.createdAt}:{})},fulfillment,pickupCity:fulfillment==='shipping'?'':row.pickupCity,pickupState:fulfillment==='shipping'?'':row.pickupState,kind:row.kind==='collection'?'collection':'single',saleType:row.saleType==='auction'?'auction':'fixed',items,itemCount:items.length,auction};
 }
 
 function databaseMessage(error:unknown){let current=error;const parts:string[]=[];for(let i=0;i<5&&current&&typeof current==='object';i++){const e=current as {message?:unknown;cause?:unknown};if(typeof e.message==='string')parts.push(e.message);current=e.cause}return parts.join(' ')}
@@ -157,6 +148,7 @@ export async function initializeSellerListings(db:Db,me:Profile){
 }
 export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>){
  const value=creationSchema.parse(raw),selected=value.bookIds||(value.bookId?[value.bookId]:[]);
+ await ensureSellerPhotos(me.userId,value.photos);
  if(!selected.length||value.kind==='single'&&selected.length!==1)throw new ApiRequestError('Choose one owned copy for a single listing, or up to 1,000 copies for a collection.',400);
  if(value.bookIds&&value.bookId&&value.bookId!==selected[0])throw new ApiRequestError('Check the selected copies before publishing.',400);
  const modern=['kind','saleType','bookIds','conditions','title','durationHours','bidIncrement','usaAttest','fulfillment','pickupCity','pickupState'].some(key=>Object.hasOwn(raw,key));

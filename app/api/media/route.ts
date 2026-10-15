@@ -7,7 +7,7 @@ import {vaultSchema} from '../../../lib/vault';
 import {blocked} from '../../../lib/conversations';
 import {previewRulesVersion} from '../../../lib/community';
 import {ApiRequestError,enforceWriteLimits,isRestricted,privateJson,readBytes} from '../../../lib/api-security';
-import {prepareImage} from '../../../lib/media-image';
+import {normalizeSellerPhoto} from '../../../lib/seller-photos';
 const json=(error:string,status:number)=>privateJson({error},status);
 
 export async function POST(req:Request){try{
@@ -19,10 +19,10 @@ export async function POST(req:Request){try{
  if(!profile)return json('Create your free collector profile before uploading photos.',403);
  if(profile.moderated||await isRestricted(db,user.userId))return json('Your account is restricted pending moderation review.',403);
  if(profile.rulesVersion!==previewRulesVersion||!profile.rulesAcceptedAt)return json('Open your collector profile and accept the current community rules before uploading.',403);
- const prepared=prepareImage(await readBytes(req,4194304));
+ const prepared=await normalizeSellerPhoto(await readBytes(req,4194304));
  const [n]=await db.select({n:count()}).from(media).where(eq(media.userId,user.userId));if(n.n>=500)return json('Your photo limit is 500. Contact the operator for more storage.',429);
  const id=crypto.randomUUID();await env.BUCKET.put('photos/'+id,prepared.bytes,{httpMetadata:{contentType:prepared.contentType}});
- try{await db.insert(media).values({id,userId:user.userId,contentType:prepared.contentType,createdAt:new Date().toISOString()})}catch{await env.BUCKET.delete('photos/'+id);return json('Photo could not be saved.',500)}
+ try{await env.BUCKET.put('thumbnails/'+id,prepared.thumbnail,{httpMetadata:{contentType:'image/webp'}});await db.batch([db.insert(media).values({id,userId:user.userId,contentType:prepared.contentType,createdAt:new Date().toISOString()}),db.execute(sql`INSERT INTO ch_web.media_renditions(media_id,width,height,content_hash,thumbnail_key) VALUES(${id},${prepared.width},${prepared.height},${prepared.hash},${'thumbnails/'+id})`)])}catch{await env.BUCKET.delete(['photos/'+id,'thumbnails/'+id]);return json('Photo could not be saved.',500)}
  return privateJson({id});
 }catch(error){if(error instanceof ApiRequestError)return json(error.message,error.status);return json('Photo could not be uploaded. Please retry.',500)}}
 
@@ -76,6 +76,6 @@ export async function GET(req:Request){try{
   }
  }
  if(!shared)return json('Photo not found.',404);
- const object=await env.BUCKET?.get('photos/'+id);if(!object)return json('Photo not found.',404);
- return new Response(object.body,{headers:{'Content-Type':asset.contentType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
+ const thumbnail=new URL(req.url).searchParams.get('size')==='thumbnail',rendition=thumbnail?await env.BUCKET?.get('thumbnails/'+id):null;const object=rendition||await env.BUCKET?.get('photos/'+id);if(!object)return json('Photo not found.',404);
+ return new Response(object.body,{headers:{'Content-Type':rendition?'image/webp':asset.contentType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
 }catch{return json('Photo could not be loaded. Please retry.',500)}}

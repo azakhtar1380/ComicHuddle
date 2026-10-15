@@ -7,14 +7,14 @@ import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import './platform-v2.css';
 
 export function homeComic(issue:Issue):ComicCardRecord{
- return {estimatedValue:issue.estimatedValue,id:String(issue.id),title:issue.title,issueNumber:issue.number,publisher:issue.publisher,
+ return {id:String(issue.id),title:issue.title,issueNumber:issue.number,publisher:issue.publisher,
   publicationDate:issue.bibliography?.publicationDate|| (issue.year?String(issue.year):null),
   coverUrl:issue.cover||null,coverCredit:issue.coverCredit||null,variant:issue.variant,
   keyTags:issue.kind==='Key issue'?['Key issue']:[],rawFMVCents:null,cgc98FMVCents:null,
   valuationAsOf:null,valuationKind:'unavailable',listingCount:0};
 }
 const emptyFeed:HomeFeed={items:[],market:[],indexedCount:0,asOf:'',feedKind:'editorial',filmKeys:[],ratioVariants:[]};
-export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComic,onValueCollection}:{go:(value:string)=>void;onProfile:()=>void;onProvider:()=>void;onScan:()=>void;onOpenComic:(id:string)=>void;onValueCollection:()=>void}){
+export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComic}: {go:(value:string)=>void;onProfile:()=>void;onProvider:()=>void;onScan:()=>void;onOpenComic:(id:string)=>void}){
  const [feed,setFeed]=useState<HomeFeed>(emptyFeed),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const reload=useCallback(async(signal:AbortSignal)=>{
   setLoading(true);setError('');
@@ -30,7 +30,7 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
   if(!response.ok)throw Error('Directory search unavailable.');return parseCatalogSearchPage(await response.json()).issues.map(homeComic);
  },[]);
  return <><Homepage feed={feed} loading={loading} search={search} onScan={onScan} onOpenComic={onOpenComic}
-  onValueCollection={onValueCollection} onBrowseKeys={()=>go('Directory')} onMarketplace={()=>go('Marketplace')}
+  onBrowseKeys={()=>go('Directory')} onMarketplace={()=>go('Marketplace')}
   onProfile={onProfile} onWorkshop={()=>go('Comic Workshop')} onRegisterSpecialist={onProvider}/>
   {error&&<div role="alert" className="home-directory-error"><p>{error}</p><button className="button outline small-button" onClick={()=>void reload(new AbortController().signal)}>Retry directory</button></div>}
   <div className="home-provider-link"><button className="inline-button" onClick={onProvider}>List my pressing studio</button><span>Vintage cover spotlight: Planet Comics #12, #55 and #27. Public-domain US editions; cover credits appear in the directory.</span></div>

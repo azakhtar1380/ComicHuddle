@@ -4,11 +4,13 @@ import type {CatalogDb} from './catalog-store';
 export type EnrichmentKind='cover'|'valuation'|'pulse';
 export type EnrichmentJob={id:string;kind:EnrichmentKind;job_key:string;payload:Record<string,unknown>;attempts:number;lease_token:string};
 export async function enqueueEnrichment(db:CatalogDb,kind:EnrichmentKind,key:string,payload:Record<string,unknown>){
+ if(kind!=='cover')return;
  await db.execute(sql`INSERT INTO ch_web.enrichment_jobs(id,kind,job_key,payload) VALUES(${randomUUID()}::uuid,${kind},${key},${JSON.stringify(payload)}::jsonb)
  ON CONFLICT(kind,job_key) DO UPDATE SET status='PENDING',payload=excluded.payload,available_at=now(),attempts=0,last_error_code=NULL,updated_at=now()
  WHERE enrichment_jobs.status IN ('DONE','DISABLED') AND enrichment_jobs.updated_at<now()-interval '5 minutes'`);
 }
 export async function claimEnrichment(db:CatalogDb,kind:EnrichmentKind):Promise<EnrichmentJob|null>{
+ if(kind!=='cover')return null;
  await db.execute(sql`UPDATE ch_web.enrichment_jobs SET status='FAILED',last_error_code='lease_recovery_exhausted',updated_at=now() WHERE kind=${kind} AND status='PROCESSING' AND attempts>=5 AND lease_expires_at<now()`);
  const lease=randomUUID();const rows=await db.execute(sql`WITH due AS (SELECT id FROM ch_web.enrichment_jobs
   WHERE kind=${kind} AND attempts<5 AND available_at<=now() AND (status='PENDING' OR status='PROCESSING' AND lease_expires_at<now())

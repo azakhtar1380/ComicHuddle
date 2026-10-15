@@ -1,6 +1,7 @@
 import {ArrowLeft,ArrowRight,BookOpen,Camera,Gift,ShieldCheck,UserRound,Wallet} from 'lucide-react';
 import './feature-info.css';
 import SiteHeader from './site-header';
+import SiteFooter from './site-footer';
 export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
  const wallet=kind==='wallet';
  const steps=wallet?[
@@ -22,5 +23,5 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
   <section className="info-steps" aria-label={wallet?'How rewards work':'SafePurchase workflow'}>{steps.map(([title,body],index)=><article key={title}><span className="info-step">{index+1}</span><div><h2>{title}</h2><p>{body}</p></div></article>)}</section>
   <aside className="info-note"><h2>{wallet?'Your balances stay private.':'Protection depends on verified steps.'}</h2><p>{wallet?'Collector Reward Points and Available Store Credit appear in your profile and wallet. Sandbox points and credit stay separate from real balances. Seller proceeds are a separate transaction record; they are not reward credit. Workshop credit is available when the workshop uses platform checkout.':'SafePurchase service terms must be accepted before sending a book. This preview has no connected inspection operator, carrier verification or live payout service. It does not accept a SafePurchase payment while those requirements are incomplete.'}</p><p>Payment methods depend on the connected processor and eligible device. No payment is taken while checkout is unconfigured.</p></aside>
   <div className="info-actions"><a className="button red" href={wallet?'/?section=Wallet':'/?section=Marketplace'}>{wallet?'Open my wallet':'Explore the marketplace'}<ArrowRight size={17}/></a><a className="button outline" href="/?section=Orders">Orders &amp; support</a><a className="button outline" href="/?section=Scan"><Camera size={17}/> Scan a comic</a></div>
- </main></div>;
+ </main><SiteFooter/></div>;
 }

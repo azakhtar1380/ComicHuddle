@@ -2,7 +2,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { catalogCoverReferences } from '../db/schema';
 import type { CatalogDb } from './catalog-store';
 import type { Issue } from './catalog';
-import {withCatalogEstimates} from './catalog-estimates';
+import {reviewedLocalCover} from './reviewed-local-covers';
 import {readyCachedCoverRows} from './cover-cache-read';
 
 /** Only URLs supplied for an exact GCD issue, never guessed cover IDs. */
@@ -83,5 +83,5 @@ export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise
   // hotlink/cache publisher artwork. Public GCD art now uses the reviewed CDN.
   let ready=new Map<number,{url:string;attribution:string;source:string}>();
   try{ready=await readyCachedCoverRows(db,native.filter(issue=>!!issue.gcdId).map(issue=>issue.id))}catch{/* An additive cache migration may not have run yet. Metadata remains usable. */}
-  return withCatalogEstimates(db,native.map(issue=>{if(!issue.gcdId)return issue;const cached=ready.get(issue.id);return {...issue,cover:cached?.url,coverCredit:cached?.attribution,coverSource:cached?.source}}));
+  return native.map(issue=>{if(!issue.gcdId)return issue;const cached=ready.get(issue.id);return cached?{...issue,cover:cached.url,coverCredit:cached.attribution,coverSource:cached.source}:reviewedLocalCover({...issue,cover:undefined,coverCredit:undefined,coverSource:undefined})});
 }

@@ -5,7 +5,6 @@ import {ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, Filter, Grid3X3, List
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
 import './shared-directory.css';
-import CatalogFmv from './catalog-fmv';
 import ResolvedComicCover from './resolved-comic-cover';
 import ComicPicker from './comic-picker';
 import DirectoryTree from './directory-tree';
@@ -23,7 +22,7 @@ const pageSize = 12;
 const eras = ['Golden Age', 'Silver Age', 'Bronze Age', 'Copper Age', 'Modern Age'];
 const kinds = ['First appearance', 'Key issue', 'Cover spotlight', 'Series debut', 'Run builder', 'Catalog issue'];
 function DirectoryIssueCard({issue,onOpen}:{issue:Issue;onOpen:(issue:Issue)=>void}) {
- return <article className="sd-card sd-card-shell"><button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}><span className="sd-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span><span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span></button><CatalogFmv issueId={issue.id} initialSnapshot={issue.estimatedValue}/></article>;
+ return <article className="sd-card sd-card-shell"><button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}><span className="sd-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span><span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span></button></article>;
 }
 
 function syncedDate(value: string | null) {

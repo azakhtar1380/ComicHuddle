@@ -5,7 +5,6 @@ import type {Issue} from '../lib/catalog';
 import {createCatalogSearchSession,nextPickerIndex,type CatalogSearchPage} from '../lib/catalog-picker-client';
 import './comic-picker.css';
 import ResolvedComicCover from './resolved-comic-cover';
-import EstimatedValue from './estimated-value';
 
 function Cover({issue,selected=false}:{issue:Issue;selected?:boolean}){return <span className={'picker-cover'+(selected?' selected-cover':'')}><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span>;}
 
@@ -45,7 +44,7 @@ export default function ComicPicker({value,onChange,disabled=false,initialQuery=
    <div className="picker-results-state" role="status" aria-live="polite">{summary}</div>
    <div id={listId} role="listbox" aria-label="Matching comic issues" aria-busy={pending} className="picker-results">
     {!pending&&!error&&rows.map((issue,index)=><div id={listId+'-'+index} role="option" aria-selected={active===index} key={issue.id} className={'picker-option'+(active===index?' active':'')} onMouseDown={event=>event.preventDefault()} onMouseEnter={()=>setActive(index)} onClick={()=>choose(issue)}>
-     <Cover issue={issue}/><div className="picker-option-copy"><strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher} · {issue.year}{ownedIssueIds?.has(issue.id)?' · Owned':''}</small><span>{issue.variant} · {issue.note}</span><EstimatedValue request={{issueId:issue.id,reference:true}} initialSnapshot={issue.estimatedValue}/></div><Check size={15} className="picker-option-check"/>
+     <Cover issue={issue}/><div className="picker-option-copy"><strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher} · {issue.year}{ownedIssueIds?.has(issue.id)?' · Owned':''}</small><span>{issue.variant} · {issue.note}</span></div><Check size={15} className="picker-option-check"/>
     </div>)}
    </div>
    {!pending&&error&&<button type="button" className="picker-retry" onClick={()=>setRetry(value=>value+1)}>Retry directory search</button>}

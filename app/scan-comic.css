@@ -43,3 +43,5 @@
 .scan-crop-handle.nw{left:-13px;top:-13px;cursor:nwse-resize}.scan-crop-handle.ne{right:-13px;top:-13px;cursor:nesw-resize}.scan-crop-handle.sw{left:-13px;bottom:-13px;cursor:nesw-resize}.scan-crop-handle.se{right:-13px;bottom:-13px;cursor:nwse-resize}
 .scan-crop-editor .actions{gap:8px;margin-bottom:0;flex-wrap:wrap}.scan-crop-editor .actions .button{min-width:0}
 .scan-secondary>button{display:inline-flex;align-items:center;gap:6px}
+
+.scan-barcode-entry{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px;padding:15px;background:var(--cream);border:1px solid var(--line);border-radius:10px;margin:15px 0}.scan-barcode-entry label{font-size:11px;display:flex;flex-direction:column;gap:6px}.scan-barcode-entry input{min-width:0;width:100%;font-size:16px;padding:11px;border:1px solid var(--line);background:var(--paper);border-radius:6px}.scan-barcode-entry small{grid-column:1/-1;font-size:11px;line-height:1.7;color:var(--muted)}@media(max-width:450px){.scan-barcode-entry{grid-template-columns:1fr}.scan-barcode-entry .button{width:100%}}

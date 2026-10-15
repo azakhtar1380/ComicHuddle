@@ -105,9 +105,10 @@ await test('An owner flag cannot enable a live or restricted-live Stripe key', (
     assert.equal(config.ready, false); assert.equal(config.checkoutEnabled, false); assert.equal(config.reason, 'live_key_rejected');
   }
 });
-await test('Malformed, whitespace, publishable and restricted keys fail closed', () => {
-  for (const key of ['sk_test_short', 'sk_test_SYNTHETICKEY 0000001', 'pk_test_SYNTHETICKEY0000001', 'rk_test_SYNTHETICKEY0000001', true])
+await test('Malformed, whitespace and publishable keys fail closed; reviewed test restricted keys are eligible', () => {
+  for (const key of ['sk_test_short', 'sk_test_SYNTHETICKEY 0000001', 'pk_test_SYNTHETICKEY0000001', true])
     assert.equal(sandboxConfiguration({...env, COMMERCE_STRIPE_TEST_SECRET_KEY: key}).ready, false);
+  assert.equal(sandboxConfiguration({...env,COMMERCE_STRIPE_TEST_SECRET_KEY:'rk_test_SYNTHETICKEY0000001'}).ready,true);
 });
 await test('Explicit review and sandbox flags, webhook key and HTTPS origin are mandatory', () => {
   for (const change of [{COMMERCE_SANDBOX_ENABLED: true}, {COMMERCE_SANDBOX_REVIEWED: 'false'},

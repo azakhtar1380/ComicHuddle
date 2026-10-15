@@ -1,3 +1,4 @@
+import {ensureSellerPhotos} from './seller-photos';
 import {and,desc,eq,inArray,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
 import {getDb} from '../db';
@@ -56,7 +57,7 @@ function needShippingCheckout(listing:{fulfillment:unknown}){
  if(listing.fulfillment!=='shipping'&&listing.fulfillment!=='both')throw new ApiRequestError('This listing’s delivery method is unavailable for shipping checkout.',409);
 }
 function retryWindow(createdAt:string){const age=Date.now()-Date.parse(createdAt);if(!Number.isFinite(age)||age<0||age>=23*3600000)throw new ApiRequestError('The processor idempotency safety window expired. Support must reconcile the original operation before any new request.',409)}
-export function commerceSetup(environment:StripeSandboxEnv){const key=environment.COMMERCE_STRIPE_TEST_PUBLISHABLE_KEY,publishableKey=typeof key==='string'&&/^pk_test_[A-Za-z0-9]{16,}$/.test(key)?key:null;return {publishableKey,paymentElementEnabled:!!publishableKey&&sandboxSetup(environment).ready,sandbox:true,setup:sandboxSetup(environment),carrierConnected:false,payoutsEnabled:false,productionPaymentsEnabled:false,provider:'Stripe',supportedPaymentMethods:['card','apple_pay','google_pay'],applePayRequiresEligibleDevice:true}}
+export function commerceSetup(environment:StripeSandboxEnv){const key=environment.COMMERCE_STRIPE_TEST_PUBLISHABLE_KEY,publishableKey=typeof key==='string'&&/^pk_test_[A-Za-z0-9]{16,}$/.test(key)?key:null;return {publishableKey,paymentElementEnabled:!!publishableKey&&sandboxSetup(environment).ready,sandbox:true,setup:{...sandboxSetup(environment),checkoutEnabled:sandboxSetup(environment).checkoutEnabled&&environment.COMMERCE_NEW_CHECKOUT_PAUSED!=='true',...(environment.COMMERCE_NEW_CHECKOUT_PAUSED==='true'?{reason:'new_checkout_paused'}:{})},carrierConnected:false,payoutsEnabled:false,productionPaymentsEnabled:false,provider:'Stripe',supportedPaymentMethods:['card','apple_pay','google_pay'],applePayRequiresEligibleDevice:true}}
 export function commerceOrderDto(row:Row,userId:string){
  const state=stateOf(row),snapshot=snapshotOf(row),decision=evaluateCommercePolicy(state,now()),timingUnknown=state.paymentTimingVerified===false;
  const verified=state.shipment.validatedAt?{carrier:state.shipment.carrier,number:state.shipment.trackingNumber,verified:true,submittedAt:state.shipment.submittedAt}:state.trackingSubmission||null;
@@ -106,7 +107,7 @@ async function boundSeller(db:Db,seller:Profile,processor:Processor){
  return record.stripeAccountId;
 }
 export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
- const input=commerceCheckoutSchema.parse(raw);needReady(environment);if(input.checkoutUiMode==='elements'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid test publishable key. No payment was started.',503);const processor=stripeSandbox(environment);
+ const input=commerceCheckoutSchema.parse(raw);if(environment.COMMERCE_NEW_CHECKOUT_PAUSED==='true')throw new ApiRequestError('New checkout is paused. Existing orders, payment confirmation and refunds remain available from Orders.',503);needReady(environment);if(input.checkoutUiMode==='elements'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid test publishable key. No payment was started.',503);const processor=stripeSandbox(environment);
  const [previous]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.buyerUserId,profile.userId),eq(commerceOrders.requestId,input.requestId)));
  let row:Row;
  if(previous){const snapshot=snapshotOf(previous);if(previous.listingId!==input.listingId||JSON.stringify(snapshot.shippingAddress)!==JSON.stringify(input.shippingAddress)||(snapshot.storeCreditCents??0)!==input.storeCreditCents||(snapshot.checkoutUiMode??'hosted_page')!==input.checkoutUiMode)throw new ApiRequestError('This checkout request was already used for a different order.',409);row=previous}
@@ -118,6 +119,7 @@ export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Re
   if(listing.sellerId===profile.id)throw new ApiRequestError('You cannot buy your own comic listing.',403);
   const [seller]=await db.select().from(profiles).where(eq(profiles.id,listing.sellerId));
   if(!seller?.visible||seller.moderated||seller.deletionStartedAt||seller.rulesVersion!==previewRulesVersion||!seller.rulesAcceptedAt||!listing.usaAttestedAt||await isRestricted(db,seller.userId)||await blocked(db,profile.id,seller.id))throw new ApiRequestError('Listing is unavailable for checkout.',404);
+  await ensureSellerPhotos(seller.userId,JSON.parse(listing.photos));
   const sellerAccountId=await boundSeller(db,seller,processor),items=listingItems(listing),gross=listing.price+listing.shipping,total=gross-input.storeCreditCents;
   if(input.storeCreditCents>listing.price||total<50)throw new ApiRequestError('Credit can reduce the item subtotal. At least $0.50 must remain for this Stripe test payment.',400);
   if(!items.length||items.length!==listing.itemCount||!Number.isSafeInteger(total)||listing.price<100||listing.shipping<0||total>99_999_999)throw new ApiRequestError('Listing needs a valid bounded price and complete copy snapshot.',409);

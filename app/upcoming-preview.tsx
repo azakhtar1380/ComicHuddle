@@ -1,0 +1,2 @@
+import {ArrowUpRight,Clock3} from 'lucide-react';
+export default function UpcomingPreview(){return <section className="upcoming-preview" aria-labelledby="upcoming-home-title"><div><span className="eyebrow"><Clock3 size={15}/> UPCOMING</span><h2 id="upcoming-home-title">Fair Market Value &amp; Price Insights <span className="upcoming-label">Coming Soon</span></h2><p>Pricing insights for individual comics and collections are planned for a future release.</p></div><a className="inline-button" href="/upcoming#fmv">See what’s upcoming <ArrowUpRight size={16}/></a></section>}

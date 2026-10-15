@@ -44,6 +44,6 @@ const entries:Omit<Issue,'id'|'era'|'variant'>[]=[
 ];
 export const catalog:Issue[]=[...entries,...catalogAdditions].map((e,id)=>({...e,id,variant:'Original issue · printing to be confirmed',era:e.year<1956?'Golden Age':e.year<1970?'Silver Age':e.year<1985?'Bronze Age':e.year<1992?'Copper Age':'Modern Age'}));
 export const grades=['10.0','9.9','9.8','9.6','9.4','9.2','9.0','8.5','8.0','7.5','7.0','6.5','6.0','5.5','5.0','4.5','4.0','3.5','3.0','2.5','2.0','1.8','1.5','1.0','0.5'];
-export const navigation=['Home','Directory','Marketplace','Collectors','Pressing'];
+export const navigation=['Home','Directory','Marketplace','Collectors','Pressing','Upcoming'];
 export function sectionLabel(section:string){return section==='Pressing'?'Comic Workshop':section==='Collectors'?'My Profile':section}
 export function normalize(s:string){return s.toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]/g,'')}

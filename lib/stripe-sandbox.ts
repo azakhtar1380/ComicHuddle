@@ -5,6 +5,7 @@ const API_ORIGIN = 'https://api.stripe.com';
 const MAX_CENTS = 99_999_999;
 type StripeObject = Record<string, unknown>;
 export type StripeSandboxEnv = {
+  COMMERCE_NEW_CHECKOUT_PAUSED?: unknown;
   COMMERCE_SANDBOX_ENABLED?: unknown;
   COMMERCE_SANDBOX_REVIEWED?: unknown;
   COMMERCE_STRIPE_TEST_SECRET_KEY?: unknown;

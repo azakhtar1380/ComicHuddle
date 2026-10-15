@@ -16,9 +16,6 @@
     "app/api/cron/new-releases-resume/route.ts": {
       "maxDuration": 300
     },
-    "app/api/cron/fmv/route.ts": {
-      "maxDuration": 300
-    },
     "app/api/cron/enrichment/route.ts": {
       "maxDuration": 300
     }
@@ -31,10 +28,6 @@
     {
       "path": "/api/cron/new-releases-resume",
       "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/fmv",
-      "schedule": "15 9 * * 1"
     },
     {
       "path": "/api/cron/enrichment",

@@ -5,6 +5,7 @@ import {readFileSync, existsSync} from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
+import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 
 export function createScannerFixture(options = {}) {
@@ -94,6 +95,7 @@ export function createScannerFixture(options = {}) {
     };
     let code = ts.transpileModule(readFileSync(resolved, 'utf8'), {fileName: resolved,
       compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX}}).outputText;
+    code=code.replaceAll('import.meta.url',JSON.stringify(pathToFileURL(resolved).href));
     // Expose an existing local component only in this controlled test module.
     // No application exports or nested React lifecycle are inferred by the fixture.
     if (resolved === componentFile && options.componentLocal)
