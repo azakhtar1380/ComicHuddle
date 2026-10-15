@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   try {
     let status = await getGcdSyncStatus(db);
     if (new URL(request.url).searchParams.get('status') === '1') return json({ status: 'configured', schedule: 'weekly', source: 'GCD', checkpoint: status });
-    const coverage=await refreshNativeCatalogState();
+    let coverage=await refreshNativeCatalogState();
     if (new URL(request.url).searchParams.get('resume') === '1' && status.daily.stage !== 'importing') return json({ status: 'idle', reason: 'No weekly release checkpoint needs continuation.',coverage });
     // Explicitly authorized weekly release scope only; never run historical
     // backfill or re-enable the stopped private Site/Metron tasks.
@@ -28,6 +28,7 @@ export async function GET(request: Request) {
       status = await gcdSyncStep(db, 'daily', {}, { onlyMissing: true }); steps++;
       if (status.daily.stage === 'complete') break;
     }
+    if(steps&&Date.now()<deadline-30000)coverage=await refreshNativeCatalogState();
     return json({ status: status.pausedByOwner ? 'paused' : status.retryAfter ? 'quota_wait' : status.daily.stage === 'complete' ? 'completed' : 'checkpoint_saved',
       steps, coverage, checkpoint: status }, 200, status.retryAfter);
   } catch (error) {

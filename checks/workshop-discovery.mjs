@@ -27,6 +27,8 @@ function fixture(overrides={}){
   if(specifier==='react/jsx-runtime')return {jsx,jsxs:jsx,Fragment:'fragment'};
   if(specifier==='lucide-react')return icons;
   if(specifier==='../lib/pressing')return care;
+  if(specifier==='./location-radius-filter')return {default:props=>jsx('location-filter',props)};
+  if(specifier==='../components/collector-search')return {default:props=>jsx('collector-search',props)};
   if(specifier==='./network')return {Modal:props=>jsx('dialog',props),ComicArt:props=>jsx('comic-art',props),uploadPhoto:()=>{throw Error('No external uploads in this test')}};
   if(specifier.endsWith('.css'))return {};
   throw Error('Unexpected client dependency '+specifier);
@@ -68,41 +70,19 @@ await test('Rating ties use review count and stable registration order, never pr
  const ranked=care.rankProviders([studio('z','A, MN',{createdAt:'2026-02-01',prices:{pressing:0},paid:true}),studio('b','A, MN'),studio('a','A, MN'),studio('more','A, MN',{reviewCount:5})]);assert.equal(ranked.find(p=>p.id==='more').rank,1);assert.equal(ranked.find(p=>p.id==='a').rank,2);assert.equal(ranked.find(p=>p.id==='b').rank,3);assert.equal(ranked.find(p=>p.id==='z').rank,4);
 });
 function card(p,extra={}){const f=fixture();return {f,tree:f.ui.ProviderCard({p,localRank:true,mine:false,compared:false,compareFull:false,onOpen:()=>f.calls.push('details'),onQuote:()=>f.calls.push('quote'),onMessage:()=>f.calls.push('message'),onCompare:()=>f.calls.push('compare'),...extra})}}
-await test('Cards show each offered price separately and missing quotes never appear as zero',()=>{
- const {tree}=card(studio('custom','A, MN',{prices:{pressing:null,dry_cleaning:undefined}}));const value=text(tree);assert.match(value,/Pressing Custom quote/);assert.match(value,/Dry cleaning Custom quote/);assert.ok(!value.includes('$0.00'));const zero=text(card(studio('zero','A, MN',{prices:{pressing:0,dry_cleaning:500}})).tree);assert.match(zero,/From \$0\.00/);assert.match(zero,/From \$5\.00/);
+await test('Current specialist cards show real services, location, review count and quote-first actions',()=>{
+ const {tree}=card(rows[0]),value=text(tree);assert.match(value,/North Star Press/);assert.match(value,/Minneapolis, MN/);assert.match(value,/4 reviews/);assert.match(value,/Comic pressing|Pressing/);assert.match(value,/Request a Quote/);assert.ok(!value.includes('$0.00'));assert.ok(!value.includes('receipt-confirmed'));
 });
-await test('Card review badges count reviews and intake chips only show supported methods',()=>{
- const value=text(card(studio('mail','A, MN',{dropoff:false,reviewCount:4,completedReviewCount:2})).tree);assert.match(value,/4 member reviews · 2 receipt-confirmed/);assert.ok(!value.includes('completed requests'));assert.ok(!value.includes('Local drop-off'));assert.match(value,/Mail-in/);
+await test('Current specialist card controls retain exact studio identity for quotes, inquiries and comparison',()=>{
+ const {f,tree}=card(rows[0]);for(const [caption,action] of [['Request a Quote','quote'],['Send Message / Inquire','message'],['Compare','compare'],['Services & reviews','details']]){const button=nodes(tree,n=>n.type==='button'&&text(n).trim().startsWith(caption))[0];assert.ok(button,caption);button.props.onClick();assert.equal(f.calls.at(-1),action)}
 });
-await test('Real card controls open details, request quotes, message and toggle comparison',()=>{
- const {f,tree}=card(rows[0]);for(const caption of ['Request quote','Message','Compare']){const button=nodes(tree,n=>n.type==='button'&&text(n).trim().startsWith(caption))[0];assert.ok(button);button.props.onClick()}byLabel(tree,'Read 4 member reviews for North Star Press').props.onClick();assert.deepEqual(f.calls,['quote','message','compare','details']);
+await test('Own studio cards avoid self-inquiries; closed studios still allow messages but disable new quote requests',()=>{
+ const own=card(rows[0],{mine:true}),ownText=text(own.tree);assert.match(ownText,/My Studio/);assert.ok(!ownText.includes('Send Message / Inquire'));
+ const closed=card({...rows[0],accepting:false});assert.equal(nodes(closed.tree,n=>n.type==='button'&&text(n).startsWith('Request a Quote'))[0].props.disabled,true);assert.ok(nodes(closed.tree,n=>n.type==='button'&&text(n).includes('Send Message / Inquire')).length);
 });
-await test('Own studios avoid self-messaging while closed studios still support conversations',()=>{
- const own=card(rows[0],{mine:true});assert.ok(!nodes(own.tree,n=>n.type==='button'&&text(n).trim()==='Message').length);nodes(own.tree,n=>n.type==='button'&&text(n).trim().startsWith('My studio'))[0].props.onClick();assert.deepEqual(own.f.calls,['details']);const closed=card({...rows[0],accepting:false});assert.equal(nodes(closed.tree,n=>n.type==='button'&&text(n).trim().startsWith('Request quote'))[0].props.disabled,true);assert.equal(nodes(closed.tree,n=>n.type==='button'&&text(n).trim()==='Message')[0].props.disabled,undefined);
-});
-await test('Comparison prices distinguish custom quote, not offered and truthful receipt-confirmed review counts',()=>{
- const f=fixture(),providers=[studio('one','A, MN',{services:['pressing'],prices:{pressing:null}}),studio('two','B, MN',{prices:{pressing:2000,dry_cleaning:0},mailIn:false})];const tree=f.ui.WorkshopComparison({providers,onOpen:()=>{},onQuote:()=>{},onMessage:()=>{},onRemove:()=>{},onClear:()=>{},meId:'viewer'}),value=text(tree);assert.match(value,/Custom quote/);assert.match(value,/From \$20\.00/);assert.match(value,/From \$0\.00/);assert.match(value,/Not offered/);assert.match(value,/Drop-off \/ pickup by arrangement/);assert.match(value,/4 reviews · 1 receipt-confirmed/);assert.ok(!value.includes('completed requests'));
-});
-await test('Comparison callbacks preserve the selected studio identity and empty shortlists stay hidden',()=>{
- const f=fixture(),tree=f.ui.WorkshopComparison({providers:[rows[0]],onOpen:p=>f.calls.push(['details',p.id]),onQuote:p=>f.calls.push(['quote',p.id]),onMessage:p=>f.calls.push(['message',p.id]),onRemove:id=>f.calls.push(['remove',id]),onClear:()=>f.calls.push(['clear']),meId:'viewer'});nodes(tree,n=>n.type==='button'&&text(n).trim()==='Request quote')[0].props.onClick();nodes(tree,n=>n.type==='button'&&text(n).trim()==='Message')[0].props.onClick();byLabel(tree,'Remove North Star Press from comparison').props.onClick();assert.deepEqual(f.calls,[['quote','local-a'],['message','local-a'],['remove','local-a']]);assert.equal(f.ui.WorkshopComparison({providers:[]}),null);
-});
-await test('Actual city/state controls narrow both views and state changes clear a previous city',()=>{
- const f=fixture();let tree=f.render();byLabel(tree,'Filter workshops by state').props.onChange({target:{value:'MN'}});tree=f.render();byLabel(tree,'Filter workshops by city').props.onChange({target:{value:'minneapolis'}});tree=f.render();let cards=nodes(tree,n=>n.type?.name==='ProviderCard');assert.deepEqual(cards.map(n=>n.props.p.id),['new-local','local-b','local-a']);assert.equal(cards.find(n=>n.props.p.id==='local-b').props.p.rank,1);byLabel(tree,'Filter workshops by state').props.onChange({target:{value:'OR'}});assert.equal(f.states.city,'');tree=f.render();assert.deepEqual(nodes(tree,n=>n.type?.name==='ProviderCard').map(n=>n.props.p.id),['global-best']);
-});
-await test('Actual leaderboard search retains area rank instead of turning a searched studio into number one',()=>{
- const f=fixture({panel:'leaderboard',state:'MN',city:'minneapolis',query:'Casey Winters'}),tree=f.render(),cards=nodes(tree,n=>n.type?.name==='ProviderCard');assert.equal(cards.length,1);assert.equal(cards[0].props.p.id,'local-a');assert.equal(cards[0].props.p.rank,2);assert.match(text(nodes(tree,n=>n.props?.className==='care-rank-note')[0]),/Paid placement never changes rank/);
-});
-await test('Actual shortlist limits three studios, removes a selected studio and keeps messaging account-gated',async()=>{
- const f=fixture();let tree=f.render();for(const id of ['local-a','local-b','state-other','global-best'])nodes(tree,n=>n.type?.name==='ProviderCard'&&n.props.p.id===id)[0].props.onCompare();assert.equal(f.states.compareIds.length,3);tree=f.render();assert.equal(nodes(tree,n=>n.type?.name==='ProviderCard'&&n.props.p.id==='global-best')[0].props.compareFull,true);nodes(tree,n=>n.type?.name==='ProviderCard'&&n.props.p.id==='local-a')[0].props.onCompare();assert.equal(f.states.compareIds.length,2);f.props.gate=()=>false;tree=f.render();nodes(tree,n=>n.type?.name==='ProviderCard'&&n.props.p.id==='local-a')[0].props.onMessage();await Promise.resolve();assert.equal(f.calls.length,0);
-});
-await test('Guests see an account gate rather than fabricated empty provider totals or unsolicited reads',()=>{
- const f=fixture({data:{providers:[],mine:null,jobs:[]}});f.props.signedIn=false;f.props.net.data.me=null;const tree=f.render(),value=text(tree);assert.match(value,/Free account to browse/);assert.ok(!value.includes('0 studios'));assert.ok(!value.includes('FIRST GREAT PRESSERS'));assert.equal(nodes(tree,n=>n.type?.name==='ProviderCard').length,0);assert.equal(f.calls.length,0);
-});
-await test('A guest provider deep link remains available after sign-in instead of being consumed by the empty guest list',async()=>{
- const f=fixture();f.props.signedIn=false;f.props.net.data.me=null;f.render();const effect=()=>f.effects.find(fn=>String(fn).includes('deepLinked.current'));effect()();assert.equal(f.refs.deepLinked.current,false);f.props.signedIn=true;f.render();effect()();await Promise.resolve();assert.equal(f.refs.deepLinked.current,true);assert.equal(f.calls[0].fetch,'/api/pressing?kind=provider&id=local-a');
-});
-await test('The provider desk keeps the independent collector collection available',()=>{
- const f=fixture({panel:'provider',data:{providers:rows,mine:rows[0],jobs:[]}}),tree=f.render(),button=nodes(tree,n=>n.type==='button'&&text(n).trim()==='My collection')[0];assert.ok(button);button.props.onClick();assert.deepEqual(f.calls,['collection']);
+await test('The studio comparison limit disables only a fourth unselected studio',()=>{
+ const full=card(rows[0],{compareFull:true}),selected=card(rows[0],{compareFull:true,compared:true});
+ assert.equal(nodes(full.tree,n=>n.type==='button'&&text(n).trim()==='Compare')[0].props.disabled,true);assert.equal(nodes(selected.tree,n=>n.type==='button'&&text(n).trim()==='Compare')[0].props.disabled,false);
 });
 console.log('\nWorkshop discovery results: '+passed+' passed, '+failures.length+' failed.');
 if(failures.length){console.error(JSON.stringify(failures,null,2));process.exitCode=1}

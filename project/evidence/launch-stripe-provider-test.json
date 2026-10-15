@@ -1,0 +1,86 @@
+{
+  "observedAt": "2026-10-15T16:34:02.603Z",
+  "environment": "https://comichuddle-launch-qa-abdul-aziz-akhtars-projects.vercel.app",
+  "database": "comichuddle_launch_qa_20261015",
+  "tests": [
+    {
+      "test": "seller API authentication and persisted profile",
+      "detail": {
+        "durationMs": 5455
+      },
+      "passed": true
+    },
+    {
+      "test": "buyer API authentication and persisted profile",
+      "detail": {
+        "durationMs": 381
+      },
+      "passed": true
+    },
+    {
+      "test": "outsider API authentication and persisted profile",
+      "detail": {
+        "durationMs": 368
+      },
+      "passed": true
+    },
+    {
+      "test": "real hosted Stripe card UI, 3-D Secure and provider receipt",
+      "detail": {
+        "checkoutStatus": "complete",
+        "paymentStatus": "paid",
+        "paymentIntent": "pi_3UQrW4DtWxXM4ywk0VJB6V0T",
+        "amountReceived": 1500,
+        "currency": "usd",
+        "testMode": true
+      },
+      "passed": true
+    },
+    {
+      "test": "real provider partial refund and idempotent replay",
+      "detail": {
+        "id": "re_3UQrW4DtWxXM4ywk087tVHRV",
+        "amount": 500,
+        "status": "succeeded"
+      },
+      "passed": true
+    },
+    {
+      "test": "real provider remaining refund and idempotent replay",
+      "detail": {
+        "id": "re_3UQrW4DtWxXM4ywk0tP5HtX6",
+        "amount": 1000,
+        "status": "succeeded"
+      },
+      "passed": true
+    },
+    {
+      "test": "provider charge fully refunded after partial plus remainder",
+      "detail": {
+        "chargeId": "ch_3UQrW4DtWxXM4ywk0JdOY8YH",
+        "refundedCents": 1500
+      },
+      "passed": true
+    },
+    {
+      "test": "unbound provider-only test payments do not mint ComicHuddle order proceeds",
+      "passed": true
+    }
+  ],
+  "fixtures": {
+    "users": {
+      "seller": {
+        "userId": "ed342bcc-42fc-4bee-80ed-91e585faffd8",
+        "profileId": "b8802776-fe9b-467f-aaf0-000e55df2d6b"
+      },
+      "buyer": {
+        "userId": "2a042e6a-8a01-415d-9133-486bedaf95a6",
+        "profileId": "b8fd88db-0db3-419c-8a74-b66bfaf2cb3a"
+      },
+      "outsider": {
+        "userId": "71ec2e42-c24e-40b1-9ea4-4aa0defc62b6",
+        "profileId": "08517af2-61fb-4384-b291-8d685415f6db"
+      }
+    }
+  }
+}

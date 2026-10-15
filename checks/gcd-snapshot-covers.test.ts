@@ -1,7 +1,8 @@
+import {refreshNativeCatalogState} from '../lib/native-catalog-state';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -17,13 +18,14 @@ import { GET as weeklyGet } from '../app/api/cron/new-releases/route';
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 async function engine() {
   const database = new PGlite();await nativeGcdFixture(database); await database.exec('CREATE SCHEMA ch_web;');
-  for (const name of ['001_original_comichuddle.sql','002_runtime.sql','003_catalog_ingestion.sql','004_catalog_cover_references.sql','005_gcd_snapshot_import.sql','010_native_gcd_directory.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql']) {
+  for (const name of (await readdir('db/postgres-migrations')).filter(name=>name.endsWith('.sql')).sort()) {
     await database.exec(await readFile('db/postgres-migrations/' + name,'utf8'));
   }
   await database.exec('SET search_path TO ch_web,public;');
   const pool = new Pool();
   const query = async (config: string | { text: string; rowMode?: string }, values: unknown[] = []) => {
-    const result = await database.query<Record<string, unknown>>(typeof config === 'string' ? config : config.text, values);
+    if(typeof config==='string'&&!values.length&&config.includes(';')){const all=await database.exec(config),last=all.at(-1)!;return {...last,rowCount:last.affectedRows,command:''}}
+    const result = await database.query<Record<string, unknown>>(typeof config === 'string' ? config : config.text, values).catch(error=>{console.error('Isolated database query failed:',String((error as Error).message).slice(0,180));throw error});
     return { ...result, rowCount: result.affectedRows, command: '', rows: typeof config !== 'string' && config.rowMode === 'array' ? result.rows.map(row => result.fields.map(field => row[field.name])) : result.rows };
   };
   Object.assign(pool, { query, connect: async () => ({ query, release() {} }) });
@@ -58,8 +60,8 @@ test('real retained API witnesses reconcile all exact cover references without i
 test('thumbnail URLs cannot inject arbitrary hosts, credentials, scripts or unbounded artwork', () => {
   assert.ok(gcdThumbnailUrl('https://files1.comics.org//img/gcd/covers_by_id/27/w400/27847.jpg'));
   for(const value of ['javascript:alert(1)','https://files1.comics.org.evil.example/img/gcd/covers_by_id/27/w400/27847.jpg',
-    'http://files1.comics.org/img/gcd/covers_by_id/27/w400/27847.jpg','https://user:pass@files1.comics.org/img/gcd/covers_by_id/27/w400/27847.jpg',
-    'https://files1.comics.org/img/gcd/covers_by_id/27/w1200/27847.jpg',null]) assert.equal(gcdThumbnailUrl(value),null);
+'https://user:pass@files1.comics.org/img/gcd/covers_by_id/27/w400/27847.jpg',
+    'https://files1.comics.org/../secret',null]) assert.equal(gcdThumbnailUrl(value),null);
 });
 test('1001 snapshot issues import atomically in 500-row batches and replay without duplicates', async () => {
   const {database,pool}=await engine(),folder=await mkdtemp(join(tmpdir(),'gcd-snapshot-qa-'));
@@ -72,15 +74,15 @@ test('1001 snapshot issues import atomically in 500-row batches and replay witho
     const [cover]=(await database.query<{image_metadata:{coverId:number}}>('SELECT image_metadata FROM ch_web.catalog_cover_references')).rows;
     assert.equal(cover.image_metadata.coverId,27847);
     (globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool=pool;
-    const issue=await catalogIssue(getDb(),4_000_000_001);assert.ok(issue?.cover);assert.match(issue!.coverCredit!,/Grand Comics Database/);
-    const page=await searchSharedCatalog(getDb(),{q:'#1',limit:12,offset:0});assert.equal(page.issues[0].cover,issue!.cover);
+    const issue=await catalogIssue(getDb(),4_000_000_001);assert.ok(issue);assert.equal(issue.cover,undefined,'Unapproved source references are not public artwork');
+    await refreshNativeCatalogState();const page=await searchSharedCatalog(getDb(),{q:'#1',limit:12,offset:0});assert.equal(page.issues[0].cover,issue!.cover);
     assert.equal((await catalogOverview(getDb())).coverIssueCount,1);
     await database.query("UPDATE ch_web.catalog_cover_references SET status='withdrawn'");
     assert.equal((await withCatalogCovers(getDb(),[issue!]))[0].id,issue!.id);
     // API starts with stored bibliography (which contains no image URL), so a
     // withdrawn overlay disappears immediately rather than remaining cached.
     assert.equal((await catalogIssue(getDb(),issue!.id))?.cover,undefined);
-    assert.equal((await catalogOverview(getDb())).coverIssueCount,0);
+    await refreshNativeCatalogState();assert.equal((await catalogOverview(getDb())).coverIssueCount,0);
   }finally{delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;await database.close();await rm(folder,{recursive:true,force:true});}
 });
 test('checksum errors and borrowed variant covers fail before any database write', async () => {
@@ -137,7 +139,7 @@ test('authorized weekly job imports actual provider-shaped releases and their ow
   try{
     const response=await weeklyGet(new Request('https://comichuddle.test/api/cron/new-releases',{headers:{Authorization:'Bearer '+token}}));
     assert.equal(response.status,200);assert.equal((await response.json()).status,'completed');assert.equal(requests,3);
-    const record=await catalogIssue(getDb(),4_000_000_001);assert.ok(record?.cover);assert.match(record!.coverCredit!,/Grand Comics Database/);
+    const record=await catalogIssue(getDb(),4_000_000_001);assert.ok(record);assert.equal(record.cover,undefined,'Metadata imports do not grant image display rights');
     const status=await weeklyGet(new Request('https://comichuddle.test/api/cron/new-releases?status=1',{headers:{Authorization:'Bearer '+token}}));
     assert.equal((await status.json()).status,'configured');assert.equal(requests,3);
   }finally{

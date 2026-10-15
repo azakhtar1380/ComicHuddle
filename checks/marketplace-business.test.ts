@@ -1,3 +1,5 @@
+import {prepareListingEdit} from '../lib/listing-edit';
+import {getPool} from '../db/postgres';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {after,before,test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +23,7 @@ import {createCommerceState,applyCommerceEvent,type CommerceState} from '../lib/
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
- for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -46,7 +48,7 @@ async function collector(prefix:string){
 type Profile=Awaited<ReturnType<typeof collector>>;
 async function offer(seller:Profile,options:Record<string,unknown>={}){
  const db=getDb(),photo=crypto.randomUUID(),bookId=crypto.randomUUID(),other=crypto.randomUUID();
- await db.insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});
+ await db.insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});await getPool().query('INSERT INTO ch_web.photo_bytes(key,body,content_type) VALUES($1,$2,$3)',['photos/'+photo,readFileSync('public/covers/planet-12.jpg'),'image/jpeg']);
  const old=(await db.select().from(collections).where(eq(collections.userId,seller.userId)))[0];
  const vault=old?JSON.parse(old.data):emptyVault(seller.name);
  const books=[bookId,...(options.kind==='collection'?[other]:[])];
@@ -167,4 +169,14 @@ test('account cleanup removes pending requests and manual-sale records while act
  const clean=anonymizeMarketplaceHistory(getDb(),seller);await getDb().batch([...clean.checks,...clean.before,getDb().delete(listings).where(eq(listings.sellerId,seller.id)),...clean.after]);
  assert.equal((await pool.query('SELECT count(*) AS n FROM ch_web.safe_purchase_requests WHERE listing_id=$1',[listing.id])).rows[0].n,0);
  assert.equal((await pool.query('SELECT count(*) AS n FROM ch_web.marketplace_sales WHERE listing_id=$1',[listing.id])).rows[0].n,0);
+});
+
+test('editing unpublishes into a private exact-copy draft atomically and preserves an existing draft',async()=>{
+ const seller=await collector('editowner'),other=await collector('editoutsider'),listing=await offer(seller,{kind:'collection',title:'Exact copy edit'});
+ await assert.rejects(prepareListingEdit(getDb(),other.userId,listing.id));await prepareListingEdit(getDb(),seller.userId,listing.id);
+ const row=(await pool.query('SELECT data FROM ch_web.collector_listing_drafts WHERE user_id=$1',[seller.userId])).rows[0];
+ assert.deepEqual(row.data.rows.flatMap((item:{copyIds:string[]})=>item.copyIds),JSON.parse(listing.items).map((item:{bookId:string})=>item.bookId));
+ assert.equal((await getDb().select().from(listings).where(eq(listings.id,listing.id)))[0].status,'withdrawn');
+ const next=await offer(seller);await assert.rejects(prepareListingEdit(getDb(),seller.userId,next.id));
+ assert.equal((await getDb().select().from(listings).where(eq(listings.id,next.id)))[0].status,'active');
 });

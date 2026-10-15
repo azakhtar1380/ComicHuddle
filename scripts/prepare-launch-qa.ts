@@ -19,6 +19,9 @@ const source=new Pool({...settings,database:'postgres'});
 try{
  const existing=await source.query('SELECT datname FROM pg_database WHERE datname=$1',[target]);
  if(!existing.rows.length)await source.query('CREATE DATABASE '+target);
+ const coverColumns=(await source.query("SELECT column_name FROM information_schema.columns WHERE table_schema='gcd' AND table_name='gcd_cover' ORDER BY ordinal_position")).rows.map(row=>row.column_name);
+ const coverSample=coverColumns.length?(await source.query(`SELECT issue_id,id,to_jsonb(c)->>'deleted' AS deleted,to_jsonb(c)->>'limit_display' AS restricted,COALESCE(to_jsonb(c)->>'image_url',to_jsonb(c)->>'cover_url',to_jsonb(c)->>'url',to_jsonb(c)->>'image_path') AS supplied_url FROM gcd.gcd_cover c WHERE issue_id=ANY($1::bigint[]) ORDER BY issue_id,id LIMIT 30`,[[17099,44451,76314,1400,2506,3244,5068,6567,6841]])).rows:[];
+ console.log('PRODUCTION_COVER_SAMPLE '+JSON.stringify({nativeCoverColumns:coverColumns,associations:coverSample}));
  const pool=getPool(),client=await pool.connect();
  try{
   await client.query("SET statement_timeout='90s'");await client.query("SELECT pg_advisory_lock(hashtext('comichuddle-qa-setup'))");
