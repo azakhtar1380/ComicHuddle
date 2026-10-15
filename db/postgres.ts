@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Pool, types } from 'pg';
+import {attachDatabasePool} from '@vercel/functions';
 types.setTypeParser(20, value => {
   const number = Number(value);
   if (!Number.isSafeInteger(number)) throw new Error('Database integer exceeds the application range.');
@@ -24,8 +25,11 @@ export function getPool(): Pool {
     host, port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME,
     user: process.env.DB_USER, password: process.env.DB_PASSWORD,
     ssl: { ca, rejectUnauthorized: true, servername: host },
-    max: 4, idleTimeoutMillis: 20000, connectionTimeoutMillis: 10000,
+    max: 4, idleTimeoutMillis: 5000, connectionTimeoutMillis: 20000,
+    keepAlive: true, application_name: 'ComicHuddle web',
     options: '-c search_path=ch_web,gcd,public -c statement_timeout=15000',
   });
+  globalPool.comicHuddlePool.on('error',()=>console.warn('An idle ComicHuddle database connection closed; the pool will reconnect.'));
+  if(process.env.VERCEL==='1')attachDatabasePool(globalPool.comicHuddlePool);
   return globalPool.comicHuddlePool;
 }

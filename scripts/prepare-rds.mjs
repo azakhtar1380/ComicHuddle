@@ -7,6 +7,10 @@ const ca = await response.text();
 if (!ca.includes('-----BEGIN CERTIFICATE-----')) throw new Error('Invalid AWS trust bundle.');
 await mkdir('certificates', { recursive: true });
 await writeFile('certificates/rds-ca.pem', ca);
+if (process.env.INSPECT_RDS_CONNECTION === 'true') {
+  const probe = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-rds-connection.ts'], { stdio: 'inherit' });
+  if (probe.status !== 0) throw new Error('RDS connectivity probe could not run.');
+}
 if (process.env.COMICHUDDLE_INSPECT_GCD === 'true') {
   const diagnostic = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-gcd-schema.ts'], { stdio: 'inherit' });
   if (diagnostic.status !== 0) throw new Error('GCD schema diagnostic failed.');
