@@ -31,7 +31,7 @@ export async function readEstimates(db:CatalogDb,requests:EstimateRequest[],queu
  const targets=requests.map(request=>{const issue=issues.get(request.issueId);return issue?canonicalEstimateTarget(issue,request):null}),keys=targets.filter((t):t is EstimateTarget=>!!t).map(valuationTargetKey);
  const found=keys.length?await db.execute(sql`SELECT s.* FROM ch_web.valuation_targets t JOIN ch_web.valuation_snapshots s ON s.id=t.snapshot_id WHERE t.target_key IN (${sql.join(keys.map(k=>sql`${k}`),sql`,`)})`):{rows:[]};
  const rows=new Map((found.rows as unknown as SnapshotRow[]).map(row=>[row.target_key,row]));
- const permissions=await db.execute(sql`SELECT provider FROM ch_web.source_permissions WHERE enabled AND ai_allowed AND valuation_allowed AND display_allowed AND revoked_at IS NULL AND valid_until>now()`),allowed=new Set(permissions.rows.map(r=>String(r.provider)));
+ const permissions=await db.execute(sql`SELECT provider FROM ch_web.source_permissions WHERE enabled AND access_allowed AND cache_allowed AND ai_allowed AND valuation_allowed AND display_allowed AND revoked_at IS NULL AND valid_until>now()`),allowed=new Set(permissions.rows.map(r=>String(r.provider)));
  const pending=new Map<string,EstimateTarget>();
  const result=targets.map((target,index)=>{
   if(!target)return unavailableEstimate(requests[index],'awaiting_details',detailed(requests[index])?'Choose an existing directory edition.':'Record this copy’s condition and printing. No catalog reference grade is silently applied.');
@@ -66,7 +66,7 @@ export async function processValuationJob(db:CatalogDb,job:EnrichmentJob){
  const target=job.payload.target as EstimateTarget,key=valuationTargetKey(target);let status:EstimateSnapshot['status']='insufficient_evidence',explanation='Insufficient eligible evidence for this exact edition and condition. No numerical price was generated.',model:string|null=null,range:ReturnType<typeof evidenceRange>=null;
  try{
   await ingestExternalEvidence(db,target,key);
-  const found=await db.execute(sql`SELECT o.* FROM ch_web.valuation_observations o JOIN ch_web.source_permissions p ON p.provider=o.source_provider WHERE o.target_key=${key} AND o.eligible AND o.original_observation AND o.reviewed_at IS NOT NULL AND o.expires_at>now() AND p.enabled AND p.display_allowed AND p.ai_allowed AND p.valuation_allowed AND p.revoked_at IS NULL AND p.valid_until>now() ORDER BY o.observed_at DESC LIMIT 100`);
+  const found=await db.execute(sql`SELECT o.* FROM ch_web.valuation_observations o JOIN ch_web.source_permissions p ON p.provider=o.source_provider WHERE o.target_key=${key} AND o.eligible AND o.original_observation AND o.reviewed_at IS NOT NULL AND o.expires_at>now() AND p.enabled AND p.access_allowed AND p.cache_allowed AND p.display_allowed AND p.ai_allowed AND p.valuation_allowed AND p.revoked_at IS NULL AND p.valid_until>now() ORDER BY o.observed_at DESC LIMIT 100`);
   const observations:ValuationEvidence[]=found.rows.map(r=>({id:String(r.id),kind:r.kind as ValuationEvidence['kind'],low:Number(r.low_cents),high:Number(r.high_cents),observedAt:new Date(String(r.observed_at)).toISOString(),entity:String(r.independent_entity_key),provider:String(r.source_provider),reference:String(r.evidence_reference),reliability:(r.details as {status?:ValuationEvidence['reliability']})?.status,...(r.source_url?{url:String(r.source_url)}:{})}));
   // Current platform orders are sandbox-only. Never promote them to pricing
   // evidence. Future live intake must record verified settlement, delivery,
