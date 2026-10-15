@@ -31,3 +31,8 @@ if (process.env.MIGRATE_ON_BUILD === 'true' && (!process.env.VERCEL || process.e
 }
 
 if (process.env.PROFILE_NATIVE_READ === 'true') spawnSync(process.execPath, ['--import', 'tsx', 'scripts/profile-native-read.ts'], { stdio: 'inherit' });
+
+if (process.env.INDEX_GCD_SEARCH === 'true') {
+  const indexes = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/ensure-gcd-search-indexes.ts'], { stdio: 'inherit' });
+  if (indexes.status !== 0) throw new Error('Native search index maintenance did not complete.');
+}
