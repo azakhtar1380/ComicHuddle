@@ -77,12 +77,12 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const state=await db.execute(sql`SELECT retained_ids FROM gcd.comichuddle_catalog_read_state WHERE id='directory'`);
  const retained=Array.isArray(state.rows[0]?.retained_ids)?state.rows[0].retained_ids.map(Number).filter(Number.isSafeInteger):[];
  const retainedGcd=retained.filter(id=>id>=4000000000).map(id=>id-4000000000);
- const excluded=retainedGcd.length?sql`AND NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)}]::bigint[]) excluded(gcd_id) WHERE excluded.gcd_id=n.gcd_id)`:sql``;
+ const excluded=retainedGcd.length?sql`AND n.gcd_id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`:sql``;
  const extra=retained.length?sql`SELECT e.id,e.title,e.year FROM gcd.comichuddle_legacy_directory e WHERE e.id IN (${sql.join(retained.map(id=>sql`${id}`),sql`,`)}) AND ${nativeTerms('e')}`:sql`SELECT 0::bigint AS id,''::text AS title,0 AS year WHERE false`;
  let nativeBase=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded}`;
  if((!filter.sort||filter.sort==='featured')&&!filter.era&&!filter.kind){
   const rawTerms=[sql`(i.deleted=0 OR i.deleted IS NULL)`,...numbers.map(n=>sql`lower(i.number)=${n}`)];
-  if(retainedGcd.length)rawTerms.push(sql`NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)}]::bigint[]) excluded(gcd_id) WHERE excluded.gcd_id=i.id)`);
+  if(retainedGcd.length)rawTerms.push(sql`i.id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`);
   if(words.length||filter.publisher||filter.series){
    const st=words.map(w=>sql`lower(s.name) LIKE ${'%'+w+'%'}`);
    if(filter.publisher)st.push(sql`p.name=${filter.publisher}`);
@@ -100,13 +100,23 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  }
  const base=sql`${nativeBase} UNION ALL ${extra}`;
  const filtered=!!(filter.q||filter.publisher||filter.series||filter.era||filter.kind);
- const countTask=filtered?db.execute(sql`SELECT count(*)::bigint AS n FROM (${base}) matches`):Promise.resolve({rows:[{n:meta.issueCount}]});
  const order=filter.sort==='title'?sql`title,id`:filter.sort==='oldest'?sql`year,id`:filter.sort==='newest'?sql`year DESC,id`:sql`id`;
  const cursor=filter.after===undefined?sql``:sql`WHERE id>${filter.after}`;
- const [count,selection]=await Promise.all([countTask,db.execute(sql`SELECT id FROM (${base}) matches ${cursor} ORDER BY ${order} LIMIT ${filter.limit+1} OFFSET ${filter.after===undefined?filter.offset:0}`)]);
+ const offset=filter.after===undefined?filter.offset:0,bound=offset+filter.limit+1;
+ let total=meta.issueCount;
+ let selection;
+ if(filtered){
+  // Materialize matching identities once; count and page that same result.
+  selection=await db.execute(sql`WITH matches AS MATERIALIZED(${base}), counted AS(SELECT id,title,year,count(*) OVER()::bigint AS total FROM matches) SELECT id,total FROM counted ${cursor} ORDER BY ${order} LIMIT ${filter.limit+1} OFFSET ${offset}`);
+  total=Number(selection.rows[0]?.total||0);
+ }else{
+  // Bound each ordered branch before merging, so the native B-tree supplies a page.
+  const bounded=sql`(SELECT * FROM (${nativeBase}) native_page ${cursor} ORDER BY ${order} LIMIT ${bound}) UNION ALL (SELECT * FROM (${extra}) retained_page ${cursor} ORDER BY ${order} LIMIT ${bound})`;
+  selection=await db.execute(sql`SELECT id FROM (${bounded}) matches ORDER BY ${order} LIMIT ${filter.limit+1} OFFSET ${offset}`);
+ }
  const selected=selection.rows.slice(0,filter.limit).map(row=>Number(row.id));
  const issues=await catalogIssuesById(db,selected);
- return {...meta,issues:issues.flatMap(issue=>issue?[catalogSearchDto(issue)]:[]),total:Number(count.rows[0]?.n||0),limit:filter.limit,offset:filter.offset,hasMore:selection.rows.length>filter.limit};
+ return {...meta,issues:issues.flatMap(issue=>issue?[catalogSearchDto(issue)]:[]),total,limit:filter.limit,offset:filter.offset,hasMore:selection.rows.length>filter.limit};
 }
 
 // A bounded publisher > series tree. Never download the entire catalog to a browser.

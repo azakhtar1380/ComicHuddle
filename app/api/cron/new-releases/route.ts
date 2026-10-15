@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 export async function GET(request: Request) {
+  const deadline = Date.now() + 270_000;
   const secret = process.env.CRON_SECRET;
   const supplied = request.headers.get('authorization') || '';
   const digest = (value: string) => createHash('sha256').update(value).digest();
@@ -22,7 +23,6 @@ export async function GET(request: Request) {
     if (new URL(request.url).searchParams.get('resume') === '1' && status.daily.stage !== 'importing') return json({ status: 'idle', reason: 'No weekly release checkpoint needs continuation.',coverage });
     // Explicitly authorized weekly release scope only; never run historical
     // backfill or re-enable the stopped private Site/Metron tasks.
-    const deadline = Date.now() + 270_000;
     let steps = 0;
     while (steps < 100 && Date.now() < deadline && !status.pausedByOwner && status.retryAfter === 0) {
       status = await gcdSyncStep(db, 'daily', {}, { onlyMissing: true }); steps++;
