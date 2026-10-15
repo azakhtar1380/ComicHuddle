@@ -7,7 +7,7 @@ import './comic-picker.css';
 import ResolvedComicCover from './resolved-comic-cover';
 import EstimatedValue from './estimated-value';
 
-function Cover({issue,selected=false}:{issue:Issue;selected?:boolean}){return <span className={'picker-cover'+(selected?' selected-cover':'')}><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover}/></span>;}
+function Cover({issue,selected=false}:{issue:Issue;selected?:boolean}){return <span className={'picker-cover'+(selected?' selected-cover':'')}><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span>;}
 
 export default function ComicPicker({value,onChange,disabled=false,initialQuery='',onQueryChange,label='Find your comic',clearOnChoose=false,placeholder='Try Amazing Spider-Man #300…',helper='Search series, issue, year, publisher or character. Choose the exact issue and edition.',ownedIssueIds}:{value:Issue|null;onChange:(issue:Issue|null)=>void;disabled?:boolean;initialQuery?:string;onQueryChange?:(value:string)=>void;label?:string;clearOnChoose?:boolean;placeholder?:string;helper?:string;ownedIssueIds?:Set<number>}){
  const id=useId(),inputRef=useRef<HTMLInputElement>(null),session=useRef(createCatalogSearchSession());

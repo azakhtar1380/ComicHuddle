@@ -29,3 +29,12 @@ export function searchCatalog(query:string,limit:number,offset:number){
  });
  return {issues:matches.slice(offset,offset+limit).map(issue=>catalogSearchDto(issue)),total:matches.length,limit,offset,hasMore:offset+limit<matches.length};
 }
+
+/** Explicit year qualifiers avoid confusing titles such as 2000 AD or 2099. */
+export function catalogQueryParts(query:string){
+ const numbers=[...query.matchAll(/#\s*([a-z0-9./-]+)/gi)].map(match=>match[1].toLowerCase()),years:number[]=[];
+ let text=query.replace(/\(((?:18|19|20|21)\d{2})\)/g,(_all,year)=>{years.push(Number(year));return ' '});
+ if(numbers.length)text=text.replace(/\s+((?:18|19|20|21)\d{2})\s*$/,(_all,year)=>{years.push(Number(year));return ' '});
+ const words=text.replace(/#\s*([a-z0-9./-]+)/gi,' ').normalize('NFKD').toLowerCase().match(/[a-z0-9]+/g)||[];
+ return {numbers,words,years:[...new Set(years)]};
+}

@@ -8,7 +8,7 @@ import sharp from 'sharp';
 import {sql} from 'drizzle-orm';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {getDb} from '../db';
-import {catalogIssue,seedStarterStatements} from '../lib/catalog-store';
+import {catalogIssue,searchSharedCatalog,seedStarterStatements} from '../lib/catalog-store';
 import {combineEstimates,unavailableEstimate,type EstimateSnapshot} from '../lib/estimated-fmv-types';
 import {canonicalEstimateTarget,valuationTargetKey,evidenceRange,readEstimates,processValuationJob,combinedListingEstimate,type ValuationEvidence} from '../lib/estimated-fmv';
 import {enqueueEnrichment,claimEnrichment,finishEnrichment,retryDelay} from '../lib/enrichment-jobs';
@@ -96,4 +96,9 @@ test('test orders and manual sold rows are not sales rankings; zero denominators
 test('multiple actual owned native GCD copies publish while cover/AI providers are unavailable',async()=>{
  const user=randomUUID(),id=randomUUID(),stamp=new Date().toISOString(),seller=(await db.insert(profiles).values({id,userId:user,handle:'qa_'+id.slice(0,8),name:'Isolated upgrade QA',bio:'',tagline:'',location:'Minneapolis, MN',favorite:'',since:2026,color:'red',featured:'[]',visible:1,dmOpen:1,createdAt:stamp,rulesVersion:previewRulesVersion,rulesAcceptedAt:stamp}).returning())[0],photo=randomUUID(),vault=emptyVault('Isolated QA');vault.books=[123,124].map(gcdId=>({id:randomUUID(),title:'Secret Wars',issue:'#1',grade:'Raw 8.0',price:0,externalCatalog:{provider:'GCD' as const,id:gcdId,sourceUrl:'https://www.comics.org/issue/'+gcdId+'/',license:'CC BY-SA 4.0' as const}}));
  await db.insert(collections).values({userId:user,data:JSON.stringify(vault),revision:randomUUID()});await db.insert(media).values({id:photo,userId:user,contentType:'image/jpeg',createdAt:stamp});const result=await createListing(db,seller,{action:'listing',kind:'collection',saleType:'fixed',title:'Two exact editions',bookIds:vault.books.map(copy=>copy.id),conditions:Object.fromEntries(vault.books.map(copy=>[copy.id,condition])),description:'Two owned physical copies with actual listing photos.',price:5000,shipping:100,photos:[photo],attest:true,usaAttest:true});assert.ok(result.listingId);const listing=(await engine.query('SELECT items,item_count FROM ch_web.listings WHERE id=$1',[result.listingId])).rows[0];assert.equal(listing.item_count,2);assert.equal(JSON.parse(String(listing.items)).length,2);await assert.rejects(createListing(db,seller,{action:'listing',kind:'collection',saleType:'fixed',title:'Duplicate',bookIds:vault.books.map(copy=>copy.id),description:'Same copies are already reserved.',price:5000,shipping:100,photos:[photo],attest:true,usaAttest:true}));
+});
+
+test('native directory supports explicit year and publisher terms without treating 2000 AD as a date',async()=>{
+ const {catalogQueryParts}=await import('../lib/catalog-search');assert.deepEqual(catalogQueryParts('2000 AD #1').words,['2000','ad']);assert.deepEqual(catalogQueryParts('Secret Wars #1 1984').years,[1984]);
+ const page=await searchSharedCatalog(db,{q:'QA Publisher Secret Wars #1 (1984)',limit:12,offset:0});assert.equal(page.total,2);assert.ok(page.issues.every(issue=>issue.year===1984&&issue.number==='1'));
 });

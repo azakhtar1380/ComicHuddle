@@ -1,3 +1,4 @@
+import {catalogQueryParts} from './catalog-search';
 import {ilike,and,asc,desc,eq,inArray,isNotNull,like,sql} from 'drizzle-orm';
 import {getDb} from '../db';
 import {catalogCreators,catalogIssueCreators,catalogIssues,catalogPublishers,catalogSeries,catalogSync,catalogCoverReferences,directoryIssues,legacyDirectoryIssues} from '../db/schema';
@@ -58,16 +59,15 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
   base.sort((a,b)=>filter.sort==='title'?a.title.localeCompare(b.title)||a.id-b.id:filter.sort==='oldest'?a.year-b.year||a.id-b.id:filter.sort==='newest'?b.year-a.year||a.id-b.id:a.id-b.id);
   return {...meta,issues:base.slice(filter.offset,filter.offset+filter.limit),total:base.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<base.length};
  }
- const numbers=[...filter.q.matchAll(/#\s*([a-z0-9./-]+)/gi)].map(m=>m[1].toLowerCase());
- const words=filter.q.replace(/#\s*([a-z0-9./-]+)/gi,' ').normalize('NFKD').toLowerCase().match(/[a-z0-9]+/g)||[];
- const terms=[...numbers.map(n=>sql`lower(${readCatalog.number}) = ${n}`),...words.map(w=>like(readCatalog.searchText,'%'+w+'%'))];
+ const {numbers,words,years}=catalogQueryParts(filter.q);
+ const terms=[...years.map(year=>eq(readCatalog.year,year)),...numbers.map(n=>sql`lower(${readCatalog.number}) = ${n}`),...words.map(w=>like(readCatalog.searchText,'%'+w+'%'))];
  if(filter.publisher)terms.push(eq(readCatalog.publisher,filter.publisher));
   if(filter.series)terms.push(eq(readCatalog.title,filter.series));
  if(filter.era)terms.push(eq(readCatalog.era,filter.era));
  if(filter.kind)terms.push(eq(readCatalog.kind,filter.kind));
  const nativeTerms=(alias:string)=>{
   const ref=(column:string)=>sql.raw(alias+'.'+column);
-  const result=[...numbers.map(n=>sql`lower(${ref('number')})=${n}`),...words.map(w=>sql`${ref('search_text')} LIKE ${'%'+w+'%'}`)];
+  const result=[...years.map(year=>sql`${ref('year')}=${year}`),...numbers.map(n=>sql`lower(${ref('number')})=${n}`),...words.map(w=>sql`${ref('search_text')} LIKE ${'%'+w+'%'}`)];
   if(filter.publisher)result.push(sql`${ref('publisher')}=${filter.publisher}`);
   if(filter.series)result.push(sql`${ref('title')}=${filter.series}`);
   if(filter.era)result.push(sql`${ref('era')}=${filter.era}`);
@@ -81,10 +81,10 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const extra=retained.length?sql`SELECT e.id,e.title,e.year FROM gcd.comichuddle_legacy_directory e WHERE e.id IN (${sql.join(retained.map(id=>sql`${id}`),sql`,`)}) AND ${nativeTerms('e')}`:sql`SELECT 0::bigint AS id,''::text AS title,0 AS year WHERE false`;
  let nativeBase=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded}`;
  if((!filter.sort||filter.sort==='featured')&&!filter.era&&!filter.kind){
-  const rawTerms=[sql`(i.deleted=0 OR i.deleted IS NULL)`,...numbers.map(n=>sql`lower(i.number)=${n}`)];
+  const rawTerms=[sql`(i.deleted=0 OR i.deleted IS NULL)`,...years.map(year=>sql`(i.key_date LIKE ${String(year)+'-%'} OR (COALESCE(i.key_date,'') !~ '^[0-9]{4}' AND i.publication_date LIKE ${'%'+year+'%'}))`),...numbers.map(n=>sql`lower(i.number)=${n}`)];
   if(retainedGcd.length)rawTerms.push(sql`i.id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`);
   if(words.length||filter.publisher||filter.series){
-   const st=words.map(w=>sql`lower(s.name) LIKE ${'%'+w+'%'}`);
+   const st=words.map(w=>sql`(lower(s.name) LIKE ${'%'+w+'%'} OR lower(p.name) LIKE ${'%'+w+'%'})`);
    if(filter.publisher)st.push(sql`p.name=${filter.publisher}`);
    if(filter.series)st.push(sql`s.name=${filter.series}`);
    const candidates=await db.execute(sql`SELECT s.id FROM gcd.gcd_series s LEFT JOIN gcd.gcd_publisher p ON p.id=s.publisher_id WHERE COALESCE(s.deleted,0)=0 AND ${st.length?sql.join(st,sql` AND `):sql`true`}`);
