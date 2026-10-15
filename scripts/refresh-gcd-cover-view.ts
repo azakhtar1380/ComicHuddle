@@ -23,7 +23,8 @@ try{
      AND COALESCE(to_jsonb(c)->>'limit_display','0') NOT IN ('1','true')
      AND NOT EXISTS(SELECT 1 FROM ch_web.catalog_cover_references withdrawn
       WHERE withdrawn.issue_id=4000000000::bigint+c.issue_id AND withdrawn.status='withdrawn')
-    UNION ALL SELECT issue_id,gcd_id,image_url,source_url,attribution,status,fetched_at,1 FROM ch_web.catalog_cover_references
+    UNION ALL SELECT retained.issue_id,retained.gcd_id,retained.image_url,retained.source_url,retained.attribution,retained.status,retained.fetched_at,1 FROM ch_web.catalog_cover_references retained
+     WHERE NOT EXISTS(SELECT 1 FROM gcd.gcd_cover native WHERE native.issue_id=retained.gcd_id)
    ) refs WHERE image_url IS NOT NULL ORDER BY issue_id,priority,fetched_at DESC,image_url`);
   console.log('GCD_NATIVE_COVERS: exact native cover IDs/URLs mapped; restricted, deleted and withdrawn covers excluded.');
  }
