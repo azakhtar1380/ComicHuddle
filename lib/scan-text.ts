@@ -1,7 +1,7 @@
 import type {Issue} from './catalog';
 import {parseCatalogSearchPage} from './catalog-picker-client';
 export type CoverTextLine={text:string;confidence:number;height:number};
-export type CoverTextHints={text:string;number:string|null;year:number|null;queries:string[];titleWords:string[]};
+export type CoverTextHints={text:string;number:string|null;numberEvidence:'explicit'|'corner'|'standalone'|'none';year:number|null;queries:string[];titleWords:string[]};
 const generic=new Set('a an the and of in on at by to is it this that with for from marvel dc image comics comic presents issue number no cover scan point discover upload camera start next find frame here confidential confident match yet'.split(' '));
 const words=(s:string)=>s.normalize('NFKD').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
 function useful(s:string){return words(s).filter(word=>word.length>2&&!generic.has(word)&&!/^\d+$/.test(word))}
@@ -18,7 +18,7 @@ export function extractCoverTextHints(text:string,lines:CoverTextLine[]=[]):Cove
  const phrases=[...new Set(ranked.map(line=>useful(line.text).join(' ')).filter(s=>s.length>=4&&s.length<=70))];
  const combined=phrases.slice(0,2).join(' '),selected=[...phrases.slice(0,3),combined].filter(Boolean);
  const queries=[...new Set(selected.map(phrase=>(phrase+(number?' #'+number:'')).slice(0,150)))].slice(0,4);
- return {text:clean,number,year,queries,titleWords:[...new Set(phrases.slice(0,3).flatMap(words))]};
+ return {text:clean,number,numberEvidence:explicit?'explicit':corner?'corner':standalone?'standalone':'none',year,queries,titleWords:[...new Set(phrases.slice(0,3).flatMap(words))]};
 }
 function tokenMatch(a:string,b:string){
  if(a===b)return true;
@@ -36,12 +36,20 @@ export function rankTextIssues(hints:CoverTextHints,issues:Issue[]){
 }
 export async function lookupCoverText(hints:CoverTextHints,fetcher:typeof fetch=fetch,signal?:AbortSignal){
  if(!hints.queries.length)return {candidates:[] as Issue[],match:null as Issue|null,searchText:'',empty:false};
- const pages=await Promise.all(hints.queries.map(async q=>{
+ const results=await Promise.allSettled(hints.queries.map(async q=>{
   const response=await fetcher('/api/catalog?'+new URLSearchParams({q,limit:'12',offset:'0'}),{signal,cache:'no-store'});
   if(!response.ok)throw Error('The catalog text search could not connect.');return parseCatalogSearchPage(await response.json());
  }));
+ if(signal?.aborted)throw new DOMException('Cover search cancelled.','AbortError');
+ const pages=results.flatMap(result=>result.status==='fulfilled'?[result.value]:[]);
+ if(!pages.length)throw Error('The catalog text search could not connect.');
  const unique=new Map(pages.flatMap(page=>page.issues).map(issue=>[issue.id,issue])),ranked=rankTextIssues(hints,[...unique.values()]);
  const first=ranked[0],other=ranked.find(row=>row.issue.title!==first?.issue.title||row.issue.year!==first?.issue.year);
- const match=first&&hints.number&&first.score>=.76&&first.score-(other?.score||0)>=.10?first.issue:null;
- return {candidates:ranked.slice(0,8).map(row=>row.issue),match,searchText:hints.queries[0],empty:pages.every(page=>page.total===0&&!page.hasMore)};
+ // Text can identify a work while leaving several physical editions possible.
+ // Never auto-select a printing, or treat a loose price/barcode digit as proof.
+ const sameWork=first?ranked.filter(row=>row.issue.title===first.issue.title&&row.issue.year===first.issue.year):[];
+ const complete=pages.length===hints.queries.length&&pages.every(page=>!page.hasMore);
+ const strongNumber=hints.numberEvidence==='explicit'||hints.numberEvidence==='corner';
+ const match=complete&&sameWork.length===1&&first&&strongNumber&&first.score>=.76&&first.score-(other?.score||0)>=.10?first.issue:null;
+ return {candidates:ranked.slice(0,8).map(row=>row.issue),match,searchText:hints.queries[0],empty:pages.length===hints.queries.length&&pages.every(page=>page.total===0&&!page.hasMore)};
 }

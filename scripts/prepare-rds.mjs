@@ -57,3 +57,9 @@ if (process.env.PREPARE_CATALOG_RECOGNITION === 'true') {
     if (result.status !== 0) throw new Error('Catalog recognition preparation did not complete.');
   }
 }
+
+// Read-only, bounded diagnostics can run without migrations or re-indexing.
+if (process.env.DIAGNOSE_CATALOG_COVERS === 'true' && process.env.PREPARE_CATALOG_RECOGNITION !== 'true') {
+  const diagnostic = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/diagnose-catalog-covers.ts'], { stdio: 'inherit' });
+  if (diagnostic.status !== 0) throw new Error('Catalog cover diagnostics did not complete.');
+}

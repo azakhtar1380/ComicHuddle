@@ -29,3 +29,17 @@
 
 .scan-candidates{margin:20px 0;padding:16px;background:var(--cream);border:1px solid var(--line);border-radius:8px}.scan-candidates h3{font-size:20px;margin:0 0 12px}.scan-candidates>button{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 0;border-top:1px solid var(--line)}.scan-candidates>button strong{display:block;font-size:12px;line-height:1.5}.scan-candidates>button small{display:block;font-size:10px;line-height:1.6;color:var(--muted);margin-top:4px}.scan-candidates>button>svg{visibility:hidden;flex-shrink:0;color:var(--blue)}.scan-candidates>button[aria-pressed=true]>svg{visibility:visible}.scan-confirm>.comic-image{width:70px;min-width:70px;height:104px;min-height:0;overflow:hidden;border-radius:5px}.scan-confirm>.comic-image img,.scan-confirm>.comic-image svg{display:block;width:100%;height:100%;object-fit:contain}.scan-confirm strong{overflow-wrap:anywhere}
 .scan-enhanced{padding:15px;border:1px solid var(--line);border-radius:7px;margin:15px 0;background:var(--cream)}.scan-enhanced p{font-size:11px;line-height:1.7;margin:11px 0 0}
+.scan-capture[hidden]{display:none}
+.scan-crop-editor{margin:22px 0 18px;padding:16px;border:2px solid var(--ink);border-radius:9px;background:var(--cream)}
+.scan-crop-editor h3{display:flex;align-items:center;gap:8px;margin:0;font-size:23px}
+.scan-crop-editor>p{font-size:12px;line-height:1.65;margin:8px 0 14px}
+.scan-crop-editor>small{display:block;font-size:10px;line-height:1.6;margin:10px 0}
+.scan-crop-stage{height:clamp(270px,52vh,430px);position:relative;overflow:hidden;background:#202339;border-radius:5px}
+.scan-crop-photo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);touch-action:none;user-select:none}
+.scan-crop-photo>img{display:block;width:100%;height:100%;pointer-events:none}
+.scan-crop-selection{position:absolute;border:2px solid var(--yellow);box-shadow:0 0 0 100vmax #101326aa;cursor:move;touch-action:none;min-width:0;min-height:0}
+.scan-crop-selection:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.scan-crop-handle{position:absolute;width:25px;height:25px;border:3px solid var(--yellow);background:#202339;border-radius:50%;touch-action:none}
+.scan-crop-handle.nw{left:-13px;top:-13px;cursor:nwse-resize}.scan-crop-handle.ne{right:-13px;top:-13px;cursor:nesw-resize}.scan-crop-handle.sw{left:-13px;bottom:-13px;cursor:nesw-resize}.scan-crop-handle.se{right:-13px;bottom:-13px;cursor:nwse-resize}
+.scan-crop-editor .actions{gap:8px;margin-bottom:0;flex-wrap:wrap}.scan-crop-editor .actions .button{min-width:0}
+.scan-secondary>button{display:inline-flex;align-items:center;gap:6px}
