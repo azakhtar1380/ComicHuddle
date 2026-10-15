@@ -9,6 +9,10 @@ const ca = await response.text();
 if (!ca.includes('-----BEGIN CERTIFICATE-----')) throw new Error('Invalid AWS trust bundle.');
 await mkdir('certificates', { recursive: true });
 await writeFile('certificates/rds-ca.pem', ca);
+if (process.env.MIGRATE_ENRICHMENT_ON_BUILD === 'true') {
+  const migration = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/migrate-enrichment.ts'], { stdio: 'inherit' });
+  if (migration.status !== 0) throw new Error('Additive enrichment migration failed.');
+}
 if (process.env.INSPECT_RDS_CONNECTION === 'true') {
   const probe = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-rds-connection.ts'], { stdio: 'inherit' });
   if (probe.status !== 0) throw new Error('RDS connectivity probe could not run.');

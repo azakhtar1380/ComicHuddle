@@ -4,16 +4,12 @@ import {BookOpen,Check,ChevronLeft,ChevronRight,Search,X} from 'lucide-react';
 import type {Issue} from '../lib/catalog';
 import {createCatalogSearchSession,nextPickerIndex,type CatalogSearchPage} from '../lib/catalog-picker-client';
 import './comic-picker.css';
+import ResolvedComicCover from './resolved-comic-cover';
+import EstimatedValue from './estimated-value';
 
-function Cover({issue,selected=false}:{issue:Issue;selected?:boolean}){
- const [failed,setFailed]=useState(false);
- useEffect(()=>setFailed(false),[issue.cover]);
- return <span className={'picker-cover'+(selected?' selected-cover':'')}>
-  {issue.cover&&!failed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" onError={()=>setFailed(true)}/>:<span className="picker-cover-missing" role="img" aria-label="Cover unavailable"><BookOpen size={20}/><small>No cover<br/>yet</small></span>}
- </span>;
-}
+function Cover({issue,selected=false}:{issue:Issue;selected?:boolean}){return <span className={'picker-cover'+(selected?' selected-cover':'')}><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover}/></span>;}
 
-export default function ComicPicker({value,onChange,disabled=false,initialQuery='',onQueryChange,label='Find your comic',clearOnChoose=false}:{value:Issue|null;onChange:(issue:Issue|null)=>void;disabled?:boolean;initialQuery?:string;onQueryChange?:(value:string)=>void;label?:string;clearOnChoose?:boolean}){
+export default function ComicPicker({value,onChange,disabled=false,initialQuery='',onQueryChange,label='Find your comic',clearOnChoose=false,placeholder='Try Amazing Spider-Man #300…',helper='Search series, issue, year, publisher or character. Choose the exact issue and edition.',ownedIssueIds}:{value:Issue|null;onChange:(issue:Issue|null)=>void;disabled?:boolean;initialQuery?:string;onQueryChange?:(value:string)=>void;label?:string;clearOnChoose?:boolean;placeholder?:string;helper?:string;ownedIssueIds?:Set<number>}){
  const id=useId(),inputRef=useRef<HTMLInputElement>(null),session=useRef(createCatalogSearchSession());
   const [query,setQuery]=useState(value?value.title+' #'+value.number:initialQuery),[open,setOpen]=useState(false),[page,setPage]=useState(0),[active,setActive]=useState(-1),[retry,setRetry]=useState(0);
  const [results,setResults]=useState<CatalogSearchPage|null>(null),[pending,setPending]=useState(false),[error,setError]=useState('');
@@ -39,17 +35,17 @@ export default function ComicPicker({value,onChange,disabled=false,initialQuery=
  const summary=pending?'Searching the directory…':(error||results)?(error||results!.total+' matching '+(results!.total===1?'issue':'issues')):'';
  return <div className="comic-picker" onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setOpen(false)}}>
    <label htmlFor={id}>{label}</label>
-  <div className="picker-input"><Search size={18}/><input ref={inputRef} id={id} role="combobox" aria-autocomplete="list" aria-expanded={show} aria-controls={show?listId:undefined} aria-activedescendant={show&&active>=0&&rows[active]?listId+'-'+active:undefined} aria-describedby={id+'-help'} autoComplete="off" maxLength={160} disabled={disabled} value={query} placeholder="Try Amazing Spider-Man #300…" onClick={()=>setOpen(true)} onFocus={()=>{if(!value)setOpen(true)}} onChange={event=>{onChange(null);onQueryChange?.(event.target.value);setQuery(event.target.value);setPage(0);setResults(null);setOpen(true)}} onKeyDown={event=>{
+  <div className="picker-input"><Search size={18}/><input ref={inputRef} id={id} role="combobox" aria-autocomplete="list" aria-expanded={show} aria-controls={show?listId:undefined} aria-activedescendant={show&&active>=0&&rows[active]?listId+'-'+active:undefined} aria-describedby={id+'-help'} autoComplete="off" maxLength={160} disabled={disabled} value={query} placeholder={placeholder} onClick={()=>setOpen(true)} onFocus={()=>{if(!value)setOpen(true)}} onChange={event=>{onChange(null);onQueryChange?.(event.target.value);setQuery(event.target.value);setPage(0);setResults(null);setOpen(true)}} onKeyDown={event=>{
    if(event.key==='Escape'&&show){event.preventDefault();event.stopPropagation();setOpen(false);return}
    if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();if(!show)setOpen(true);else if(!pending&&!error)setActive(index=>nextPickerIndex(event.key,index,rows.length));return}
    if(event.key==='Enter'){event.preventDefault();if(show&&!pending&&!error&&active>=0&&rows[active])choose(rows[active])}
   }}/>{query&&<button type="button" disabled={disabled} onClick={clear} aria-label="Clear selected comic and search"><X size={18}/></button>}</div>
-  <small id={id+'-help'} className="picker-help">Search series, issue, year, publisher or character. Choose the exact issue and edition.</small>
+  <small id={id+'-help'} className="picker-help">{helper}</small>
   {show&&<div className="picker-dropdown">
    <div className="picker-results-state" role="status" aria-live="polite">{summary}</div>
    <div id={listId} role="listbox" aria-label="Matching comic issues" aria-busy={pending} className="picker-results">
     {!pending&&!error&&rows.map((issue,index)=><div id={listId+'-'+index} role="option" aria-selected={active===index} key={issue.id} className={'picker-option'+(active===index?' active':'')} onMouseDown={event=>event.preventDefault()} onMouseEnter={()=>setActive(index)} onClick={()=>choose(issue)}>
-     <Cover issue={issue}/><span className="picker-option-copy"><strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher} · {issue.year}</small><span>{issue.kind} · {issue.note}</span></span><Check size={15} className="picker-option-check"/>
+     <Cover issue={issue}/><div className="picker-option-copy"><strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher} · {issue.year}{ownedIssueIds?.has(issue.id)?' · Owned':''}</small><span>{issue.variant} · {issue.note}</span><EstimatedValue request={{issueId:issue.id,reference:true}} initialSnapshot={issue.estimatedValue}/></div><Check size={15} className="picker-option-check"/>
     </div>)}
    </div>
    {!pending&&error&&<button type="button" className="picker-retry" onClick={()=>setRetry(value=>value+1)}>Retry directory search</button>}

@@ -1,8 +1,3 @@
 'use client';
-import {useState} from 'react';
-import ComicCoverPlaceholder from '../components/comic-cover-placeholder';
-
-export default function ComicCover({src,title,issue}:{src?:string|null;title:string;issue?:string}){
- const [failed,setFailed]=useState<string|null>(null);
- return <div className="comic-image">{src&&failed!==src?<img src={src} alt={title+(issue?' #'+issue:'')+' cover'} referrerPolicy="no-referrer" onError={()=>setFailed(src)} loading="lazy" decoding="async"/>:<ComicCoverPlaceholder title={title} issue={issue}/>}</div>;
-}
+import ResolvedComicCover from './resolved-comic-cover';
+export default function ComicCover({src,title,issue,issueId,publisher,year}:{src?:string|null;title:string;issue?:string;issueId?:number;publisher?:string;year?:number}){return <div className="comic-image"><ResolvedComicCover issueId={issueId} title={title} issue={issue} publisher={publisher} year={year} src={src}/></div>}

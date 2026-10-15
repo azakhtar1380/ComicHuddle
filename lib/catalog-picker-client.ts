@@ -1,3 +1,4 @@
+import {isEstimateSnapshot} from './estimated-fmv-types';
 import type {Issue,GcdBibliography,GcdStory} from './catalog';
 
 export type CatalogSearchPage={issues:Issue[];total:number;limit:number;offset:number;hasMore:boolean;issueCount:number;scope:string};
@@ -32,6 +33,7 @@ export function parseCatalogSearchPage(input:unknown):CatalogSearchPage{
   if(record.metronId!==undefined){if(!Number.isInteger(record.metronId)||Number(record.metronId)<1||Number(record.metronId)>2147483647||Number(record.id)!==1000000000+Number(record.metronId))throw new Error('Invalid shared comic identity.');issue.metronId=Number(record.metronId);}
   if(record.gcdId!==undefined){if(record.metronId!==undefined||!Number.isInteger(record.gcdId)||Number(record.gcdId)<1||Number(record.gcdId)>2147483647||Number(record.id)!==4000000000+Number(record.gcdId))throw new Error('Invalid GCD comic identity.');issue.gcdId=Number(record.gcdId);}
   if(record.bibliography!==undefined){if(issue.gcdId===undefined)throw new Error('GCD bibliography requires GCD identity.');issue.bibliography=parseGcdBibliography(record.bibliography);}
+  if(isEstimateSnapshot(record.estimatedValue))issue.estimatedValue=record.estimatedValue;
   return issue;
  });
  const total=Number(data.total),offset=Number(data.offset),limit=Number(data.limit);

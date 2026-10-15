@@ -18,6 +18,9 @@
     },
     "app/api/cron/fmv/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/enrichment/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -32,6 +35,10 @@
     {
       "path": "/api/cron/fmv",
       "schedule": "15 9 * * 1"
+    },
+    {
+      "path": "/api/cron/enrichment",
+      "schedule": "5 * * * *"
     }
   ]
 }

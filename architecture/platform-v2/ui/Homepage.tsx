@@ -1,21 +1,12 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowRight,ArrowUpRight,BookOpen,Camera,ChevronRight,Gift,Layers,Search,ShieldCheck,Sparkles,TrendingUp,Wallet,Wrench,X,Zap} from 'lucide-react';
+import EstimatedValue from '../../../app/estimated-value';
+import ResolvedComicCover from '../../../app/resolved-comic-cover';
 import {DirectoryCard} from './DirectoryCard';
+import MarketPulse from '../../../app/market-pulse';
 import type {ComicCardRecord,HomeFeed,MarketTick} from './types';
 export type HomepageProps={feed:HomeFeed;loading?:boolean;search:(query:string,signal:AbortSignal)=>Promise<ComicCardRecord[]>;onOpenComic:(id:string)=>void;onScan:()=>void;onValueCollection:()=>void;onBrowseKeys:()=>void;onMarketplace:()=>void;onProfile:()=>void;onWorkshop:()=>void;onRegisterSpecialist:()=>void;safepurchaseEnabled?:boolean;rewardsEnabled?:boolean};
-function MarketTicker({ticks,onOpen,onBrowse}:{ticks:MarketTick[];onOpen:(id:string)=>void;onBrowse:()=>void}){
- return <div className="v2-market-strip" aria-label="Market pulse: seven-day comparable price changes">
-  <span className="v2-pulse-label"><TrendingUp size={16}/> Market pulse <small>7 days</small></span>
-  <div className="v2-ticker-window"><div className={'v2-ticker-track '+(ticks.length?'has-quotes':'')}>
-   {ticks.length?ticks.map(t=><button className="v2-ticker-item" key={t.id} onClick={()=>onOpen(t.comicId)} title={t.sourceName+' · '+t.asOf}>
-    <strong>{t.title}</strong><small>{t.gradeLabel}</small><b>{new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(t.valueCents)/100)}</b>
-    <span className={t.deltaBps===null?'pulse-unknown':t.deltaBps>=0?'pulse-up':'pulse-down'}>{t.deltaBps===null?'7d history pending':(t.deltaBps>=0?'+':'')+(t.deltaBps/100).toFixed(1)+'% '+(t.deltaBps>=0?'▲':'▼')}</span>
-   </button>):<button className="v2-ticker-item" onClick={onBrowse}><strong>Follow your next grail</strong><span>Raw &amp; graded prices · Verified sold comps only</span><small>Connect an authorized sales feed to publish current values</small><ArrowUpRight size={14}/></button>}
-  </div></div>
-
- </div>;
-}
 export default function Homepage(p:HomepageProps){
  const [query,setQuery]=useState(''),[results,setResults]=useState<ComicCardRecord[]>([]),[searching,setSearching]=useState(false),[error,setError]=useState(''),[focused,setFocused]=useState(false),[active,setActive]=useState(-1),[feedTab,setFeedTab]=useState<'keys'|'film'|'variants'>('keys');
  const id=useRef(0);
@@ -27,13 +18,13 @@ export default function Homepage(p:HomepageProps){
  const items=feedTab==='film'?p.feed.filmKeys:feedTab==='variants'?p.feed.ratioVariants:p.feed.items;
  function open(id:string){setFocused(false);setQuery('');p.onOpenComic(id)}
  return <div className="platform-v2 min-w-0 py-5 sm:py-7">
-  <MarketTicker ticks={p.feed.market} onOpen={p.onOpenComic} onBrowse={p.onBrowseKeys}/>
+  <MarketPulse onOpen={p.onOpenComic}/>
   <section className="v2-hero relative mt-5 grid min-w-0 gap-8 overflow-hidden rounded-[28px] border border-slate-200 bg-[#f9f6ee] px-5 py-9 sm:px-9 lg:grid-cols-[1.12fr_1fr] lg:gap-6 lg:px-12 lg:py-14">
    <div className="relative z-10 min-w-0"><span className="inline-flex items-center gap-2 rounded-full border border-[#d9c995] bg-[#fff0b9] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.12em]"><Sparkles size={13}/> A universe worth collecting</span>
     <h1 className="v2-hero-title mb-5 mt-6 text-[52px] font-black uppercase leading-[.93] tracking-[-.035em] sm:text-[74px] lg:text-[83px]">Know the book.<br/><span className="text-[#c83e30]">Own the story.</span></h1>
     <p className="mb-6 max-w-lg text-sm leading-7 text-slate-600 sm:text-base">Find your next grail. Build a collection that tells your story. Give a great comic its next home.</p>
     <div className="relative z-30"><div className="flex items-center gap-3 rounded-2xl border border-slate-300 bg-white p-3.5 shadow-sm"><Search size={20} className="shrink-0 text-slate-500"/><input role="combobox" aria-label="Search by comic, character or key term" aria-expanded={focused&&query.trim().length>=2} aria-controls="v2-search-results" aria-autocomplete="list" aria-activedescendant={active>=0?'v2-result-'+active:undefined} onFocus={()=>setFocused(true)} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Title, character, or key term…" onKeyDown={e=>{if(e.key==='Escape'){setFocused(false);setActive(-1)}if(e.key==='ArrowDown'){e.preventDefault();setActive(v=>Math.min(v+1,results.length-1))}if(e.key==='ArrowUp'){e.preventDefault();setActive(v=>Math.max(v-1,0))}if(e.key==='Enter'&&results[active]){e.preventDefault();open(results[active].id)}}} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-base outline-none"/>{query&&<button onClick={()=>setQuery('')} aria-label="Clear search"><X size={17}/></button>}</div>
-     {focused&&query.trim().length>=2&&<div id="v2-search-results" role="listbox" className="absolute top-full mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">{searching?<p role="status" className="m-0 p-4 text-sm">Searching the directory…</p>:error?<p role="alert" className="m-0 p-4 text-sm text-red-700">{error}</p>:results.length?results.map((c,i)=><button key={c.id} id={'v2-result-'+i} role="option" aria-selected={active===i} onClick={()=>open(c.id)} className={'flex w-full items-center gap-3 rounded-xl p-3 text-left '+(active===i?'bg-[#fff0b9]':'hover:bg-slate-50')}>{c.coverUrl?<img src={c.coverUrl} alt="" className="h-14 w-10 shrink-0 object-contain"/>:<BookOpen className="h-14 w-10 shrink-0 text-slate-400"/>}<span className="min-w-0 flex-1"><strong className="block text-sm">{c.title} #{c.issueNumber}</strong><small className="block text-xs text-slate-500">{c.publisher} · {c.variant}</small></span><ChevronRight size={15}/></button>):<p className="m-0 p-4 text-sm">No matching issue in the indexed directory.</p>}</div>}
+     {focused&&query.trim().length>=2&&<div id="v2-search-results" role="listbox" className="absolute top-full mt-2 w-full max-h-[65vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">{searching?<p role="status" className="m-0 p-4 text-sm">Searching the directory…</p>:error?<p role="alert" className="m-0 p-4 text-sm text-red-700">{error}</p>:results.length?results.map((c,i)=><div key={c.id} className="rounded-xl border-b border-slate-100 p-2"><button id={'v2-result-'+i} role="option" aria-selected={active===i} onClick={()=>open(c.id)} className={'flex w-full items-center gap-3 rounded-xl p-2 text-left '+(active===i?'bg-[#fff0b9]':'hover:bg-slate-50')}><span className="h-16 w-11 shrink-0"><ResolvedComicCover issueId={Number(c.id)} src={c.coverUrl} title={c.title} issue={c.issueNumber} publisher={c.publisher}/></span><span className="min-w-0 flex-1"><strong className="block text-sm">{c.title} #{c.issueNumber}</strong><small className="block text-xs text-slate-500">{c.publisher} · {c.variant}</small></span><ChevronRight size={15}/></button><EstimatedValue request={{issueId:Number(c.id),reference:true}} initialSnapshot={c.estimatedValue}/></div>):<p className="m-0 p-4 text-sm">No matching issue in the indexed directory.</p>}</div>}
     </div>
     <div className="mt-4 grid grid-cols-3 gap-2"><button onClick={p.onScan} className="v2-quick flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#c83e30] px-2 text-[11px] font-bold text-white"><Camera size={17}/><span>Scan a Book</span></button><button onClick={p.onValueCollection} className="v2-quick flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-2 text-[11px] font-bold"><Layers size={17}/><span>Value Collection</span></button><button onClick={p.onBrowseKeys} className="v2-quick flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-2 text-[11px] font-bold"><Zap size={17}/><span>Browse Keys</span></button></div>
     <button onClick={p.onMarketplace} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-[#345a6a]">Shop collector listings <ArrowUpRight size={16}/></button>

@@ -1,3 +1,5 @@
+> Current coordinated implementation: [15 October collector upgrade](COORDINATED-COLLECTOR-UPGRADE-2026-10-15.md). Earlier capability descriptions below are historical.
+
 # ComicHuddle complete source handoff
 
 ## Open the project

@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {estimateConditionSchema} from './estimate-condition';
 import {catalog} from './catalog';
 import {linkedCatalogIssue} from './catalog-search';
 import {sharedProviderIdentity} from './shared-catalog';
@@ -12,7 +13,7 @@ const externalCatalog=z.object({provider:z.enum(['Metron','GCD']),id:z.number().
 });
 export const vaultSchema=z.object({
 profile:z.string().min(1).max(80),
-books:z.array(z.object({id:z.string().trim().min(1).max(80),title:z.string().trim().min(1).max(160),issue:z.string().max(40),grade:z.string().max(80),price:z.number().finite().min(0).max(10000000),catalogId:issueId.optional(),externalCatalog:externalCatalog.optional(),photoId:z.string().uuid().optional(),ownership:collectionEntrySchema.optional()})).max(1000),
+books:z.array(z.object({id:z.string().trim().min(1).max(80),title:z.string().trim().min(1).max(160),issue:z.string().max(40),grade:z.string().max(80),price:z.number().finite().min(0).max(10000000),catalogId:issueId.optional(),externalCatalog:externalCatalog.optional(),photoId:z.string().uuid().optional(),ownership:collectionEntrySchema.optional(),condition:estimateConditionSchema.optional()})).max(1000),
 wants:z.array(wantedIssueId).max(1000),posts:z.array(z.string().min(1).max(1000)).max(100),likes:z.array(z.number().int()).max(100),
 tradeBookIds:z.array(z.string().trim().min(1).max(80)).max(1000).default([]),clubs:z.array(z.string().max(40)).max(30).default([]),
 watchlist:z.array(z.object({issueId,mode:z.enum(['Raw','CGC']),grade:z.string().max(10)})).max(1000).default([]),

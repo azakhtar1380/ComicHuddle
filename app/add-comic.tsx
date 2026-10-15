@@ -56,7 +56,7 @@ export function OwnedComicForm({vault,bookId,commit,saving,listed,onSaved}:Props
   const title=manual?String(data.get('title')).trim():selected!.title,issue=manual?String(data.get('issue')).trim():'#'+selected!.number;
   const identity=!manual?issueIdentity(selected!):previousExternal&&!unlink&&title===copy.title&&issue===copy.issue?{externalCatalog:previousExternal}:{};
   let ownership=copy.ownership;try{if(ownership)ownership=ownershipFromForm(data,format)}catch{setError('Check the recorded condition, grade, certification, purchase price and acquisition date.');return}
-  const updated={...own,title,issue,grade:ownership?collectionGrade(ownership):String(data.get('grade')||'').trim(),price:Number(data.get('price')),...identity,...(ownership?{ownership}:{})};
+  const updated={...own,condition:undefined,title,issue,grade:ownership?collectionGrade(ownership):String(data.get('grade')||'').trim(),price:Number(data.get('price')),...identity,...(ownership?{ownership}:{})};
   if(await commit({...vault,books:vault.books.map(book=>book.id===bookId?updated:book)}))onSaved();
  }}><fieldset className="comic-form-fields" disabled={saving||listed}>
   {listed&&<p className="comic-entry-error">This copy is included in an active listing. Withdraw or cancel that listing before editing its details.</p>}

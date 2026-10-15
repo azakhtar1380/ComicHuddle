@@ -1,3 +1,5 @@
+> Current coordinated implementation: [15 October collector upgrade](COORDINATED-COLLECTOR-UPGRADE-2026-10-15.md). Earlier capability descriptions below are historical.
+
 # Automatic cover recognition implementation
 
 Implemented 13 October 2026 for the existing ComicHuddle web scanner. The current capability recognizes a finite set of six existing reference covers. This is a genuine image-feature matcher running in the collector’s browser; it is not a purchased recognition service, a comprehensive comic identifier or a calibrated accuracy claim.

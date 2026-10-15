@@ -1,3 +1,5 @@
+import {combinedListingEstimate} from './estimated-fmv';
+import type {CombinedEstimate} from './estimated-fmv-types';
 import {catalogIssuesById} from './catalog-store';
 import {resolveLocation} from './location-search';
 import {and,asc,desc,eq,gt,gte,inArray,lt,lte,or,sql,type SQL} from 'drizzle-orm';
@@ -26,7 +28,7 @@ const bookId=z.string().trim().min(1).max(80);
 const externalCatalogSchema=z.object({provider:z.enum(['Metron','GCD']),id:z.number().int().min(1).max(2147483647),sourceUrl:z.string().max(120),license:z.literal('CC BY-SA 4.0')}).strict().refine(v=>v.sourceUrl===(v.provider==='Metron'?'https://metron.cloud/issue/'+v.id+'/':'https://www.comics.org/issue/'+v.id+'/'));
 const fulfillmentSchema=z.enum(['shipping','pickup','both']);
 const citySchema=z.string().trim().max(80).refine(v=>!v||/^[\p{L}][\p{L}\p{M} .'-]*$/u.test(v),'Use a city name only, without a street address or ZIP code.');
-const conditionSchema=z.object({mode:z.enum(['Raw','CGC']),grade:z.string().refine(s=>grades.includes(s)),label:z.enum(['Raw','Universal','Signature Series','Qualified','Restored','Conserved']),printing:z.enum(['First printing','Later printing'])}).strict().refine(v=>(v.mode==='Raw')===(v.label==='Raw'),'Raw condition must use the Raw label.');
+const conditionSchema=z.object({mode:z.enum(['Raw','CGC']),grade:z.string().refine(s=>grades.includes(s)),label:z.enum(['Raw','Universal','Signature Series','Qualified','Restored','Conserved']),printing:z.enum(['First printing','Second printing','Third printing','Later printing','Facsimile','Reprint']),language:z.string().max(40).optional(),signatureStatus:z.string().max(50).optional(),restorationStatus:z.string().max(50).optional(),certificationNumber:z.string().max(40).optional()}).strict().refine(v=>(v.mode==='Raw')===(v.label==='Raw'),'Raw condition must use the Raw label.');
 const creationSchema=z.object({
  action:z.literal('listing'),safePurchaseOptIn:z.boolean().default(false),locationZip:z.string().regex(/^\d{5}$/).optional(),kind:z.enum(['single','collection']).default('single'),saleType:z.enum(['fixed','auction']).default('fixed'),
  bookId:bookId.optional(),bookIds:z.array(bookId).min(1).max(1000).refine(ids=>new Set(ids).size===ids.length).optional(),
@@ -86,7 +88,7 @@ export function auctionView(row:ListingRow,viewerId?:string,ownBid?:Bid,stamp=Da
  const leading=!!viewerId&&row.leaderId===viewerId&&row.leadingBidId!==null&&row.status!=='cancelled'&&row.status!=='withdrawn';
  return {endAt:row.endAt,bidIncrement:row.bidIncrement,currentBid:row.currentBid,minNextBid:ended||next>marketplaceMaxCents?null:next,bidCount:row.bidCount,ended,leading,yourBid:ownBid?.amount??null,yourBidId:ownBid?.id??null,yourBidStatus:ownBid?(row.leadingBidId===ownBid.id&&leading?'leading':'outbid'):null,nonbinding:true};
 }
-export type ListingContext={values:Map<string,MarketRow|null>;ownBids:Map<string,Bid>;stamp:number};
+export type ListingContext={aiEstimates?:Map<string,CombinedEstimate>;values:Map<string,MarketRow|null>;ownBids:Map<string,Bid>;stamp:number};
 export async function listingContext(db:Db,rows:ListingRow[],viewerId?:string):Promise<ListingContext>{
  const stamp=Date.now(),values=new Map<string,MarketRow|null>(),ownBids=new Map<string,Bid>();
  const issueIds=[...new Set(rows.flatMap(row=>listingItems(row).flatMap(item=>{const id=listingDirectoryId(item);return id===null?[]:[id]})))];
@@ -100,13 +102,15 @@ export async function listingContext(db:Db,rows:ListingRow[],viewerId?:string):P
   const own=await db.select().from(auctionBids).where(inArray(auctionBids.id,db.select({id:sql<string>`(SELECT own.id FROM auction_bids own WHERE own.listing_id = ${sql.raw('listings.id')} AND own.bidder_id = ${viewerId} AND own.status IN ('leading','outbid') ORDER BY own.sequence DESC LIMIT 1)`}).from(listings).where(inArray(listings.id,batch))));
   for(const bid of own)ownBids.set(bid.listingId,bid);
  }}
- return {values,ownBids,stamp};
+ const aiEstimates=new Map<string,CombinedEstimate>();
+ const estimates=await Promise.allSettled(rows.map(row=>combinedListingEstimate(db,listingItems(row),true)));estimates.forEach((result,index)=>{if(result.status==='fulfilled')aiEstimates.set(rows[index].id,result.value)});
+ return {values,ownBids,stamp,aiEstimates};
 }
 export function listingDto(row:ListingRow,seller:Pick<Profile,'id'|'name'|'handle'|'createdAt'>|undefined,viewerId:string|undefined,context:ListingContext):Listing{
  const items=listingItems(row),auction=auctionView(row,viewerId,context.ownBids.get(row.id),context.stamp),fulfillment=fulfillmentSchema.parse(row.fulfillment);
  // Select every public field explicitly; ledger identities, vault revision,
  // internal CAS versions and private inventory prices never leave this DTO.
- return {id:row.id,sellerId:row.sellerId,bookId:row.bookId,issueId:row.issueId,title:row.title,grade:row.grade,description:row.description,price:row.price,shipping:row.shipping,photos:JSON.parse(row.photos),cert:row.cert,status:row.status==='active'&&auction?.ended?'ended':row.status,createdAt:row.createdAt,safePurchaseOptIn:!!row.safePurchaseOptIn,safePurchaseVerifiedAt:row.safePurchaseVerifiedAt,locationCity:row.locationCity,locationState:row.locationState,seller:{id:seller?.id||'',name:seller?.name||'Former collector',handle:seller?.handle||'',...(seller?.createdAt?{createdAt:seller.createdAt}:{})},fulfillment,pickupCity:fulfillment==='shipping'?'':row.pickupCity,pickupState:fulfillment==='shipping'?'':row.pickupState,kind:row.kind==='collection'?'collection':'single',saleType:row.saleType==='auction'?'auction':'fixed',items,itemCount:items.length,valuation:listingValuation(items,context.values,context.stamp),auction};
+ return {id:row.id,sellerId:row.sellerId,bookId:row.bookId,issueId:row.issueId,title:row.title,grade:row.grade,description:row.description,price:row.price,shipping:row.shipping,photos:JSON.parse(row.photos),cert:row.cert,status:row.status==='active'&&auction?.ended?'ended':row.status,createdAt:row.createdAt,safePurchaseOptIn:!!row.safePurchaseOptIn,safePurchaseVerifiedAt:row.safePurchaseVerifiedAt,locationCity:row.locationCity,locationState:row.locationState,seller:{id:seller?.id||'',name:seller?.name||'Former collector',handle:seller?.handle||'',...(seller?.createdAt?{createdAt:seller.createdAt}:{})},fulfillment,pickupCity:fulfillment==='shipping'?'':row.pickupCity,pickupState:fulfillment==='shipping'?'':row.pickupState,kind:row.kind==='collection'?'collection':'single',saleType:row.saleType==='auction'?'auction':'fixed',items,itemCount:items.length,aiEstimate:context.aiEstimates?.get(row.id),valuation:listingValuation(items,context.values,context.stamp),auction};
 }
 
 function databaseMessage(error:unknown){let current=error;const parts:string[]=[];for(let i=0;i<5&&current&&typeof current==='object';i++){const e=current as {message?:unknown;cause?:unknown};if(typeof e.message==='string')parts.push(e.message);current=e.cause}return parts.join(' ')}

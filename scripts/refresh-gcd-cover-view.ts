@@ -10,7 +10,7 @@ try{
   // The issue ID is never substituted for the cover ID, including variants.
   const origin=process.env.GCD_COVER_ORIGIN||'https://files1.comics.org';
   if(!/^https:\/\/files[0-9]+\.comics\.org$/.test(origin))throw new Error('Use the official HTTPS GCD image origin.');
-  const derived=columns.includes('id')?`CASE WHEN c.id>0 THEN '${origin}/img/gcd/covers_by_id/'||(c.id::bigint/1000)::text||'/w400/'||c.id::text||'.jpg' END`:'NULL::text';
+  const derived='NULL::text'; // Resolve source-supplied URLs; never synthesize cover paths.
   await client.query(`CREATE OR REPLACE VIEW gcd.comichuddle_cover_references AS
    SELECT DISTINCT ON (issue_id) issue_id,gcd_id,image_url,source_url,attribution,status,fetched_at FROM (
     SELECT 4000000000::bigint+c.issue_id AS issue_id,c.issue_id::bigint AS gcd_id,

@@ -1,7 +1,8 @@
+import type {EstimateSnapshot} from './estimated-fmv-types';
 import {catalogAdditions} from './catalog-additions';
 export type GcdStory={type:string;title:string;feature:string;sequenceNumber:number|null;pageCount:string;script:string;pencils:string;inks:string;colors:string;letters:string;editing:string;jobNumber:string;genre:string;firstLine:string;characters:string;synopsis:string;notes:string;keywords:string};
 export type GcdBibliography={publicationDate:string;keyDate:string;onSaleDate:string;originalCoverPrice:{kind:'ORIGINAL_COVER_PRICE';text:string};pageCount:string;isbn:string;barcode:string;issueTitle:string;volume:string;variantOf:number|null;seriesProviderId:number;indiciaPublisher:string;brandEmblem:string;rating:string;indiciaFrequency:string;indiciaPrinter:string;keywords:string;editing:string;stories:GcdStory[]};
-export type Issue={id:number;title:string;number:string;publisher:string;year:number;era:string;characters:string[];writer:string;artist:string;note:string;kind:string;variant:string;source:string;cover?:string;coverArtist?:string;coverCredit?:string;coverSource?:string;dataCredit?:string;dataLicense?:string;metronId?:number;gcdId?:number;bibliography?:GcdBibliography;};
+export type Issue={estimatedValue?:EstimateSnapshot;id:number;title:string;number:string;publisher:string;year:number;era:string;characters:string[];writer:string;artist:string;note:string;kind:string;variant:string;source:string;cover?:string;coverArtist?:string;coverCredit?:string;coverSource?:string;dataCredit?:string;dataLicense?:string;metronId?:number;gcdId?:number;bibliography?:GcdBibliography;};
 // Independently entered starter bibliography. No proprietary price guide or cover database is copied.
 // IDs 0–5 are retained so existing account want lists continue to point to the same issues.
 const entries:Omit<Issue,'id'|'era'|'variant'>[]=[

@@ -2,6 +2,8 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { catalogCoverReferences } from '../db/schema';
 import type { CatalogDb } from './catalog-store';
 import type { Issue } from './catalog';
+import {withCatalogEstimates} from './catalog-estimates';
+import {readyCachedCoverRows} from './cover-cache-read';
 
 /** Only URLs supplied for an exact GCD issue, never guessed cover IDs. */
 export function gcdThumbnailUrl(value: unknown): string | null {
@@ -39,7 +41,7 @@ async function withNativeCoverRows(db:CatalogDb,issues:Issue[]):Promise<Issue[]>
     if(!/^https:\/\/files[0-9]+\.comics\.org$/.test(origin))throw new Error('Invalid native cover origin.');
     const rows=await db.execute(sql`SELECT DISTINCT ON(wanted.issue_id) wanted.issue_id,c.id AS native_cover_id,(${permitted}) AS permitted,
       COALESCE(NULLIF(to_jsonb(c)->>'image_url',''),NULLIF(to_jsonb(c)->>'cover_url',''),NULLIF(to_jsonb(c)->>'url',''),NULLIF(to_jsonb(c)->>'image_path',''),
-       CASE WHEN c.id>0 THEN ${origin}||'/img/gcd/covers_by_id/'||(c.id::bigint/1000)::text||'/w400/'||c.id::text||'.jpg' END) AS image_url
+       NULL) AS image_url
       FROM (VALUES ${sql.join(identities.map(issue=>sql`(${issue.gcdId})`),sql`,`)}) wanted(issue_id) LEFT JOIN gcd.gcd_cover c ON c.issue_id=wanted.issue_id
       ORDER BY wanted.issue_id,(${permitted}) DESC,c.id`);
     const byId=new Map(rows.rows.map(row=>[Number(row.issue_id),row]));
@@ -76,5 +78,10 @@ export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise
     if (!reference || !url || reference.gcdId !== issue.gcdId || issue.id !== 4_000_000_000 + reference.gcdId) return issue;
     return { ...issue, cover: url, coverSource: reference.sourceUrl!, coverCredit: reference.attribution! };
   });
-  return withNativeCoverRows(db,retained);
+  const native=await withNativeCoverRows(db,retained);
+  // Historical references identify source assets, not blanket permission to
+  // hotlink/cache publisher artwork. Public GCD art now uses the reviewed CDN.
+  let ready=new Map<number,{url:string;attribution:string;source:string}>();
+  try{ready=await readyCachedCoverRows(db,native.filter(issue=>!!issue.gcdId).map(issue=>issue.id))}catch{/* An additive cache migration may not have run yet. Metadata remains usable. */}
+  return withCatalogEstimates(db,native.map(issue=>{if(!issue.gcdId)return issue;const cached=ready.get(issue.id);return {...issue,cover:cached?.url,coverCredit:cached?.attribution,coverSource:cached?.source}}));
 }

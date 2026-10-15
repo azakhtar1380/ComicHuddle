@@ -91,3 +91,5 @@
 .sd-tree .sd-publisher-search>svg{flex-shrink:0}
 .sd-publisher-list{max-height:430px;overflow:auto}
 @media(max-width:760px){.shared-directory .sd-publisher-filter{min-width:0}.publisher-input>input{font-size:16px}}
+
+.sd-card-shell{display:flex;flex-direction:column;min-width:0}.sd-card-main{display:block;min-width:0;width:100%;text-align:left;font:inherit;background:transparent;border:0;padding:0;color:inherit}.sd-card-shell .sd-art{width:100%}.sd-card-shell .sd-info{display:flex;flex-direction:column}

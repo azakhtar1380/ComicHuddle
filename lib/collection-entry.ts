@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import type {EstimateCondition} from './estimated-fmv-types';
 
 export const rawConditions=['GOOD','VERY_GOOD','FINE','VERY_FINE','NEAR_MINT'] as const;
 export const collectionGrades=['0.5','1.0','1.5','1.8','2.0','2.5','3.0','3.5','4.0','4.5','5.0','5.5','6.0','6.5','7.0','7.5','8.0','8.5','9.0','9.2','9.4','9.6','9.8','9.9','10.0'] as const;
@@ -34,6 +35,6 @@ export function matchesCollectionRequest(copy:{catalogId?:number;externalCatalog
 }
 
 /** Public profiles expose copy identity, never acquisition/cost/certification notes. */
-export function publicOwnedCopy<T extends {id:string;title:string;issue:string;grade:string;catalogId?:number;externalCatalog?:unknown;photoId?:string}>(copy:T){
- return {id:copy.id,title:copy.title,issue:copy.issue,grade:copy.grade,...(copy.catalogId===undefined?{}:{catalogId:copy.catalogId}),...(copy.externalCatalog?{externalCatalog:copy.externalCatalog}:{}),...(copy.photoId?{photoId:copy.photoId}:{})};
+export function publicOwnedCopy<T extends {id:string;title:string;issue:string;grade:string;catalogId?:number;externalCatalog?:{provider:'Metron'|'GCD';id:number;sourceUrl:string;license:'CC BY-SA 4.0'};photoId?:string;condition?:EstimateCondition}>(copy:T){
+ return {id:copy.id,title:copy.title,issue:copy.issue,grade:copy.grade,...(copy.catalogId===undefined?{}:{catalogId:copy.catalogId}),...(copy.externalCatalog?{externalCatalog:copy.externalCatalog}:{}),...(copy.photoId?{photoId:copy.photoId}:{}),...(copy.condition?{condition:{...copy.condition,certificationNumber:undefined}}:{})};
 }

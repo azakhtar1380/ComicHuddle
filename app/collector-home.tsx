@@ -7,7 +7,7 @@ import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import './platform-v2.css';
 
 export function homeComic(issue:Issue):ComicCardRecord{
- return {id:String(issue.id),title:issue.title,issueNumber:issue.number,publisher:issue.publisher,
+ return {estimatedValue:issue.estimatedValue,id:String(issue.id),title:issue.title,issueNumber:issue.number,publisher:issue.publisher,
   publicationDate:issue.bibliography?.publicationDate|| (issue.year?String(issue.year):null),
   coverUrl:issue.cover||null,coverCredit:issue.coverCredit||null,variant:issue.variant,
   keyTags:issue.kind==='Key issue'?['Key issue']:[],rawFMVCents:null,cgc98FMVCents:null,
@@ -20,7 +20,7 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
   setLoading(true);setError('');
   try{const response=await fetch('/api/catalog?'+new URLSearchParams({ids:[...catalog.filter(issue=>issue.cover?.startsWith('/covers/')).map(issue=>issue.id),0,3,7,10].join(',')}),{signal,cache:'no-store'});if(!response.ok)throw Error();
    const page=parseCatalogSearchPage(await response.json());if(!signal.aborted)setFeed({...emptyFeed,items:[...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id).map(homeComic),indexedCount:page.issueCount,asOf:new Date().toISOString()});
-   try{const extra=await fetch('/api/home-feed',{signal,cache:'no-store'});if(extra.ok){const payload=await extra.json();if(!signal.aborted&&Array.isArray(payload.market)&&Array.isArray(payload.upcoming))setFeed(current=>({...current,market:payload.market as MarketTick[],upcoming:payload.upcoming.map(homeComic)}))}}catch{/* The directory remains usable if the optional market feed is unavailable. */}
+
   }catch(e){if(!signal.aborted)setError('The directory could not load. Open the directory or retry below.');}
   finally{if(!signal.aborted)setLoading(false);}
  },[]);
