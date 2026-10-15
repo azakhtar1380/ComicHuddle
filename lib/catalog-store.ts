@@ -40,7 +40,7 @@ export async function catalogIssuesById(db:CatalogDb,ids:number[]):Promise<Issue
  if(!ids.length)return [];
  const nativeIds=ids.filter(id=>id>=4000000000).map(id=>id-4000000000);
  const [native,legacy]=await Promise.all([
-  nativeIds.length?db.execute(sql`SELECT id,data FROM gcd.comichuddle_native_directory WHERE gcd_id IN (${sql.join(nativeIds.map(id=>sql`${id}`),sql`,`)})`):Promise.resolve({rows:[]}),
+  nativeIds.length?db.execute(sql`SELECT id,data FROM gcd.comichuddle_native_directory WHERE id IN (${sql.join(ids.filter(id=>id>=4000000000).map(id=>sql`${id}`),sql`,`)})`):Promise.resolve({rows:[]}),
   db.select({id:legacyDirectoryIssues.id,data:legacyDirectoryIssues.data}).from(legacyDirectoryIssues).where(inArray(legacyDirectoryIssues.id,ids)),
  ]);
  const byId=new Map<number,Issue>();
@@ -81,7 +81,7 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const extra=retained.length?sql`SELECT e.id,e.title,e.year FROM gcd.comichuddle_legacy_directory e WHERE e.id IN (${sql.join(retained.map(id=>sql`${id}`),sql`,`)}) AND ${nativeTerms('e')}`:sql`SELECT 0::bigint AS id,''::text AS title,0 AS year WHERE false`;
  let nativeBase=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded}`;
  if((!filter.sort||filter.sort==='featured')&&!filter.era&&!filter.kind){
-  const rawTerms=[sql`COALESCE(i.deleted,0)=0`,...numbers.map(n=>sql`lower(i.number)=${n}`)];
+  const rawTerms=[sql`(i.deleted=0 OR i.deleted IS NULL)`,...numbers.map(n=>sql`lower(i.number)=${n}`)];
   if(retainedGcd.length)rawTerms.push(sql`NOT EXISTS(SELECT 1 FROM unnest(ARRAY[${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)}]::bigint[]) excluded(gcd_id) WHERE excluded.gcd_id=i.id)`);
   if(words.length||filter.publisher||filter.series){
    const st=words.map(w=>sql`lower(s.name) LIKE ${'%'+w+'%'}`);
