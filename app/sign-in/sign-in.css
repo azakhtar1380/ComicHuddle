@@ -1,7 +1,7 @@
 main.auth-redesign{max-width:1240px;margin:0 auto;padding:0 28px 48px;min-height:100svh;background:var(--paper)}
 .auth-redesign .auth-header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:12px 0 22px}
 .auth-redesign .auth-logo{display:block;width:118px;margin:0;line-height:0}
-.auth-redesign .auth-logo img{width:118px;height:95px;object-fit:contain;background:transparent}
+.auth-redesign .auth-logo img{width:118px;height:95px;object-fit:contain;background:transparent;mix-blend-mode:multiply}
 .auth-redesign .auth-back{display:inline-flex;align-items:center;gap:9px;font-size:12px;text-decoration:none;font-weight:700}
 .auth-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:30px;align-items:stretch}
 .auth-art{position:relative;display:flex;align-items:flex-end;min-height:650px;padding:40px;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--ink);color:var(--cream)}
