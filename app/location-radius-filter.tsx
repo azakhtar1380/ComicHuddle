@@ -6,7 +6,7 @@ const label=(city:City)=>`${city.city}, ${city.state} · ${city.zip}`;
 export default function LocationRadiusFilter({location,radius,onChange}:{location:string;radius:string;onChange:(location:string,radius:string)=>void}){
  const id=useId(),[input,setInput]=useState(location),[error,setError]=useState(''),[choices,setChoices]=useState<City[]>([]),[open,setOpen]=useState(false),[active,setActive]=useState(-1),[loading,setLoading]=useState(false),[retry,setRetry]=useState(0);
  const selected=useRef<City|null>(null);
- useEffect(()=>{setInput(location);selected.current=null},[location]);
+ useEffect(()=>{if(selected.current?.zip===location)setInput(label(selected.current));else{setInput(location);selected.current=null}},[location]);
  useEffect(()=>{
   const abort=new AbortController();if(input.trim().length<2){setChoices([]);setLoading(false);return}
   const timer=setTimeout(()=>{setLoading(true);void fetch('/api/locations?q='+encodeURIComponent(selected.current?.zip||input.trim()),{signal:abort.signal}).then(async response=>{if(!response.ok)throw Error();const body=await response.json();if(!Array.isArray(body.choices))throw Error();return body.choices.filter((choice:City)=>/^\d{5}$/.test(choice.zip)&&!!choice.city&&/^[A-Z]{2}$/.test(choice.state)) as City[]}).then(next=>{if(!abort.signal.aborted){setChoices(next);setActive(-1);setError('')}}).catch(()=>{if(!abort.signal.aborted){setChoices([]);setError('City search could not connect. Retry or clear the location.')}}).finally(()=>{if(!abort.signal.aborted)setLoading(false)})},220);

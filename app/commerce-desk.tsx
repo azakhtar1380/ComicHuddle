@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {ArrowUpRight,Package,ShieldCheck} from 'lucide-react';
+import {ArrowUpRight,ChevronDown,Package,ShieldCheck} from 'lucide-react';
 import MarketplaceCheckout,{usePaymentConfiguration} from './marketplace-checkout';
 
 type Setup={enabled:boolean;ready:boolean;checkoutEnabled:boolean;reason:string};
@@ -16,7 +16,10 @@ async function post(body:unknown){const response=await fetch('/api/commerce',{me
 
 export function BuyerProtection(){
  const {data}=usePaymentConfiguration(),active=!!data?.setup.checkoutEnabled;
- return <section className="buyer-protection-card"><div><ShieldCheck size={25}/><div><h3>Buyer &amp; Seller Protection</h3><p>{active?'Secure test checkout. Track your order and report a problem from Orders.':'Secure checkout is awaiting payment setup. No protection or payout is promised for unpaid or cash transactions.'}</p></div></div><div className="protection-badges"><span><Package size={16}/> Shipment tracking</span><span><ShieldCheck size={16}/> 48-hour inspection</span><span><ArrowUpRight size={16}/> Payout after review</span></div><details><summary>How order protection works</summary><p>For eligible paid orders, confirmed delivery starts the inspection period. A buyer issue pauses seller release. Tracking and automatic payout require the operator’s carrier and payout connections. Refund and card-dispute rights continue after the inspection period.</p></details></section>;
+ return <section className="marketplace-assurance" aria-label="Marketplace protection options">
+  <details><summary><span className="assurance-icon"><ShieldCheck size={21}/></span><span><strong>SafePurchase Guarantee</strong><small>Optional inspection for your next grail.</small></span><ChevronDown size={18}/></summary><div className="assurance-detail"><p>Choose optional inspection for a single comic or a whole collection. Accepted service terms define the contents, fees, inspection address and delivery steps.</p><p>Opt-in is not a completed inspection. This preview has no connected inspection operator; a SafePurchase payment stays unavailable until its service requirements are met.</p><a className="inline-button" href="/safepurchase">Explore SafePurchase <ArrowUpRight size={15}/></a></div></details>
+  <details><summary><span className="assurance-icon"><Package size={21}/></span><span><strong>Buyer/Seller Protection</strong><small>Tracking, inspection and order support.</small></span><ChevronDown size={18}/></summary><div className="assurance-detail"><div className="protection-badges"><span><Package size={14}/> Verified tracking</span><span><ShieldCheck size={14}/> 48-hour inspection</span><span><ArrowUpRight size={14}/> Payout after review</span></div><p>{active?'Secure test checkout is connected. Follow your purchase and report a problem from Orders.':'Checkout availability is checked before payment. Unpaid and cash transactions do not receive platform payment protection.'}</p><p>For eligible paid orders, verified delivery starts the inspection window. A reported issue pauses release. Automatic tracking and payouts require connected carrier and payout services. Refund and card-dispute rights continue after the inspection window.</p><a className="inline-button" href="/?section=Orders">Orders &amp; refunds <ArrowUpRight size={15}/></a></div></details>
+ </section>;
 }
 export function SandboxCheckout(props:{listingId:string;onNotice:(text:string)=>void;requiresInspection?:boolean;onInspectionRequest?:()=>void}){return <MarketplaceCheckout {...props}/>}
 

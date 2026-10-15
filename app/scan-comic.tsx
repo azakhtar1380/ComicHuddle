@@ -1,208 +1,126 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {Camera,Check,ImagePlus,LoaderCircle,ScanLine,Search,ShieldCheck,Square} from 'lucide-react';
+import {Camera,Check,ImagePlus,LoaderCircle,ScanLine,Search,ShieldCheck,ShoppingBag,Square} from 'lucide-react';
 import type {Issue} from '../lib/catalog';
-import {safeScanImage,scanSearchText,recognizedBarcode,stopComicCamera} from '../lib/comic-scan';
-import {COVER_FRAME_INTERVAL_MS,comicGuideCrop,createCoverConsensus,loadCoverIndex,lookupExactComicText,parseExactComicText,recognizeCoverPixels,resolveRecognizedIssue,type CoverIndex,type RecognitionStatus} from '../lib/cover-recognition';
+import {safeScanImage,stopComicCamera} from '../lib/comic-scan';
+import {comicGuideCrop,resolveRecognizedIssue,type RecognitionStatus} from '../lib/cover-recognition';
+import {lookupVisualCover} from '../lib/scan-visual-client';
+import {createComicOcr} from '../lib/scan-ocr-client';
+import {extractCoverTextHints,lookupCoverText} from '../lib/scan-text';
 import ComicPicker from './comic-picker';
+import ComicCover from './comic-cover';
 import './scan-comic.css';
 
-type LocalDetector={detect:(image:CanvasImageSource)=>Promise<{rawValue?:string}[]>};
-type DetectionWindow=Window&{BarcodeDetector?:new(options:{formats:string[]})=>LocalDetector;TextDetector?:new()=>LocalDetector};
-type Viewport={width:number;height:number};
-const scanStatusLabels:Record<RecognitionStatus,string>={idle:'READY TO SCAN',starting:'STARTING CAMERA',scanning:'LOOKING FOR A COVER',checking_directory:'VERIFYING DIRECTORY RECORD',matched:'DIRECTORY COVER CANDIDATE',unknown:'NO CONFIDENT MATCH YET',not_in_directory:'EXACT SEARCH NOT IN DIRECTORY',index_unavailable:'RECOGNITION UNAVAILABLE',permission_denied:'CAMERA PERMISSION NEEDED'};
-
-export default function ComicScan({onOpen,onCollect,onClose,startOnOpen=false}:{onOpen:(issue:Issue)=>void;onCollect:(issue:Issue)=>void;onClose:()=>void;startOnOpen?:boolean}){
- const video=useRef<HTMLVideoElement>(null),captureBox=useRef<HTMLDivElement>(null),stream=useRef<MediaStream|null>(null),mounted=useRef(true),generation=useRef(0);
- const activeCamera=useRef(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null),controller=useRef<AbortController|null>(null),index=useRef<CoverIndex|null>(null),consensus=useRef(createCoverConsensus()),inFlight=useRef(false),started=useRef(0),selectedRef=useRef<Issue|null>(null),previewRef=useRef('');
- const [dragging,setDragging]=useState(false),[camera,setCamera]=useState(false),[preview,setPreview]=useState(''),[reading,setReading]=useState(false),[hint,setHint]=useState(''),[error,setError]=useState(''),[selected,setSelected]=useState<Issue|null>(null),[finder,setFinder]=useState(''),[pickerVersion,setPickerVersion]=useState(0),[status,setStatus]=useState<RecognitionStatus>('idle'),[manualOpen,setManualOpen]=useState(false),[viewport,setViewport]=useState<Viewport>({width:0,height:0});
-
- useEffect(()=>{
-  mounted.current=true;
-  return()=>{mounted.current=false;generation.current++;clearTimer();controller.current?.abort();activeCamera.current=false;stopComicCamera(stream.current);stream.current=null;consensus.current.reset()};
- },[]);
+const labels:Record<RecognitionStatus,string>={idle:'READY TO SCAN',starting:'STARTING CAMERA',scanning:'READING YOUR COVER',checking_directory:'SEARCHING THE CATALOG',matched:'MATCH FOUND · CONFIRM EDITION',unknown:'CHECK THE COVER TEXT BELOW',not_in_directory:'NO CATALOG RESULT FOR THIS SEARCH',index_unavailable:'VISUAL INDEX UNAVAILABLE',permission_denied:'CAMERA PERMISSION NEEDED'};
+type Props={onOpen:(issue:Issue)=>void;onCollect:(issue:Issue)=>void;onBuy?:(issue:Issue)=>void;onClose:()=>void;startOnOpen?:boolean};
+export default function ComicScan({onOpen,onCollect,onBuy,onClose,startOnOpen=false}:Props){
+ const video=useRef<HTMLVideoElement>(null),box=useRef<HTMLDivElement>(null),stream=useRef<MediaStream|null>(null),mounted=useRef(true),generation=useRef(0),controller=useRef<AbortController|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null),ocr=useRef<ReturnType<typeof createComicOcr>|null>(null),inFlight=useRef(false),cameraActive=useRef(false),previewRef=useRef('');
+ const [camera,setCamera]=useState(false),[preview,setPreview]=useState(''),[selected,setSelected]=useState<Issue|null>(null),[candidates,setCandidates]=useState<Issue[]>([]),[method,setMethod]=useState<'visual'|'text'|'manual'>('manual'),[reading,setReading]=useState(false),[status,setStatus]=useState<RecognitionStatus>('idle'),[hint,setHint]=useState(''),[error,setError]=useState(''),[finder,setFinder]=useState(''),[manualOpen,setManualOpen]=useState(false),[dragging,setDragging]=useState(false),[viewport,setViewport]=useState({width:0,height:0}),[visionSetup,setVisionSetup]=useState<{available:boolean;reason?:string}|null>(null);
+ const current=(request:number)=>mounted.current&&generation.current===request;
+ function clearTimer(){if(timer.current!==null)clearTimeout(timer.current);timer.current=null}
+ function stopCamera(){clearTimer();cameraActive.current=false;stopComicCamera(stream.current);stream.current=null;setCamera(false)}
+ function cancel(){generation.current++;clearTimer();controller.current?.abort();controller.current=null;ocr.current?.close();ocr.current=null;inFlight.current=false;stopCamera();return generation.current}
+ function reset(){setSelected(null);setCandidates([]);setFinder('');setManualOpen(false);setError('');setReading(false)}
+ function setPhoto(url:string){previewRef.current=url;setPreview(url)}
+ useEffect(()=>{const abort=new AbortController();void fetch('/api/recognition/vision',{signal:abort.signal}).then(response=>response.json()).then(value=>{if(!abort.signal.aborted)setVisionSetup(value)}).catch(()=>{if(!abort.signal.aborted)setVisionSetup({available:false,reason:'Enhanced vision could not connect.'})});return()=>abort.abort()},[]);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;generation.current++;clearTimer();controller.current?.abort();ocr.current?.close();stopComicCamera(stream.current)}},[]);
  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview)},[preview]);
+ useEffect(()=>{const target=box.current;if(!target)return;const measure=()=>setViewport({width:target.clientWidth,height:target.clientHeight});measure();const observer=new ResizeObserver(measure);observer.observe(target);return()=>observer.disconnect()},[]);
  useEffect(()=>{
-  const box=captureBox.current;if(!box)return;
-  const measure=()=>{const size=box.getBoundingClientRect();setViewport({width:box.clientWidth||size.width,height:box.clientHeight||size.height})};measure();
-  const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(measure);observer?.observe(box);window.addEventListener('resize',measure);
-  return()=>{observer?.disconnect();window.removeEventListener('resize',measure)};
- },[]);
- useEffect(()=>{
-  if(!camera||!video.current||!stream.current)return;
-  const request=generation.current,frame=video.current;frame.srcObject=stream.current;
-  void frame.play().then(()=>{if(current(request)&&activeCamera.current)scheduleFrame(request,0)}).catch(()=>{if(current(request)){setError('Tap the preview to start the camera, or choose a photo.');setStatus('unknown')}});
+  if(!camera||!video.current||!stream.current)return;const request=generation.current,frame=video.current;frame.srcObject=stream.current;
+  void frame.play().then(()=>{if(current(request))schedule(request,200)}).catch(()=>{if(current(request)){setError('Tap the camera preview to start it, or upload a photo.');setStatus('unknown')}});
  },[camera]);
  useEffect(()=>{
-  function visibilityChanged(){
-   if(document.visibilityState==='hidden'){
-    generation.current++;clearTimer();controller.current?.abort();controller.current=null;consensus.current.reset();inFlight.current=false;
-    stream.current?.getVideoTracks().forEach(track=>{track.enabled=false});
-    if(activeCamera.current){setStatus('scanning');setHint('Camera recognition is paused while this tab is hidden.')}
-    else if(selectedRef.current)setStatus('matched');
-    else{setStatus('idle');setHint('Recognition is paused while this tab is hidden.');}
-    setReading(false);
-   }else if(activeCamera.current){
-    stream.current?.getVideoTracks().forEach(track=>{track.enabled=true});started.current=performance.now();setStatus('scanning');setHint('Fill the guide with one cover and hold steady.');scheduleFrame(generation.current,0);
-   }else if(previewRef.current&&!selectedRef.current){void recognizePhoto(previewRef.current,generation.current)}
-   else if(!selectedRef.current){setStatus('idle');setHint('Start the camera or choose a cover photo to recognize an issue.');}
-  }
-  document.addEventListener('visibilitychange',visibilityChanged);
-  return()=>document.removeEventListener('visibilitychange',visibilityChanged);
+  function visibility(){if(document.visibilityState==='hidden'){controller.current?.abort();ocr.current?.close();ocr.current=null;generation.current++;clearTimer();inFlight.current=false;stream.current?.getVideoTracks().forEach(track=>{track.enabled=false});setReading(false)}else if(cameraActive.current){stream.current?.getVideoTracks().forEach(track=>{track.enabled=true});schedule(generation.current,200)}}
+  document.addEventListener('visibilitychange',visibility);return()=>document.removeEventListener('visibilitychange',visibility);
  },[]);
- // Opt in only from an explicit Scan opening action. Page loads/deep links keep
- // the default idle state. Cleanup also cancels StrictMode's discarded effect.
- useEffect(()=>{
-  if(!startOnOpen)return;
-  let cancelled=false;
-  void Promise.resolve().then(()=>{if(!cancelled&&mounted.current&&document.visibilityState==='visible')void startCamera()});
-  return()=>{cancelled=true};
- },[startOnOpen]);
-
- function current(request:number){return mounted.current&&generation.current===request}
- function clearTimer(){if(timer.current!==null)clearTimeout(timer.current);timer.current=null}
- function stopLiveMedia(){clearTimer();activeCamera.current=false;stopComicCamera(stream.current);stream.current=null;setCamera(false)}
- function cancelWork(){generation.current++;clearTimer();controller.current?.abort();controller.current=null;consensus.current.reset();inFlight.current=false;stopLiveMedia();return generation.current}
- function resetImageSelection(){selectedRef.current=null;setSelected(null);setReading(false);setFinder('');setPickerVersion(value=>value+1);setManualOpen(false)}
- function setLocalPreview(url:string){previewRef.current=url;setPreview(url)}
- function selectIssue(issue:Issue|null){cancelWork();setReading(false);selectedRef.current=issue;setSelected(issue);setStatus(issue?'matched':'idle');setHint(issue?'Directory issue selected. Confirm the edition and printing before adding a copy.':'Search for the exact title and issue.');}
- function scheduleFrame(request:number,delay=COVER_FRAME_INTERVAL_MS){
-  clearTimer();
-  if(!current(request)||!activeCamera.current||document.visibilityState==='hidden')return;
-  timer.current=setTimeout(()=>{timer.current=null;void scanFrame(request)},delay);
+ useEffect(()=>{if(!startOnOpen)return;let cancelled=false;void Promise.resolve().then(()=>{if(!cancelled&&mounted.current)void startCamera()});return()=>{cancelled=true}},[startOnOpen]);
+ function canvasFor(source:CanvasImageSource,width:number,height:number,maxSide=1500,crop?:{x:number;y:number;width:number;height:number}){
+  const area=crop||{x:0,y:0,width,height},scale=Math.min(1,maxSide/Math.max(area.width,area.height)),canvas=document.createElement('canvas');canvas.width=Math.max(2,Math.round(area.width*scale));canvas.height=Math.max(2,Math.round(area.height*scale));const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)throw Error('This browser cannot read the photo.');context.drawImage(source,area.x,area.y,area.width,area.height,0,0,canvas.width,canvas.height);return {canvas,pixels:context.getImageData(0,0,canvas.width,canvas.height)};
  }
- async function ensureIndex(request:number){
-  if(index.current)return index.current;
-  const pending=new AbortController();controller.current=pending;
-  const loaded=await loadCoverIndex(fetch,pending.signal);
-  if(!current(request)||pending.signal.aborted)throw Error('Obsolete scan.');
-  index.current=loaded;controller.current=null;return loaded;
+ function saveFrame(canvas:HTMLCanvasElement,request:number){canvas.toBlob(blob=>{if(blob&&current(request))setPhoto(URL.createObjectURL(blob))},'image/jpeg',.9)}
+ function showMatch(issue:Issue,source:'visual'|'text'|'manual',request:number){if(!current(request))return;stopCamera();setSelected(issue);setMethod(source);setStatus('matched');setHint(source==='visual'?'Cover art matched a database fingerprint. Confirm your printing and variant before saving.':'Catalog match from the cover text. Confirm the year, printing and variant; this is not an authenticity check.');}
+ async function analyze(canvas:HTMLCanvasElement,request:number,mode:'camera'|'upload'){
+  if(!current(request))return;setReading(true);setError('');setStatus('scanning');setHint('Comparing cover features with the database…');
+  const abort=new AbortController();controller.current=abort;let visualUnavailable=false;
+  try{
+   const small=canvasFor(canvas,canvas.width,canvas.height,640);
+   try{
+    const visual=await lookupVisualCover(small.pixels,{mode:'upload'},abort.signal);if(!current(request))return;
+    setCandidates(visual.candidates);
+    if(visual.match){if(mode==='camera')saveFrame(canvas,request);showMatch(visual.match,'visual',request);return}
+   }catch{if(!current(request))return;visualUnavailable=true;}
+   setStatus('scanning');setHint('Reading the title, issue number and publisher on your device…');
+   ocr.current ||= createComicOcr();
+   const hints=await ocr.current.read(canvas);if(!current(request)||abort.signal.aborted)return;
+   setStatus('checking_directory');setHint('Searching the central catalog using the cover text…');
+   const result=await lookupCoverText(hints,fetch,abort.signal);if(!current(request)||abort.signal.aborted)return;
+   setFinder(result.searchText);setCandidates(previous=>[...new Map([...result.candidates,...previous].map(issue=>[issue.id,issue])).values()].slice(0,8));
+   if(result.match){if(mode==='camera')saveFrame(canvas,request);showMatch(result.match,'text',request);return}
+   setStatus('unknown');
+   setHint(result.candidates.length?'The cover text found these catalog editions. Choose the matching year and variant below.':result.empty?'No catalog results for the text read from this photo. Check the reading below; a failed scan does not establish that the book is absent.':visualUnavailable?'The visual index could not connect, and no clear title was read. Retry a closer photo or search below.':'The cover text was not clear enough. Try a straight, glare-free photo or enter the title and issue below.');
+   if(!result.candidates.length)setManualOpen(true);
+  }catch{if(current(request)){setStatus('unknown');setHint('Automatic text reading or catalog lookup could not finish. Retry the photo or enter the title and issue below.');setManualOpen(true)}}
+  finally{if(current(request)){controller.current=null;setReading(false)}}
  }
- function frameCanvas(source:CanvasImageSource,width:number,height:number,maxSide=640){
-  if(width<2||height<2||!Number.isFinite(width)||!Number.isFinite(height))throw Error('The camera is still starting.');
-  const scale=Math.min(1,maxSide/Math.max(width,height)),canvas=document.createElement('canvas');canvas.width=Math.max(2,Math.round(width*scale));canvas.height=Math.max(2,Math.round(height*scale));
-  const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)throw Error('Image reading is unavailable in this browser.');
-  context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';context.drawImage(source,0,0,canvas.width,canvas.height);
-  return {canvas,context,pixels:context.getImageData(0,0,canvas.width,canvas.height)};
- }
- function saveCanvasPreview(canvas:HTMLCanvasElement,request:number,then?:(url:string)=>void){
-  canvas.toBlob(blob=>{if(!current(request))return;if(!blob){if(then){setReading(false);setStatus('unknown');setError('This browser could not capture the photo. Try again or choose a photo.');}return}const url=URL.createObjectURL(blob);setLocalPreview(url);then?.(url)},'image/jpeg',.92);
+ function schedule(request:number,delay=7000){clearTimer();if(current(request)&&cameraActive.current&&document.visibilityState==='visible')timer.current=setTimeout(()=>{timer.current=null;void scanFrame(request)},delay)}
+ async function scanFrame(request:number){
+  if(!current(request)||!cameraActive.current||inFlight.current)return;const frame=video.current;if(!frame?.videoWidth){schedule(request,400);return}
+  inFlight.current=true;
+  try{const target=box.current,crop=comicGuideCrop(frame.videoWidth,frame.videoHeight,target?.clientWidth||frame.videoWidth,target?.clientHeight||frame.videoHeight),{canvas}=canvasFor(frame,frame.videoWidth,frame.videoHeight,1500,crop);await analyze(canvas,request,'camera')}
+  catch{if(current(request)){setStatus('unknown');setHint('Hold one cover in the guide or choose a photo.')}}
+  finally{if(current(request)){inFlight.current=false;schedule(request)}}
  }
  async function startCamera(){
-  const request=cancelWork();resetImageSelection();setLocalPreview('');setError('');setStatus('starting');setHint('Allow camera access to recognize covers on this device.');
-  try{
-   if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera access is unavailable in this browser. Choose a photo instead.');
-   const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1920}},audio:false});
-   if(!current(request)||document.visibilityState==='hidden'){stopComicCamera(next);return}
-   stopComicCamera(stream.current);stream.current=next;activeCamera.current=true;started.current=performance.now();setCamera(true);setStatus('scanning');setHint('Fill the guide with one cover and hold steady. Matches appear automatically.');
-  }catch(problem){
-   if(!current(request))return;
-   const denied=!!problem&&typeof problem==='object'&&'name' in problem&&['NotAllowedError','PermissionDeniedError','SecurityError'].includes(String(problem.name));
-   setStatus(denied?'permission_denied':'unknown');setError(denied?'Camera permission was not granted. Allow it in your browser settings, or choose a photo.':problem instanceof Error?problem.message:'The camera could not be started. Choose a photo instead.');
-  }
- }
- async function scanFrame(request:number){
-  if(!current(request)||!activeCamera.current||document.visibilityState==='hidden'||inFlight.current)return;
-  const frame=video.current;if(!frame?.videoWidth){scheduleFrame(request);return}
-  inFlight.current=true;
-  try{
-   const references=await ensureIndex(request);if(!current(request)||!activeCamera.current)return;
-   const {canvas,pixels}=frameCanvas(frame,frame.videoWidth,frame.videoHeight),box=captureBox.current;
-   const result=recognizeCoverPixels(pixels,references,{mode:'camera',viewportWidth:box?.clientWidth||frame.videoWidth,viewportHeight:box?.clientHeight||frame.videoHeight});
-   const stable=consensus.current.push(result,performance.now());
-   if(stable){
-    setStatus('checking_directory');setHint('Cover matched. Verifying its exact directory record…');setReading(true);
-    const snapshot=document.createElement('canvas');snapshot.width=Math.round(stable.crop.width);snapshot.height=Math.round(stable.crop.height);snapshot.getContext('2d')?.drawImage(canvas,stable.crop.x,stable.crop.y,stable.crop.width,stable.crop.height,0,0,snapshot.width,snapshot.height);saveCanvasPreview(snapshot,request);
-    stopLiveMedia();
-    const pending=new AbortController();controller.current=pending;const verified=await resolveRecognizedIssue(stable.reference,fetch,pending.signal);
-    if(!current(request)||pending.signal.aborted)return;
-    controller.current=null;setStatus(verified.status);
-    if(verified.status==='matched'){selectedRef.current=verified.issue;setSelected(verified.issue);setHint('Recognized '+verified.issue.title+' #'+verified.issue.number+' cover art. Confirm the edition and printing below.');}
-    else setHint('This cover’s directory record could not be verified. Retry the photo or search the directory.');
-   }else if(performance.now()-started.current>=4000){setStatus('unknown');setHint('No confident match yet. Fill the guide and hold steady, or search below. Automatic matching currently covers six Planet Comics covers.');}
-  }catch{
-   if(current(request)){stopLiveMedia();setStatus('index_unavailable');setHint('The recognition index could not be loaded or read. Retry the camera or use directory search.');}
-  }finally{if(current(request)){inFlight.current=false;setReading(false);scheduleFrame(request)}}
- }
- function capture(){
-  const frame=video.current;if(!frame?.videoWidth){setError('The camera is still starting. Try again in a moment.');return}
-  try{
-   const box=captureBox.current,crop=comicGuideCrop(frame.videoWidth,frame.videoHeight,box?.clientWidth||frame.videoWidth,box?.clientHeight||frame.videoHeight),canvas=document.createElement('canvas');
-   const scale=Math.min(1,1200/Math.max(crop.width,crop.height));canvas.width=Math.max(2,Math.round(crop.width*scale));canvas.height=Math.max(2,Math.round(crop.height*scale));
-   const context=canvas.getContext('2d');if(!context)throw Error('This browser could not capture the image.');context.drawImage(frame,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);
-   const request=cancelWork();resetImageSelection();setError('');setStatus('scanning');setReading(true);setHint('Reading this cover on your device…');saveCanvasPreview(canvas,request,url=>void recognizePhoto(url,request));
-  }catch(problem){setError(problem instanceof Error?problem.message:'The photo could not be captured.');}
- }
- function choosePhoto(file:File){
-  if(!safeScanImage(file)){setError('Choose a JPEG, PNG or WebP image no larger than 10 MB.');return}
-  const request=cancelWork();resetImageSelection();setError('');const url=URL.createObjectURL(file);setLocalPreview(url);void recognizePhoto(url,request);
+  const request=cancel();reset();setPhoto('');setStatus('starting');setHint('Allow camera access to identify your comic.');
+  try{if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera access is unavailable here. Upload a photo instead.');const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1920}},audio:false});if(!current(request)){stopComicCamera(next);return}stream.current=next;cameraActive.current=true;setCamera(true);setStatus('scanning')}
+  catch(problem){if(!current(request))return;setStatus(problem instanceof DOMException&&problem.name==='NotAllowedError'?'permission_denied':'unknown');setError(problem instanceof DOMException&&problem.name==='NotAllowedError'?'Camera access was not granted. Allow it in browser settings or upload a photo.':problem instanceof Error?problem.message:'The camera could not start.');}
  }
  async function recognizePhoto(url:string,request:number){
-  if(!current(request)||document.visibilityState==='hidden')return;
-  setReading(true);setStatus('scanning');setHint('Comparing the cover with the local reference index…');
-  try{
-   const image=new Image();image.src=url;await image.decode();if(!current(request))return;
-   const references=await ensureIndex(request);if(!current(request))return;
-   const {pixels}=frameCanvas(image,image.naturalWidth,image.naturalHeight),result=recognizeCoverPixels(pixels,references,{mode:'upload'});
-   if(result.status==='matched'){
-    setStatus('checking_directory');setHint('Cover matched. Verifying its exact directory record…');const pending=new AbortController();controller.current=pending;
-    const verified=await resolveRecognizedIssue(result.suggestion.reference,fetch,pending.signal);if(!current(request)||pending.signal.aborted)return;controller.current=null;setStatus(verified.status);
-    if(verified.status==='matched'){selectedRef.current=verified.issue;setSelected(verified.issue);setHint('Recognized '+verified.issue.title+' #'+verified.issue.number+' cover art. Confirm the edition and printing below.');}
-    else setHint('The cover match could not be verified against the directory. Retry or search below.');
-   }else{setStatus(result.status);setHint('This photo could not be identified confidently. The local index covers six Planet Comics covers; an unmatched photo does not mean your comic is missing from the directory.');}
-  }catch{if(current(request)){setStatus('index_unavailable');setHint('This photo or the local recognition index could not be read. Choose another photo or search the directory.');}}
-  finally{if(current(request))setReading(false)}
+  try{const image=new Image();image.src=url;await image.decode();if(!current(request))return;const {canvas}=canvasFor(image,image.naturalWidth,image.naturalHeight);await analyze(canvas,request,'upload')}
+  catch{if(current(request)){setReading(false);setStatus('unknown');setError('The photo could not be opened. Use JPEG, PNG or WebP.')}}
  }
- function retryPhoto(){if(!previewRef.current)return;const request=cancelWork();resetImageSelection();setError('');void recognizePhoto(previewRef.current,request)}
- async function readPhoto(){
-  if(!preview||reading)return;
-  const request=cancelWork();setReading(true);setError('');setStatus('scanning');
+ function choosePhoto(file:File){if(!safeScanImage(file)){setError('Choose a JPEG, PNG or WebP photo up to 10 MB.');return}const request=cancel();reset();const url=URL.createObjectURL(file);setPhoto(url);void recognizePhoto(url,request)}
+ function capture(){const frame=video.current;if(!frame?.videoWidth)return;try{const target=box.current,crop=comicGuideCrop(frame.videoWidth,frame.videoHeight,target?.clientWidth||frame.videoWidth,target?.clientHeight||frame.videoHeight),{canvas}=canvasFor(frame,frame.videoWidth,frame.videoHeight,1500,crop),request=cancel();reset();saveFrame(canvas,request);void analyze(canvas,request,'upload')}catch{setError('This frame could not be captured. Try an uploaded photo.')}}
+ function retryPhoto(){if(!previewRef.current)return;const request=cancel();reset();void recognizePhoto(previewRef.current,request)}
+ function chooseCandidate(issue:Issue|null){if(!issue){setSelected(null);return}const request=cancel();setReading(false);showMatch(issue,'manual',request)}
+ async function enhancePhoto(){
+  if(!previewRef.current||reading)return;const request=cancel();setReading(true);setError('');setStatus('scanning');setHint('Reading the cover with enhanced vision…');const abort=new AbortController();controller.current=abort;
   try{
-   const image=new Image();image.src=preview;await image.decode();if(!current(request))return;
-   const capabilities=window as DetectionWindow;let text='';
-   if(capabilities.BarcodeDetector){const codes=await new capabilities.BarcodeDetector({formats:['ean_13','upc_a']}).detect(image);text=codes.map(code=>recognizedBarcode(code.rawValue||'')).find(Boolean)||'';}
-   if(!text&&capabilities.TextDetector){const words=await new capabilities.TextDetector().detect(image);text=scanSearchText(words.map(word=>word.rawValue||'').join(' '));}
-   if(!current(request))return;
-   if(text){
-    setFinder(text);setManualOpen(true);const exact=parseExactComicText(text);
-    if(exact){
-     setStatus('checking_directory');const pending=new AbortController();controller.current=pending;const lookup=await lookupExactComicText(exact,fetch,pending.signal);if(!current(request)||pending.signal.aborted)return;controller.current=null;setStatus(lookup.status);
-     if(lookup.status==='matched'){selectedRef.current=lookup.issue;setSelected(lookup.issue);setHint('Read '+text+'. Directory record found; confirm its edition and printing.');}
-     else if(lookup.status==='not_in_directory')setHint('Read '+text+'. That exact title and issue search returned no directory records. Check the reading or search below.');
-     else setHint('Read '+text+'. The exact record could not be verified. Check the reading and choose the directory issue below.');
-    }else{setStatus('unknown');setHint('Read: '+text+'. Use this search hint below; confirm title, year, variant and printing before saving.');}
-   }else{setStatus('unknown');setHint('No readable barcode or text was found with this browser. Search the title and issue below.');setManualOpen(true);}
-  }catch{if(current(request)){setStatus('unknown');setError('This browser could not read the barcode or text. Search the title and issue below.');setManualOpen(true);}}
-  finally{if(current(request))setReading(false)}
+   const image=new Image();image.src=previewRef.current;await image.decode();if(!current(request))return;
+   const {canvas}=canvasFor(image,image.naturalWidth,image.naturalHeight,1200),blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('Could not prepare the photo.')),'image/jpeg',.85));
+   if(!current(request))return;const form=new FormData();form.set('image',blob,'cover.jpg');form.set('consent','true');
+   const response=await fetch('/api/recognition/vision',{method:'POST',body:form,signal:abort.signal}),data=await response.json();if(!current(request))return;
+   if(!response.ok)throw Error(typeof data.error==='string'?data.error:'Enhanced recognition could not finish.');
+   const identity=data.identity;if(!identity||identity.uncertain||typeof identity.title!=='string'||typeof identity.number!=='string'){setStatus('unknown');setHint('Enhanced vision could not read a reliable title and issue. Choose a closer, glare-free photo.');return}
+   const hints=extractCoverTextHints(identity.title+' #'+identity.number+(identity.originalSeriesYear?' ('+identity.originalSeriesYear+')':''),[{text:identity.title,confidence:100,height:100}]);
+   setFinder(hints.queries[0]||identity.title);setStatus('checking_directory');const result=await lookupCoverText(hints,fetch,abort.signal);if(!current(request))return;setCandidates(result.candidates);
+   if(result.match)showMatch(result.match,'text',request);else{setStatus('unknown');setHint(result.empty?'The title read from the photo has no result in the loaded directory. Check the reading or add the missing comic manually.':'The cover identifies these catalog candidates. Choose the correct year and edition.');setManualOpen(!result.candidates.length)}
+  }catch(problem){if(current(request)){setStatus('unknown');setError(problem instanceof Error?problem.message:'Enhanced recognition could not finish.')}}
+  finally{if(current(request)){controller.current=null;setReading(false)}}
  }
- async function confirmIssue(action:'collect'|'open'){
-  if(!selected||reading)return;
-  const chosen=selected,request=cancelWork();setReading(true);setStatus('checking_directory');setError('');const pending=new AbortController();controller.current=pending;
-  const verified=await resolveRecognizedIssue({catalogId:chosen.id,title:chosen.title,number:chosen.number,publisher:chosen.publisher,year:chosen.year} as Parameters<typeof resolveRecognizedIssue>[0],fetch,pending.signal);
-  if(!current(request)||pending.signal.aborted)return;
-  controller.current=null;setReading(false);
-  if(verified.status!=='matched'){selectedRef.current=null;setSelected(null);setStatus('index_unavailable');setError('The directory record could not be verified. Retry the scan or choose the issue again.');return}
-  setStatus('matched');onClose();if(action==='collect')onCollect(verified.issue);else onOpen(verified.issue);
+ async function confirmIssue(action:'collect'|'open'|'buy'){
+  if(!selected||reading)return;const chosen=selected,request=cancel(),abort=new AbortController();controller.current=abort;setReading(true);setStatus('checking_directory');setError('');
+  const verified=await resolveRecognizedIssue({catalogId:chosen.id,title:chosen.title,number:chosen.number,publisher:chosen.publisher,year:chosen.year} as Parameters<typeof resolveRecognizedIssue>[0],fetch,abort.signal);
+  if(!current(request)||abort.signal.aborted)return;controller.current=null;setReading(false);
+  if(verified.status!=='matched'){setStatus('index_unavailable');setError('The catalog record could not be verified. Retry or choose the issue again.');return}
+  onClose();if(action==='collect')onCollect(verified.issue);else if(action==='buy'&&onBuy)onBuy(verified.issue);else onOpen(verified.issue);
  }
  const guideHeight=Math.min(viewport.height*.82,viewport.width*.82/.70),guideWidth=guideHeight*.70;
  return <div className="form-dialog comic-scan">
-  <div className="eyebrow"><ScanLine size={15}/> SCAN YOUR COMIC</div><h2>POINT. SCAN.<br/><span>DISCOVER.</span></h2>
-  <p>Point your camera at one cover. A directory match appears automatically when the cover is recognized. Confirm its edition and printing before adding a copy.</p>
-  <div className={'scan-capture'+(camera?' live':'')+(preview&&!camera?' has-photo':'')+(dragging?' is-dragging':'')} ref={captureBox} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={event=>{event.preventDefault();setDragging(false);const file=event.dataTransfer.files?.[0];if(file)choosePhoto(file)}}>
-   {camera?<video ref={video} autoPlay muted playsInline aria-label="Live rear camera cover scanner" onClick={()=>{const request=generation.current;void video.current?.play().then(()=>scheduleFrame(request,0)).catch(()=>{if(current(request))setError('The camera preview could not be started. Choose a photo instead.');})}}/>:preview?<img src={preview} alt="Your comic photo, kept only on this device"/>:<div className="scan-empty"><ScanLine size={48}/><strong>PUT YOUR NEXT FIND<br/>IN THE FRAME.</strong><span>Start the camera or drop a cover image here</span></div>}
-   {camera&&<div className="scan-guide" aria-hidden="true" style={guideHeight>0?{width:guideWidth,height:guideHeight}:undefined}><span className="scan-corner scan-tl"/><span className="scan-corner scan-tr"/><span className="scan-corner scan-bl"/><span className="scan-corner scan-br"/><span className="scan-guide-label">ALIGN COVER · HOLD STEADY</span></div>}
-   <span className={'scan-status-badge '+status}>{reading?<LoaderCircle size={13} className="scan-spin"/>:status==='matched'?<Check size={13}/>:<ScanLine size={13}/>} {scanStatusLabels[status]}</span>
+  <div className="eyebrow"><ScanLine size={15}/> COMIC LENS</div><h2>POINT. SCAN.<br/><span>DISCOVER.</span></h2><p>Present one cover to the camera or upload a photo. Cover fingerprints and automatic text reading search the central catalog.</p>
+  <div ref={box} className={'scan-capture'+(camera?' live':'')+(preview&&!camera?' has-photo':'')+(dragging?' is-dragging':'')} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={event=>{event.preventDefault();setDragging(false);const file=event.dataTransfer.files[0];if(file)choosePhoto(file)}}>
+   {camera?<video ref={video} autoPlay muted playsInline aria-label="Live comic cover scanner" onClick={()=>{void video.current?.play().then(()=>schedule(generation.current,100))}}/>:preview?<img src={preview} alt="Your comic photo, kept on this device"/>:<div className="scan-empty"><ScanLine size={48}/><strong>YOUR NEXT FIND.<br/>RIGHT IN THE FRAME.</strong><span>Camera • Photo • Drag &amp; drop</span></div>}
+   {camera&&<div className="scan-guide" aria-hidden="true" style={guideHeight>0?{width:guideWidth,height:guideHeight}:undefined}><span className="scan-corner scan-tl"/><span className="scan-corner scan-tr"/><span className="scan-corner scan-bl"/><span className="scan-corner scan-br"/><span className="scan-guide-label">ONE COVER · HOLD STEADY</span></div>}
+   <span className={'scan-status-badge '+status}>{reading?<LoaderCircle size={13} className="scan-spin"/>:status==='matched'?<Check size={13}/>:<ScanLine size={13}/>} {labels[status]}</span>
   </div>
-  <div className="actions">
-   {camera?<><button type="button" className="button red" onClick={capture}><Camera size={17}/> Use this frame</button><button type="button" className="button outline" onClick={()=>{cancelWork();setReading(false);setStatus('idle');setHint('Camera stopped. Start it again or choose a photo.')}}><Square size={14}/> Stop camera</button></>:<button type="button" className="button red" disabled={status==='starting'} onClick={()=>void startCamera()}><Camera size={17}/> {status==='starting'?'Starting camera…':'Start camera'}</button>}
-   <label className="button outline scan-upload"><ImagePlus size={17}/> Upload Image<input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file)choosePhoto(file)}}/></label>
-  </div>
-  {error&&<p role="alert" className="scan-error">{error}</p>}
-  <p role="status" aria-live="polite" className="scan-hint">{hint||'Automatic cover matching currently supports Planet Comics #12, #21, #27, #42, #53 and #55. Other comics can be found with directory search.'}</p>
-  {selected&&<div className="scan-confirm">{selected.cover&&<img src={selected.cover} alt={selected.title+' #'+selected.number+' directory cover'}/>}<div><span className="scan-match-label"><Check size={15}/> DIRECTORY CANDIDATE · CONFIRM PRINTING</span><strong>{selected.title} #{selected.number}</strong><p>{selected.year} · {selected.publisher}<br/>{selected.variant}</p><small>The same cover art can be reprinted. Confirm your edition; recognition does not determine grade, condition or printing.</small></div><div className="actions"><button type="button" className="button red" disabled={reading} onClick={()=>void confirmIssue('collect')}>Confirm &amp; add</button><button type="button" className="button outline" disabled={reading} onClick={()=>void confirmIssue('open')}>View issue</button></div>{selected.coverCredit&&<small className="scan-match-credit">{selected.coverCredit}</small>}</div>}
-  <div className="scan-secondary"><button type="button" className="scan-manual-toggle" aria-expanded={manualOpen} onClick={()=>setManualOpen(value=>!value)}><Search size={16}/> {manualOpen?'Hide directory search':'Search directory manually'}</button>{preview&&!camera&&!selected&&<><button type="button" disabled={reading} onClick={retryPhoto}>Retry cover match</button><button type="button" disabled={reading} onClick={()=>void readPhoto()}>Read barcode / text</button></>}</div>
-  {manualOpen&&<ComicPicker key={finder+'|'+pickerVersion} value={selected} initialQuery={finder} onChange={selectIssue}/>}
-  <p className="scan-privacy"><ShieldCheck size={15}/> Photos and camera frames stay on your device. This scanner does not upload them.</p>
-  <p className="data-caption">Local reference coverage: 6 covers. No confident match means unknown, even if the comic exists in the directory. JPEG, PNG or WebP photos up to 10 MB. Barcode/text reading depends on browser support.</p>
+  <div className="actions">{camera?<><button type="button" className="button red" onClick={capture}><Camera size={17}/> Use this frame</button><button type="button" className="button outline" onClick={()=>{cancel();setReading(false);setStatus('idle')}}><Square size={14}/> Stop camera</button></>:<button type="button" className="button red" disabled={status==='starting'} onClick={()=>void startCamera()}><Camera size={17}/> Start camera</button>}<label className="button outline scan-upload"><ImagePlus size={17}/> Upload Image<input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file)choosePhoto(file)}}/></label></div>
+  {error&&<p role="alert" className="scan-error">{error}</p>}<p role="status" aria-live="polite" className="scan-hint">{hint||'Automatic OCR can find catalog books even when their cover is not in the visual index. The first text scan downloads the on-device reading model.'}</p>
+  {selected&&<div className="scan-confirm"><ComicCover src={selected.cover} title={selected.title} issue={selected.number}/><div><span className="scan-match-label"><Check size={15}/> MATCH FOUND{method==='text'?' · COVER TEXT':method==='visual'?' · COVER FEATURES':' · SELECTED EDITION'}</span><strong>Match Found: {selected.title} #{selected.number}{selected.year?' ('+selected.year+')':''}</strong><p>{selected.publisher} · {selected.variant}</p><small>Confirm your printing and variant. Matching does not authenticate, grade or detect a counterfeit.</small></div><div className="actions"><button type="button" className="button red" disabled={reading} onClick={()=>void confirmIssue('collect')}>Add to shelf</button><button type="button" className="button outline" disabled={reading} onClick={()=>void confirmIssue('open')}>View FMV &amp; info</button>{onBuy&&<button type="button" className="button outline" disabled={reading} onClick={()=>void confirmIssue('buy')}><ShoppingBag size={15}/> Find copies to buy</button>}</div></div>}
+  {candidates.length>0&&<div className="scan-candidates"><h3>Confirm the matching edition</h3>{candidates.map(issue=><button type="button" key={issue.id} aria-pressed={selected?.id===issue.id} onClick={()=>chooseCandidate(issue)}><span><strong>{issue.title} #{issue.number}</strong><small>{issue.year||'Date pending'} · {issue.publisher} · {issue.variant}</small></span><Check size={16}/></button>)}</div>}
+  <div className="scan-secondary"><button type="button" className="scan-manual-toggle" aria-expanded={manualOpen} onClick={()=>setManualOpen(value=>!value)}><Search size={16}/> {manualOpen?'Hide directory search':'Search directory manually'}</button>{preview&&!camera&&<button type="button" disabled={reading} onClick={retryPhoto}>Retry photo &amp; text</button>}</div>
+  {preview&&!camera&&!selected&&<div className="scan-enhanced"><button type="button" className="button outline" disabled={reading||!visionSetup?.available} onClick={()=>void enhancePhoto()}><ScanLine size={17}/> Enhance cover recognition</button><p>{visionSetup?.available?'Use AI for stylized lettering or glare. This sends only this cover image to Vercel AI Gateway / OpenAI; ComicHuddle does not store the photo.':visionSetup?.reason||'Checking enhanced recognition…'}</p></div>}
+  {manualOpen&&<ComicPicker key={finder} value={selected} initialQuery={finder} onChange={chooseCandidate}/>}
+  <p className="scan-privacy"><ShieldCheck size={15}/> Standard scan photos stay on your device. Search text and numerical fingerprints go to ComicHuddle. Enhanced recognition sends a cover image to the named AI processor only when you choose it.</p><p className="data-caption">Visual matching needs an indexed cover. Text search can identify additional books; variant and printing confirmation remain yours. JPEG, PNG or WebP up to 10 MB.</p>
  </div>;
 }

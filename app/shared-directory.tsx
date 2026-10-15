@@ -25,7 +25,7 @@ function DirectoryIssueCard({issue,onOpen}:{issue:Issue;onOpen:(issue:Issue)=>vo
   useEffect(()=>setCoverFailed(false),[issue.cover]);
   return <button type="button" className="sd-card" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}>
     <span className="sd-art">{issue.cover&&!coverFailed?<img src={issue.cover} alt={issue.title+' #'+issue.number+' cover'} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>:<ComicCoverPlaceholder title={issue.title} issue={issue.number}/>}</span>
-    {(issue.cover||issue.gcdId)&&<span className="sd-cover-credit">{issue.gcdId?'Cover image source: Grand Comics Database (GCD) / Publisher':'Cover: Wikimedia Commons · US public domain'}</span>}
+    {(issue.cover||issue.gcdId)&&<span className="sd-cover-credit">{issue.gcdId?'Cover image source: GCD / Publisher':'Cover: Wikimedia Commons · US public domain'}</span>}
     <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><CatalogFmv issueId={issue.id}/><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span>
   </button>;
 }

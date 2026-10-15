@@ -1,0 +1,11 @@
+import {mkdir,copyFile,readdir,readFile,writeFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {dirname,join} from 'node:path';
+const require=createRequire(import.meta.url),target='public/ocr-runtime',worker=dirname(require.resolve('tesseract.js/package.json')),core=dirname(require.resolve('tesseract.js-core/package.json')),language=dirname(require.resolve('@tesseract.js-data/eng/package.json'));
+await mkdir(target+'/core',{recursive:true});await mkdir(target+'/lang',{recursive:true});
+await copyFile(join(worker,'dist/worker.min.js'),target+'/worker.min.js');
+for(const name of await readdir(core))if(/^tesseract-core.*\.wasm(?:\.js)?$/.test(name))await copyFile(join(core,name),target+'/core/'+name);
+await copyFile(join(language,'4.0.0_best_int/eng.traineddata.gz'),target+'/lang/eng.traineddata.gz');
+await copyFile(join(worker,'LICENSE.md'),target+'/TESSERACT-LICENSE');await copyFile(join(core,'LICENSE'),target+'/CORE-LICENSE');
+await writeFile(target+'/NOTICE.txt','Tesseract.js 7.0.0 / Apache-2.0. Tesseract.js-core 6.1.2 / Apache-2.0. English trained data provided by @tesseract.js-data/eng 1.0.0. Source: https://github.com/naptha/tesseract.js and https://github.com/tesseract-ocr/tessdata_best . OCR executes on the user device.\n');
+console.log('On-device OCR runtime prepared from pinned package assets.');

@@ -37,18 +37,18 @@ async function withNativeCoverRows(db:CatalogDb,issues:Issue[]):Promise<Issue[]>
     const permitted=sql`COALESCE(to_jsonb(c)->>'deleted','0') NOT IN ('1','true') AND COALESCE(to_jsonb(c)->>'limit_display','0') NOT IN ('1','true') AND NOT EXISTS(SELECT 1 FROM ch_web.catalog_cover_references withdrawn WHERE withdrawn.issue_id=4000000000::bigint+c.issue_id AND withdrawn.status='withdrawn')`;
     const origin=process.env.GCD_COVER_ORIGIN||'https://files1.comics.org';
     if(!/^https:\/\/files[0-9]+\.comics\.org$/.test(origin))throw new Error('Invalid native cover origin.');
-    const rows=await db.execute(sql`SELECT DISTINCT ON(c.issue_id) c.issue_id,(${permitted}) AS permitted,
+    const rows=await db.execute(sql`SELECT DISTINCT ON(wanted.issue_id) wanted.issue_id,(${permitted}) AS permitted,
       COALESCE(NULLIF(to_jsonb(c)->>'image_url',''),NULLIF(to_jsonb(c)->>'cover_url',''),NULLIF(to_jsonb(c)->>'url',''),NULLIF(to_jsonb(c)->>'image_path',''),
        CASE WHEN c.id>0 THEN ${origin}||'/img/gcd/covers_by_id/'||(c.id::bigint/1000)::text||'/w400/'||c.id::text||'.jpg' END) AS image_url
-      FROM gcd.gcd_cover c WHERE c.issue_id IN (${sql.join(identities.map(issue=>sql`${issue.gcdId}`),sql`,`)})
-      ORDER BY c.issue_id,(${permitted}) DESC,c.id`);
+      FROM (VALUES ${sql.join(identities.map(issue=>sql`(${issue.gcdId})`),sql`,`)}) wanted(issue_id) LEFT JOIN gcd.gcd_cover c ON c.issue_id=wanted.issue_id
+      ORDER BY wanted.issue_id,(${permitted}) DESC,c.id`);
     const byId=new Map(rows.rows.map(row=>[Number(row.issue_id),row]));
     return issues.map(issue=>{
       if(issue.id!==4000000000+Number(issue.gcdId))return issue;
       const row=byId.get(Number(issue.gcdId));if(!row)return issue;
       const cover=row.permitted===true?gcdThumbnailUrl(row.image_url):null;
       return {...issue,cover:cover||undefined,coverSource:cover?'https://www.comics.org/issue/'+issue.gcdId+'/':undefined,
-        coverCredit:cover?'Cover image source: Grand Comics Database (GCD) / Publisher':undefined};
+        coverCredit:cover?'Cover image source: GCD / Publisher':undefined};
     });
   }catch{
     console.warn('Native cover lookup deferred; comic metadata remains available.');

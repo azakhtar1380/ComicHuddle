@@ -1,5 +1,6 @@
 'use client';
 import LocationRadiusFilter from './location-radius-filter';
+import CollectorSearch from '../components/collector-search';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {ArrowRight,ArrowUpRight,Award,BookOpen,Check,ChevronRight,Clock,Download,Flag,ImagePlus,Layers,Lock,MapPin,MessageCircle,Package,Plus,RefreshCw,Search,ShieldCheck,Sparkles,Star,Truck,Users,Wrench,X} from 'lucide-react';
 import {Modal,ComicArt,uploadPhoto,useCollectorNetwork} from './network';
@@ -91,7 +92,7 @@ export default function PressRoom({tab,signedIn,net,vault,gate:parentGate,notice
   {(panel==='directory'||panel==='leaderboard')&&signedIn&&<>
    {refreshing&&<p role="status">Updating studio results…</p>}<LocationRadiusFilter location={location} radius={radius} onChange={(value,nextRadius)=>{setLocation(value);setRadius(nextRadius);setOrder(value?'nearest':'rating')}}/>
    <div className="care-discovery-filters compact-workshop-filters">
-    <label className="care-discovery-search">Studio or collector<span><Search size={16}/><input aria-label="Search workshop studio, collector or specialty" value={query} maxLength={100} onChange={e=>setQuery(e.target.value)} placeholder="Studio, collector or specialty…"/></span></label>
+    <label className="care-discovery-search">Studio or collector<CollectorSearch label="Search workshop studio, collector or specialty" value={query} maxLength={100} onChange={setQuery} placeholder="Studio, collector or specialty…"/></label>
     <label>Service<select aria-label="Filter by care service" value={service} onChange={e=>setService(e.target.value)}><option value="all">All services</option>{careServices.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
     <label>Intake<select aria-label="Filter by intake method" value={method} onChange={e=>setMethod(e.target.value)}><option value="all">Local or mail-in</option><option value="dropoff">Local drop-off / pickup</option><option value="mail">Mail-in / return shipping</option></select></label>
     {panel==='directory'?<label>Order<select aria-label="Sort providers" value={order} onChange={e=>setOrder(e.target.value)}><option value="nearest">Nearest studios</option><option value="rating">Highest member rating</option><option value="reviews">Most reviewed</option><option value="newest">Newest studios</option></select></label>:<div className="care-leaderboard-order"><Award size={16}/><span>Ranked by member rating<br/><small>Then review count</small></span></div>}

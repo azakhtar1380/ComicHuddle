@@ -1,5 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+const ocr = spawnSync(process.execPath, ['scripts/prepare-ocr-assets.mjs'], { stdio: 'inherit' });
+if (ocr.status !== 0) throw new Error('On-device OCR assets could not be prepared.');
 const url = 'https://truststore.pki.rds.amazonaws.com/us-east-2/us-east-2-bundle.pem';
 const response = await fetch(url, { signal: AbortSignal.timeout(30000), redirect: 'error' });
 if (!response.ok) throw new Error('AWS RDS trust bundle unavailable.');
@@ -46,5 +48,12 @@ if (process.env.REFRESH_NATIVE_CATALOG_ON_BUILD === 'true') {
   for (const file of ['refresh-gcd-cover-view.ts', 'refresh-native-catalog.ts']) {
     const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/' + file], { stdio: 'inherit' });
     if (result.status !== 0) throw new Error('Native catalog refresh did not complete.');
+  }
+}
+
+if (process.env.PREPARE_CATALOG_RECOGNITION === 'true') {
+  for (const file of ['prepare-recognition.ts', 'index-catalog-covers.ts', 'diagnose-catalog-covers.ts']) {
+    const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/' + file], { stdio: 'inherit' });
+    if (result.status !== 0) throw new Error('Catalog recognition preparation did not complete.');
   }
 }

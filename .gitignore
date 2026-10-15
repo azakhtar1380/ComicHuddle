@@ -56,3 +56,6 @@ __pycache__/
 *.sqlite3
 *.sqlite-wal
 *.sqlite-shm
+
+# Built locally from pinned OCR packages on every release.
+/public/ocr-runtime/
