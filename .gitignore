@@ -59,3 +59,9 @@ __pycache__/
 
 # Built locally from pinned OCR packages on every release.
 /public/ocr-runtime/
+
+.vercel
+.env*
+
+# Local Metron harvest / cover-copy state (large; never committed).
+/.metron-cache/

@@ -17,6 +17,11 @@ if (process.env.MIGRATE_ENRICHMENT_ON_BUILD === 'true') {
   if(launch.status!==0)throw new Error('Additive launch migration/diagnostics failed.');
   const additive=spawnSync(process.execPath,['--import','tsx','scripts/migrate-additive.ts'],{stdio:'inherit'});
   if(additive.status!==0)throw new Error('Additive migrations 024+ failed; existing records retained.');
+  // Optional: index the owner's copied Metron covers. Never fails the build.
+  if(process.env.METRON_COVER_CDN_BASE){
+    const metronCovers=spawnSync(process.execPath,['--import','tsx','scripts/import-metron-covers.ts','--budget-seconds',process.env.METRON_COVER_IMPORT_BUDGET_SECONDS||'180'],{stdio:'inherit'});
+    if(metronCovers.status!==0)console.warn('Warning: Metron cover index import did not complete; the build continues and the daily cron retries it.');
+  }
 }
 if (process.env.INSPECT_RDS_CONNECTION === 'true') {
   const probe = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-rds-connection.ts'], { stdio: 'inherit' });

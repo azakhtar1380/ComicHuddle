@@ -10,3 +10,4 @@ coverage
 *.pem
 certificates
 .local-db
+.metron-cache

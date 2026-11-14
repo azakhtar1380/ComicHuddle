@@ -10,6 +10,8 @@ import {enqueueEnrichment,finishEnrichment,providerTurn,retryDelay,type Enrichme
 import {coverStatusMessage,type CoverResolution,type CoverStatus} from './cover-cache-types';
 import {METRON_COVER_HOST,MetronLookupError,metronConfig,metronCoverForGcd,metronImageUrl} from './metron-identifiers';
 import {METRON_COVER_ATTRIBUTION} from './data-credits';
+import {fallbackCovers} from './community-covers';
+import {metronCdnCovers} from './metron-cover-index';
 
 export function coverStorageStatus(){
  const {COVER_STORAGE_BUCKET:bucket,COVER_CDN_BASE_URL:base,COVER_CLOUDFRONT_DISTRIBUTION_ID:distribution}=process.env;
@@ -31,13 +33,24 @@ const jobKey=(provider:CoverProvider,issueId:number)=>provider==='GCD'?String(is
 type Rendition={key:string;width:number;height:number;bytes:number};
 type CacheRow={issue_id:number;status:CoverStatus;renditions:Record<string,Rendition>;attribution:string;source_url:string|null;updated_at:Date;permission_reference:string;permission_expires_at:Date;next_retry_at:Date|null};
 export async function resolveCoverBatch(db:CatalogDb,ids:number[]):Promise<CoverResolution[]>{
- const results=await resolveStoredCoverBatch(db,ids);
+ // Priority: reviewed local /covers/ file, GCD/S3 cache (both in resolveStoredCoverBatch), the owner's
+ // Metron CDN copy, Metron direct hotlink, then seller photo / collector cover.
+ let results=await resolveStoredCoverBatch(db,ids);
+ const uncopied=results.filter(row=>!row.url).map(row=>row.issueId);
+ if(uncopied.length){const copies=await metronCdnCovers(db,uncopied);if(copies.size)results=results.map(row=>{const copy=row.url?null:copies.get(row.issueId);return copy?{issueId:row.issueId,status:'CACHED' as const,url:copy.url,srcSet:copy.srcSet,attribution:copy.attribution,sourceUrl:copy.source,message:'Catalog reference art'}:row})}
  // Owner-controlled interim mode: show Metron's own image URL, cached per issue.
- if(!metronConfig().directCovers)return results;
- const unresolved=results.filter(row=>!row.url&&row.issueId>4000000000).map(row=>row.issueId);
- if(!unresolved.length)return results;
- const direct=await resolveDirectMetronCovers(db,unresolved);
- return results.map(row=>direct.get(row.issueId)||row);
+ if(metronConfig().directCovers){
+  const unresolved=results.filter(row=>!row.url&&row.issueId>4000000000).map(row=>row.issueId);
+  if(unresolved.length){const direct=await resolveDirectMetronCovers(db,unresolved);results=results.map(row=>direct.get(row.issueId)||row)}
+ }
+ return withFallbackResolutions(db,results);
+}
+/** Lowest priority: seller photo, then collector cover. A PENDING provider lookup keeps its
+ * status so the browser keeps polling and swaps in the provider cover once it is ready. */
+async function withFallbackResolutions(db:CatalogDb,results:CoverResolution[]){
+ const missing=results.filter(row=>!row.url).map(row=>row.issueId);if(!missing.length)return results;
+ const fallback=await fallbackCovers(db,missing);
+ return results.map(row=>{const cover=row.url?null:fallback.get(row.issueId);return cover?{issueId:row.issueId,status:row.status==='PENDING'||row.status==='PROCESSING'?row.status:'CACHED' as const,url:cover.url,attribution:cover.attribution,sourceUrl:cover.source,message:cover.attribution}:row});
 }
 async function resolveStoredCoverBatch(db:CatalogDb,ids:number[]):Promise<CoverResolution[]>{
  const storage=coverStorageStatus(),active=await activeGrant(db),grant=active?.grant||null,provider:CoverProvider=active?.provider||'GCD',rows=ids.length?await db.execute(sql`SELECT DISTINCT ON(issue_id) issue_id,status,renditions,attribution,source_url,updated_at,permission_reference,permission_expires_at,next_retry_at FROM ch_web.cover_cache WHERE issue_id IN (${sql.join(ids.map(id=>sql`${id}`),sql`,`)}) AND source_provider=${provider} ORDER BY issue_id,(status='CACHED') DESC,updated_at DESC`):{rows:[]},found=new Map((rows.rows as unknown as CacheRow[]).map(row=>[Number(row.issue_id),row]));

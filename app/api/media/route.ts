@@ -8,6 +8,7 @@ import {blocked} from '../../../lib/conversations';
 import {previewRulesVersion} from '../../../lib/community';
 import {ApiRequestError,enforceWriteLimits,isRestricted,privateJson,readBytes} from '../../../lib/api-security';
 import {normalizeSellerPhoto} from '../../../lib/seller-photos';
+import {isPublicCoverPhoto} from '../../../lib/community-covers';
 const json=(error:string,status:number)=>privateJson({error},status);
 
 export async function POST(req:Request){try{
@@ -33,12 +34,14 @@ export async function GET(req:Request){try{
  if(!user){
   // Guests see only photos published on an active listing of a visible, unrestricted seller.
   const [owner]=await db.select().from(profiles).where(eq(profiles.userId,asset.userId));
-  if(!owner?.visible||owner.moderated||owner.deletionStartedAt||await isRestricted(db,owner.userId))return json('Photo not found.',404);
-  const [listed]=await db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,owner.id),eq(listings.status,'active'),or(
+  if(!owner||owner.moderated||owner.deletionStartedAt||await isRestricted(db,owner.userId))return json('Photo not found.',404);
+  const [listed]=owner.visible?await db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,owner.id),eq(listings.status,'active'),or(
    sql`EXISTS (SELECT 1 FROM json_each(${listings.photos}) photo WHERE photo.value = ${id})`,
    sql`EXISTS (SELECT 1 FROM json_each(${listings.items}) item WHERE json_extract(item.value, '$.photoId') = ${id})`
-  ))).limit(1);
-  if(!listed)return json('Photo not found.',404);
+  ))).limit(1):[];
+  // Narrow catalog-cover exception: a listing's front photo (active or sold) for a Directory
+  // issue, or an approved collector cover. Every other sold-listing photo stays private.
+  if(!listed&&!await isPublicCoverPhoto(db,id))return json('Photo not found.',404);
   return photoResponse(req,id,asset.contentType);
  }
  let shared=asset.userId===user.userId;
@@ -86,6 +89,8 @@ export async function GET(req:Request){try{
    if(!shared){const [event]=await db.select({id:careEvents.id}).from(careEvents).where(and(inArray(careEvents.jobId,db.select({id:careJobs.id}).from(careJobs).where(participation)),sql`EXISTS (SELECT 1 FROM json_each(${careEvents.photos}) photo WHERE photo.value = ${id})`)).limit(1);shared=!!event}
   }
  }
+ // Anything guests may see as a catalog cover is also visible to signed-in viewers.
+ if(!shared)shared=await isPublicCoverPhoto(db,id);
  if(!shared)return json('Photo not found.',404);
  return photoResponse(req,id,asset.contentType);
 }catch{return json('Photo could not be loaded. Please retry.',500)}}

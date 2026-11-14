@@ -164,3 +164,55 @@ The automated checks use a mocked camera and mocked Metron responses. After depl
 2. Hold a modern comic's barcode and 5-digit add-on in the strip, about a hand-width away. Within about 1–2 s the phone vibrates (Android) and the screen shows "Found: …" or the editions that share the code.
 3. **Whole cover** mode and **Use this frame** run the photo steps in 5a. **Upload Image** and manual search still work when the camera does not.
 4. The camera needs HTTPS. Over a plain-HTTP LAN address such as `http://10.0.0.11:3000`, browsers block it; use **Upload Image** there, or an HTTPS tunnel or deployment.
+
+## 9. Permanent Metron cover copies on your own CDN
+
+The owner decided to keep a permanent copy of Metron's cover images. The images are stored in your own private S3 bucket and served through CloudFront. Display order is: reviewed local `/covers/` files, then the existing GCD/S3 cache, then **this CDN copy**, then Metron direct display (`COVER_DIRECT_DISPLAY=metron`), then seller photos and collector covers.
+
+### Environment variables
+
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `COVER_S3_BUCKET` | your computer (`.env.local`) | Bucket the copier writes to |
+| `AWS_REGION` | your computer | Bucket region (default `us-east-2`) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | your computer | Keys for an IAM user limited to the policy below |
+| `METRON_COVER_CDN_BASE` | Vercel (and `.env.local` to test) | CloudFront origin, e.g. `https://dxxxxxxxx.cloudfront.net`. Must be `https`. When it is unset, nothing from the copy is shown |
+
+Optional copier pacing: `METRON_COPY_CONCURRENCY` (default 2), `METRON_COPY_GAP_MS` (default 1000, which gives about one image per second overall) and `METRON_COPY_MANIFEST_EVERY` (default 500).
+
+### Run and resume the copier
+
+1. Build the index with `node scripts/harvest-metron-index.mjs`. The copier can start while the harvest is still running.
+2. Test first with `node scripts/copy-metron-covers.mjs --dry-run --limit 5`. This downloads 5 covers and writes the WebP files to `.metron-cache/dry/` instead of S3.
+3. Run `node scripts/copy-metron-covers.mjs`. A full copy takes about 2–3 days at one image per second.
+4. To stop, press Ctrl+C. To resume, run the same command again. The copier records progress in `.metron-cache/copy-state/done.ndjson`, so finished covers are skipped. If that log is lost, covers already in S3 are detected with HeadObject and reused without downloading them again. Images that failed for good (for example a 404) are listed in `failed.ndjson`. Retry them with `--retry-failed`. When the queue empties, the copier re-reads the index and picks up anything the harvester added.
+
+For each Metron issue with a cover, the copier writes `metron/<metronId>/card.webp` (480 px wide) and `metron/<metronId>/dense.webp` (240 px wide). Images are never enlarged, EXIF is stripped, and objects are stored with `Cache-Control: public, max-age=31536000, immutable`. Every ~500 covers, and again at the end, it uploads `metron/manifest.ndjson.gz` (cached for 5 minutes). It only downloads from `static.metron.cloud`. If Metron changes a cover (new `coverHash`), the copier overwrites that issue's objects. CloudFront keeps serving the old image until you invalidate `/metron/<id>/*`.
+
+### Import into the database
+
+Migration `029_metron_cover_index.sql` adds `ch_web.metron_cover_index`. `node --import tsx scripts/import-metron-covers.ts` fetches the manifest from `${METRON_COVER_CDN_BASE}/metron/manifest.ndjson.gz` and upserts the rows. It then links each row to a catalog issue:
+
+1. **Exact links first.** A row is linked when a `ch_web.catalog_issues` row carries the Metron id (`exact_catalog`), or when a cached barcode lookup named its GCD id (`exact_metron_lookup`).
+2. **Name matches.** Otherwise a row is linked by normalized series name (lowercase, leading "the" removed, punctuation removed, `&` read as "and"), plus the series' `year_began`, plus the normalized issue number (`name`). A match is accepted only when exactly one non-variant GCD issue qualifies and no other Metron row claims that issue. Other rows are recorded as `ambiguous`, `ambiguous_issue` or `unmatched`. After a GCD refresh, run the import again with `--rematch` to retry them.
+
+The import is idempotent. It runs automatically:
+
+- during the build, inside `MIGRATE_ENRICHMENT_ON_BUILD`, when `METRON_COVER_CDN_BASE` is set. A failure only logs a warning.
+- in the daily `/api/cron/enrichment` run, with a 60 s budget.
+
+### IAM policy (copier user)
+
+The policy covers this bucket only. HeadObject is authorised by `s3:GetObject`, and `s3:ListBucket` makes a missing object return 404 instead of 403.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject"], "Resource": "arn:aws:s3:::YOUR-BUCKET/*"},
+    {"Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::YOUR-BUCKET"}
+  ]
+}
+```
+
+Keep the bucket private, with Block Public Access on. Serve it only through a CloudFront distribution that uses Origin Access Control (OAC). The bucket policy should allow `s3:GetObject` only to the `cloudfront.amazonaws.com` service principal, with `AWS:SourceArn` set to that distribution.

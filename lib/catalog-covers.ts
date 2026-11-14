@@ -4,6 +4,8 @@ import type { CatalogDb } from './catalog-store';
 import type { Issue } from './catalog';
 import {reviewedLocalCover} from './reviewed-local-covers';
 import {readyCachedCoverRows} from './cover-cache-read';
+import {fallbackCovers} from './community-covers';
+import {metronCdnCovers,type MetronCdnCover} from './metron-cover-index';
 
 /** Only URLs supplied for an exact GCD issue, never guessed cover IDs. */
 export function gcdThumbnailUrl(value: unknown): string | null {
@@ -83,5 +85,18 @@ export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise
   // hotlink/cache publisher artwork. Public GCD art now uses the reviewed CDN.
   let ready=new Map<number,{url:string;attribution:string;source:string}>();
   try{ready=await readyCachedCoverRows(db,native.filter(issue=>!!issue.gcdId).map(issue=>issue.id))}catch{/* An additive cache migration may not have run yet. Metadata remains usable. */}
-  return native.map(issue=>{if(!issue.gcdId)return issue;const cached=ready.get(issue.id);return cached?{...issue,cover:cached.url,coverCredit:cached.attribution,coverSource:cached.source}:reviewedLocalCover({...issue,cover:undefined,coverCredit:undefined,coverSource:undefined})});
+  // Order: reviewed local /covers/ file, then readyCachedCoverRows (GCD/S3 cache, Metron CDN copy, Metron direct).
+  const resolved=native.map(issue=>{if(!issue.gcdId)return issue;const local=reviewedLocalCover({...issue,cover:undefined,coverCredit:undefined,coverSource:undefined});if(local.cover)return local;const cached=ready.get(issue.id);return cached?{...issue,cover:cached.url,coverCredit:cached.attribution,coverSource:cached.source}:local});
+  // Retained (non-GCD) catalog rows linked exactly by Metron id can still use the CDN copy.
+  const retainedIds=resolved.filter(issue=>!issue.cover&&!issue.gcdId).map(issue=>issue.id);
+  const cdn=retainedIds.length?await metronCdnCovers(db,retainedIds):new Map<number,MetronCdnCover>();
+  const withCdn=cdn.size?resolved.map(issue=>{const c=issue.cover?null:cdn.get(issue.id);return c?{...issue,cover:c.url,coverCredit:c.attribution,coverSource:c.source}:issue}):resolved;
+  return withFallbackCovers(db,withCdn);
+}
+async function withFallbackCovers(db:CatalogDb,resolved:Issue[]):Promise<Issue[]>{
+  // Lowest priority: a seller's front photo, then a collector-submitted cover (lib/community-covers.ts).
+  const uncovered=resolved.filter(issue=>!issue.cover).map(issue=>issue.id);
+  if(!uncovered.length)return resolved;
+  const fallback=await fallbackCovers(db,uncovered);
+  return resolved.map(issue=>{const cover=issue.cover?null:fallback.get(issue.id);return cover?{...issue,cover:cover.url,coverCredit:cover.attribution,coverSource:cover.source}:issue});
 }
