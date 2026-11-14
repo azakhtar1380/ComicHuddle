@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Pool, types } from 'pg';
 import {attachDatabasePool} from '@vercel/functions';
+import {localDevEnabled, localDevPool} from './local-dev';
 types.setTypeParser(20, value => {
   const number = Number(value);
   if (!Number.isSafeInteger(number)) throw new Error('Database integer exceeds the application range.');
@@ -15,6 +16,7 @@ types.setTypeParser(1700, value => {
 const globalPool = globalThis as typeof globalThis & { comicHuddlePool?: Pool };
 export function getPool(): Pool {
   if (globalPool.comicHuddlePool) return globalPool.comicHuddlePool;
+  if (localDevEnabled()) return (globalPool.comicHuddlePool = localDevPool());
   for (const key of ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']) {
     if (!process.env[key]) throw new Error(`Missing server database setting ${key}.`);
   }

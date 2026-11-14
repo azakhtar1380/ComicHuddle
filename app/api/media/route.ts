@@ -27,9 +27,20 @@ export async function POST(req:Request){try{
 }catch(error){if(error instanceof ApiRequestError)return json(error.message,error.status);return json('Photo could not be uploaded. Please retry.',500)}}
 
 export async function GET(req:Request){try{
- const user=await getChatGPTUser();if(!user)return json('Sign in to view collector photos.',401);
+ const user=await getChatGPTUser();
  const id=new URL(req.url).searchParams.get('id')||'';if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))return json('Photo not found.',404);
  const db=getDb();const [asset]=await db.select().from(media).where(eq(media.id,id));if(!asset)return json('Photo not found.',404);
+ if(!user){
+  // Guests see only photos published on an active listing of a visible, unrestricted seller.
+  const [owner]=await db.select().from(profiles).where(eq(profiles.userId,asset.userId));
+  if(!owner?.visible||owner.moderated||owner.deletionStartedAt||await isRestricted(db,owner.userId))return json('Photo not found.',404);
+  const [listed]=await db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,owner.id),eq(listings.status,'active'),or(
+   sql`EXISTS (SELECT 1 FROM json_each(${listings.photos}) photo WHERE photo.value = ${id})`,
+   sql`EXISTS (SELECT 1 FROM json_each(${listings.items}) item WHERE json_extract(item.value, '$.photoId') = ${id})`
+  ))).limit(1);
+  if(!listed)return json('Photo not found.',404);
+  return photoResponse(req,id,asset.contentType);
+ }
  let shared=asset.userId===user.userId;
  if(!shared){
   const [viewer]=await db.select().from(profiles).where(eq(profiles.userId,user.userId));
@@ -58,7 +69,7 @@ export async function GET(req:Request){try{
   // is blocked or its seller hides the listing. Unpaid reservations grant none.
   if(!shared){
    const [order]=await db.select({id:commerceOrders.id}).from(commerceOrders).where(and(
-    eq(commerceOrders.sandbox,1),eq(commerceOrders.sellerUserId,asset.userId),
+    eq(commerceOrders.sellerUserId,asset.userId),
     or(eq(commerceOrders.buyerUserId,user.userId),eq(commerceOrders.sellerUserId,user.userId)),
     sql`json_extract(${commerceOrders.state}, '$.order.paidAt') IS NOT NULL`,
     or(sql`EXISTS (SELECT 1 FROM json_each(${commerceOrders.snapshot}, '$.photoIds') photo WHERE photo.value = ${id})`,
@@ -76,6 +87,9 @@ export async function GET(req:Request){try{
   }
  }
  if(!shared)return json('Photo not found.',404);
- const thumbnail=new URL(req.url).searchParams.get('size')==='thumbnail',rendition=thumbnail?await env.BUCKET?.get('thumbnails/'+id):null;const object=rendition||await env.BUCKET?.get('photos/'+id);if(!object)return json('Photo not found.',404);
- return new Response(object.body,{headers:{'Content-Type':rendition?'image/webp':asset.contentType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
+ return photoResponse(req,id,asset.contentType);
 }catch{return json('Photo could not be loaded. Please retry.',500)}}
+async function photoResponse(req:Request,id:string,contentType:string){
+ const thumbnail=new URL(req.url).searchParams.get('size')==='thumbnail',rendition=thumbnail?await env.BUCKET?.get('thumbnails/'+id):null;const object=rendition||await env.BUCKET?.get('photos/'+id);if(!object)return json('Photo not found.',404);
+ return new Response(object.body,{headers:{'Content-Type':rendition?'image/webp':contentType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
+}

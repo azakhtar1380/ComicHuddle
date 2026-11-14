@@ -13,7 +13,9 @@ const compiled = ts.transpileModule(await readFile('lib/stripe-sandbox.ts', 'utf
 assert.equal((compiled.diagnostics ?? []).filter(row => row.category === ts.DiagnosticCategory.Error).length, 0);
 const module = {exports: {}}, context = vm.createContext({module, exports: module.exports, crypto: webcrypto,
   URL, URLSearchParams, Response, Request, Headers, AbortController, TextEncoder, TextDecoder,
-  Uint8Array, ArrayBuffer, Error, Date, setTimeout, clearTimeout, fetch: async () => {throw new Error('Real network forbidden.');}});
+  Uint8Array, ArrayBuffer, Error, Date, setTimeout, clearTimeout, fetch: async () => {throw new Error('Real network forbidden.');},
+  // configuredOrigin reads NODE_ENV/VERCEL for its local-development http://localhost allowance; run as production.
+  process: {env: {NODE_ENV: 'production'}}});
 new vm.Script(compiled.outputText, {filename: 'lib/stripe-sandbox.ts'}).runInContext(context);
 const {sandboxConfiguration, sandboxSetup, stripeSandbox, verifyStripeWebhook, STRIPE_SANDBOX_API_VERSION,
   STRIPE_WEBHOOK_MAX_BYTES} = module.exports;
@@ -452,6 +454,81 @@ await test('Embedded Payment Element sessions use the exact bound secret and ret
 });
 await test('A borrowed embedded client secret cannot authorize a different order session',async()=>{
  const client=stripeSandbox(env,{fetch:async()=>Response.json({...checkout,url:null,client_secret:'cs_test_OTHER_secret_SYNTHETICSESSION0001'})});await rejectsCode(()=>client.createCheckout({...checkoutInput,uiMode:'elements'},randomKey),'stripe_order_mismatch');
+});
+
+// ---- Live-mode switch (COMMERCE_STRIPE_MODE) ----
+const liveEnv = {COMMERCE_SANDBOX_ENABLED: 'true', COMMERCE_SANDBOX_REVIEWED: 'true', COMMERCE_STRIPE_MODE: 'live', COMMERCE_LIVE_REVIEWED: 'true',
+  COMMERCE_STRIPE_LIVE_SECRET_KEY: ['sk','live','SYNTHETICLIVEFIXTURE0001'].join('_'),
+  COMMERCE_STRIPE_LIVE_WEBHOOK_SECRET: 'whsec_SYNTHETICLIVEWEBHOOK00001',
+  COMMERCE_PUBLIC_ORIGIN: 'https://comichuddle.example.invalid'};
+const liveSession = 'cs_live_Session0001';
+await test('Unset mode stays test; an unknown mode fails closed', () => {
+  assert.equal(sandboxConfiguration(env).mode, 'test'); assert.equal(sandboxConfiguration(env).livemode, false);
+  assert.equal(sandboxConfiguration({...env, COMMERCE_STRIPE_MODE: 'test'}).ready, true);
+  for (const value of ['production', 'LIVE', true]) {
+    const config = sandboxConfiguration({...env, COMMERCE_STRIPE_MODE: value});
+    assert.equal(config.ready, false); assert.equal(config.reason, 'stripe_mode_invalid');
+  }
+});
+await test('Live mode needs live keys, its own webhook secret and the separate live review flag', () => {
+  const config = sandboxConfiguration(liveEnv); assert.equal(config.ready, true); assert.equal(config.mode, 'live'); assert.equal(config.reason, 'live_ready');
+  assert.equal(sandboxConfiguration({...liveEnv, COMMERCE_LIVE_REVIEWED: 'false'}).reason, 'live_review_required');
+  assert.equal(sandboxConfiguration({...liveEnv, COMMERCE_LIVE_REVIEWED: undefined}).ready, false);
+  assert.equal(sandboxConfiguration({...liveEnv, COMMERCE_STRIPE_LIVE_SECRET_KEY: 'sk_test_SYNTHETICADAPTERFIXTURE0001'}).reason, 'test_key_rejected');
+  assert.equal(sandboxConfiguration({...liveEnv, COMMERCE_STRIPE_LIVE_WEBHOOK_SECRET: undefined}).reason, 'webhook_secret_missing');
+  // Test variables never satisfy live mode.
+  const testOnly = {...env, COMMERCE_STRIPE_MODE: 'live', COMMERCE_LIVE_REVIEWED: 'true'};
+  assert.equal(sandboxConfiguration(testOnly).reason, 'live_secret_missing');
+  assert.ok(!JSON.stringify(config).includes(liveEnv.COMMERCE_STRIPE_LIVE_SECRET_KEY));
+});
+await test('A live adapter uses the live key, requires livemode objects and cs_live_ sessions', async () => {
+  const liveCheckout = {...checkout, id: liveSession, livemode: true, url: 'https://checkout.stripe.com/c/pay/' + liveSession};
+  const state = mock({config: liveEnv, override: ({route}) => route === '/v1/checkout/sessions' ? Response.json(liveCheckout) : undefined});
+  const created = await state.client.createCheckout(checkoutInput, randomKey); assert.equal(created.id, liveSession);
+  assert.equal(state.requests[0].options.headers.Authorization, 'Bearer ' + liveEnv.COMMERCE_STRIPE_LIVE_SECRET_KEY);
+  const testObject = mock({config: liveEnv, override: () => Response.json(checkout)});
+  await rejectsCode(() => testObject.client.createCheckout(checkoutInput, randomKey), 'stripe_invalid_response');
+  const wrongPrefix = mock({config: liveEnv, override: () => Response.json({...checkout, livemode: true})});
+  await rejectsCode(() => wrongPrefix.client.createCheckout(checkoutInput, randomKey), 'invalid_identifier');
+  await rejectsCode(() => state.client.retrieveCheckout(ids.session, binding), 'invalid_identifier');
+});
+await test('A test adapter rejects live objects', async () => {
+  const state = mock({override: () => Response.json({...checkout, livemode: true})});
+  await rejectsCode(() => state.client.createCheckout(checkoutInput, randomKey), 'stripe_invalid_response');
+});
+await test('Webhook livemode must match the configured mode; live uses the live signing secret', async () => {
+  const liveBody = bodyEvent({livemode: true, data: {object: {...paidCheckout, id: liveSession, livemode: true}}});
+  const liveSignature = signature(liveBody, stamp, liveEnv.COMMERCE_STRIPE_LIVE_WEBHOOK_SECRET);
+  assert.equal((await webhook(liveBody, liveSignature, liveEnv)).livemode, true);
+  await rejectsCode(() => webhook(liveBody, signature(liveBody), liveEnv), 'invalid_webhook_signature');
+  const testBody = bodyEvent();
+  await rejectsCode(() => webhook(testBody, signature(testBody, stamp, liveEnv.COMMERCE_STRIPE_LIVE_WEBHOOK_SECRET), liveEnv), 'invalid_webhook');
+  await rejectsCode(() => webhook(liveBody, signature(liveBody), env), 'invalid_webhook');
+  await rejectsCode(() => webhook(liveBody, liveSignature, {...liveEnv, COMMERCE_STRIPE_LIVE_SECRET_KEY: 'sk_test_SYNTHETICADAPTERFIXTURE0001'}), 'webhook_not_configured');
+});
+await test('An optional Connect endpoint secret authenticates account events on the same URL', async () => {
+  const connectSecret = 'whsec_SYNTHETICCONNECTWEBHOOK001', config = {...env, COMMERCE_STRIPE_TEST_CONNECT_WEBHOOK_SECRET: connectSecret};
+  const body = bodyEvent({type: 'account.updated', account: ids.account, data: {object: account}});
+  assert.equal((await webhook(body, signature(body, stamp, connectSecret), config)).type, 'account.updated');
+  await rejectsCode(() => webhook(body, signature(body, stamp, connectSecret)), 'invalid_webhook_signature');
+});
+await test('Checkout expiry is sent verbatim and must sit inside Stripe\'s 30-minute to 24-hour window', async () => {
+  const expiresAt = stamp + 3600, state = mock();
+  await state.client.createCheckout({...checkoutInput, expiresAt}, randomKey);
+  assert.equal(state.requests[0].fields.expires_at, String(expiresAt));
+  for (const bad of [stamp + 600, stamp + 90_000, 1.5])
+    await rejectsCode(() => mock().client.createCheckout({...checkoutInput, expiresAt: bad}, randomKey), 'checkout_expiry_invalid');
+  const plainState = mock(); await plainState.client.createCheckout(checkoutInput, randomKey);
+  assert.equal(plainState.requests[0].fields.expires_at, undefined);
+});
+await test('Disputes are re-retrieved and bound to the order charge and intent', async () => {
+  const dispute = {id: 'dp_Dispute0001', object: 'dispute', livemode: false, charge: ids.charge, payment_intent: ids.intent, currency: 'usd', amount, status: 'won'};
+  const ok = mock({override: ({route}) => route === '/v1/disputes/dp_Dispute0001' ? Response.json(dispute) : undefined});
+  assert.equal((await ok.client.retrieveDispute('dp_Dispute0001', {chargeId: ids.charge, paymentIntentId: ids.intent})).status, 'won');
+  const other = mock({override: () => Response.json({...dispute, charge: 'ch_Other0001'})});
+  await rejectsCode(() => other.client.retrieveDispute('dp_Dispute0001', {chargeId: ids.charge, paymentIntentId: ids.intent}), 'stripe_order_mismatch');
+  const live = mock({override: () => Response.json({...dispute, livemode: true})});
+  await rejectsCode(() => live.client.retrieveDispute('dp_Dispute0001', {chargeId: ids.charge, paymentIntentId: ids.intent}), 'stripe_invalid_response');
 });
 
 console.log(`Stripe sandbox adapter: ${passed} named groups passed; ${failures.length} failed. Synthetic HTTP/signature tests only; actual Stripe sandbox transactions not run.`);

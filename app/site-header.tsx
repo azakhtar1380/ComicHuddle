@@ -1,18 +1,19 @@
 'use client';
 import Link from 'next/link';
-import {useEffect,useState} from 'react';
-import {BookOpen,Camera,ChevronDown,Home,MessageCircle,MoreHorizontal,Clock3,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
+import {useEffect,useState,type FormEvent} from 'react';
+import {BookOpen,Camera,ChevronDown,Clock3,Home,Lock,MessageCircle,ScanLine,Search,ShieldCheck,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
 import MobileDock from './mobile-dock';
 import {publicSection} from '../lib/section-navigation';
 import './site-header.css';
 
 type Props={section?:string;name?:string;signedIn?:boolean;sessionKnown?:boolean;scanOpen?:boolean;drawerOpen?:boolean;messageCount?:number;onNavigate?:(section:string)=>void;onScan?:()=>void;onMessages?:()=>void;onAccount?:()=>void;standalone?:boolean};
-const entries=[{id:'Home',label:'Home',Icon:Home},{id:'Directory',label:'Directory',Icon:BookOpen},{id:'Marketplace',label:'Marketplace',Icon:ShoppingBag},{id:'Pressing',label:'Comic Workshop',Icon:Wrench},{id:'Wallet',label:'My Wallet',Icon:Wallet},{id:'Collectors',label:'My Profile',Icon:User}];
+const entries=[{id:'Home',label:'Home',Icon:Home},{id:'Marketplace',label:'Shop',Icon:ShoppingBag},{id:'Directory',label:'Comic Directory',Icon:BookOpen},{id:'Pressing',label:'Comic Workshop',Icon:Wrench},{id:'Wallet',label:'Wallet & Rewards',Icon:Wallet},{id:'Collectors',label:'My Collection',Icon:User}];
 const destination=(section:string)=>section==='Home'?'/':section==='Wallet'?'/wallet':'/?'+new URLSearchParams({section:publicSection(section)});
 
-/** Home and the information pages share the same markup, labels and typography. */
+/** One professional storefront header shared by every page. */
 export default function SiteHeader({section='Home',name='Collector',signedIn=false,sessionKnown=false,scanOpen=false,drawerOpen=false,messageCount=0,onNavigate,onScan,onMessages,onAccount,standalone=false}:Props){
  const [session,setSession]=useState({signedIn:false,name:'Collector'});
+ const [query,setQuery]=useState('');
  useEffect(()=>{
   if(sessionKnown)return;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
   void fetch('/api/account-summary',{credentials:'same-origin',cache:'no-store',signal:controller.signal}).then(async response=>response.ok?response.json():null).then(value=>{if(!controller.signal.aborted&&value&&typeof value.signedIn==='boolean')setSession({signedIn:value.signedIn,name:typeof value.name==='string'?value.name:'Collector'})}).catch(()=>undefined).finally(()=>clearTimeout(timer));
@@ -20,19 +21,32 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
  },[sessionKnown]);
  const authenticated=sessionKnown?signedIn:session.signedIn,displayName=sessionKnown?name:session.name;
  const navigate=(next:string)=>{if(onNavigate)onNavigate(next);else window.location.assign(destination(next))};
+ const submit=(event:FormEvent)=>{event.preventDefault();const q=query.trim();window.location.assign('/?'+new URLSearchParams(q?{section:'Directory',q}:{section:'Directory'}))};
+ const brand=<img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/>;
+ const scan=onScan?<button type="button" className="ch-scan-button" aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={onScan}><ScanLine size={18}/><span>Scan</span></button>:<Link href="/?section=Scan" className="ch-scan-button" aria-label="Scan a comic"><ScanLine size={18}/><span>Scan</span></Link>;
  return <>
-  <div className="preview-strip"><span>{process.env.NEXT_PUBLIC_QA_ENV==='true'?'QA SANDBOX · TEST DATA ONLY':'PUBLIC PREVIEW'}</span><span>Comic directory · Collect, buy &amp; care · Preview</span></div>
-  <header className="site-header">
-   {onNavigate?<button type="button" className="brand" onClick={()=>navigate('Home')} aria-label="ComicHuddle home"><img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/></button>:<Link href="/" className="brand" aria-label="ComicHuddle home"><img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/></Link>}
-   <nav aria-label="Main navigation">
-    {entries.map(({id,label,Icon})=>{const active=section===id,className='site-nav-item'+(active?' nav-active':'')+(id==='Wallet'?' nav-wallet':'');return onNavigate&&id!=='Wallet'?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}><Icon size={16}/><span>{label}</span></button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}><Icon size={16}/><span>{label}</span></Link>})}
-    {onScan?<button type="button" className="header-scan nav-scan" aria-label="Scan / Lens" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={onScan}><Camera size={22}/><span>Scan / Lens</span></button>:<Link href="/?section=Scan" className="header-scan nav-scan" aria-label="Scan / Lens"><Camera size={22}/><span>Scan / Lens</span></Link>}
-   </nav>
-   <details className="site-more"><summary aria-label="More navigation"><MoreHorizontal size={22}/><span>More</span></summary><div><Link href="/upcoming" aria-current={section==='Upcoming'?'page':undefined}><Clock3 size={16}/> Upcoming</Link></div></details>
-   {!authenticated&&<Link className="header-signin" href="/sign-in" prefetch><User size={16}/> Sign in</Link>}
-   {onMessages?<button type="button" className="header-inbox" aria-label="Open messages" onClick={onMessages}><MessageCircle size={20}/>{messageCount>0&&<span>{messageCount}</span>}</button>:<Link className="header-inbox" href="/?section=Messages" aria-label="Open messages"><MessageCircle size={20}/></Link>}
-   {!authenticated&&<Link className="header-signup" href="/sign-in?mode=register" prefetch>Join free</Link>}
-   {onAccount?<button type="button" className="account-button" aria-label="Open account drawer" aria-expanded={drawerOpen} onClick={onAccount}><span className="avatar">{displayName.slice(0,1).toUpperCase()}</span><ChevronDown size={15}/></button>:<Link className="account-button" href="/?section=Account" aria-label="Open account drawer"><span className="avatar">{displayName.slice(0,1).toUpperCase()}</span><ChevronDown size={15}/></Link>}
+  {process.env.NEXT_PUBLIC_QA_ENV==='true'&&<div className="ch-qa-strip">QA SANDBOX · TEST DATA ONLY</div>}
+  <div className="ch-utility" role="note"><div className="ch-wrap"><span><Lock size={13}/> Secure checkout powered by Stripe</span><span><Camera size={13}/> Scan any barcode to identify a comic</span><span><ShieldCheck size={13}/> Free collector profiles</span></div></div>
+  <header className="site-header ch-header">
+   <div className="ch-wrap ch-header-row">
+    {onNavigate?<button type="button" className="brand" onClick={()=>navigate('Home')} aria-label="ComicHuddle home">{brand}</button>:<Link href="/" className="brand" aria-label="ComicHuddle home">{brand}</Link>}
+    <form className="ch-search" role="search" onSubmit={submit}>
+     <Search size={18} aria-hidden="true"/>
+     <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search titles, characters, issues…" aria-label="Search the comic directory" enterKeyHint="search" maxLength={120}/>
+     <button type="submit">Search</button>
+    </form>
+    <div className="ch-actions">
+     {scan}
+     {onMessages?<button type="button" className="header-inbox ch-icon" aria-label="Open messages" onClick={onMessages}><MessageCircle size={20}/>{messageCount>0&&<span>{messageCount}</span>}</button>:<Link className="header-inbox ch-icon" href="/?section=Messages" aria-label="Open messages"><MessageCircle size={20}/></Link>}
+     {authenticated
+      ?(onAccount?<button type="button" className="account-button" aria-label="Open account menu" aria-expanded={drawerOpen} onClick={onAccount}><span className="avatar">{displayName.slice(0,1).toUpperCase()}</span><span className="ch-account-label"><small>Hello, {displayName.split(' ')[0]}</small>Account</span><ChevronDown size={15}/></button>:<Link className="account-button" href="/?section=Account" aria-label="Open account menu"><span className="avatar">{displayName.slice(0,1).toUpperCase()}</span><span className="ch-account-label"><small>Hello, {displayName.split(' ')[0]}</small>Account</span><ChevronDown size={15}/></Link>)
+      :<><Link className="header-signin" href="/sign-in" prefetch><User size={18}/><span>Sign in</span></Link><Link className="header-signup" href="/sign-in?mode=register" prefetch>Join free</Link></>}
+    </div>
+   </div>
+   <nav className="ch-nav" aria-label="Main navigation"><div className="ch-wrap">
+    {entries.map(({id,label,Icon})=>{const active=section===id||(id==='Collectors'&&section==='My Profile'),className='site-nav-item'+(active?' nav-active':'');return onNavigate&&id!=='Wallet'?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}><Icon size={16}/><span>{label}</span></button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}><Icon size={16}/><span>{label}</span></Link>})}
+    <Link href="/upcoming" className={'site-nav-item'+(section==='Upcoming'?' nav-active':'')} aria-current={section==='Upcoming'?'page':undefined}><Clock3 size={16}/><span>Coming Soon</span></Link>
+   </div></nav>
   </header>
   {standalone&&<MobileDock tab={section} scanOpen={false} onNavigate={navigate} onScan={()=>window.location.assign('/?section=Scan')}/>}
  </>;

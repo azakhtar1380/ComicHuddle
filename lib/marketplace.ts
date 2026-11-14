@@ -15,6 +15,8 @@ import {blocked} from './conversations';
 import {listingDirectoryId} from './shared-catalog';
 import {linkedCatalogIssue} from './catalog-search';
 import {conditionalGuard as guard,operationGuardFailed as marketplaceGuardFailed} from './operation-guard';
+import {auctionTablesExist,auctionTerms,auctionTermsInsert,bindingAuctionView,placeBindingBid,resolveEndedAuctions,viewerMaxes,type AuctionTerms} from './marketplace-auction';
+import {auctionDurationDays,bidIncrement as auctionIncrement} from './auction-engine';
 export {marketplaceGuardFailed};
 
 type Db=ReturnType<typeof getDb>;
@@ -35,12 +37,14 @@ const creationSchema=z.object({
  conditions:z.record(bookId,conditionSchema).refine(v=>Object.keys(v).length<=1000).default({}),title:z.string().trim().min(1).max(200).optional(),
  description:z.string().trim().min(1).max(2000),price:cents,shipping:z.number().int().min(0).max(100000),
  photos:z.array(z.string().uuid()).min(1).max(6).refine(ids=>new Set(ids).size===ids.length),cert:z.string().max(40).default(''),attest:z.literal(true),usaAttest:z.boolean().optional(),
- durationHours:z.number().int().min(1).max(168).default(72),bidIncrement:z.number().int().min(100).max(1000000).default(500),
+ // Binding auctions run a fixed 1, 3, 5, 7 or 10 days; the bid increment follows the price-band table.
+ durationHours:z.number().int().refine(hours=>(auctionDurationDays as readonly number[]).includes(hours/24),'Choose an auction length of 1, 3, 5, 7 or 10 days.').default(72),bidIncrement:z.number().int().min(100).max(1000000).optional(),reserveCents:z.number().int().min(100).max(marketplaceMaxCents).optional(),
  fulfillment:fulfillmentSchema.default('shipping'),pickupCity:citySchema.default(''),pickupState:z.union([z.enum(listingStateCodes),z.literal('')]).default('')
 }).strict().superRefine((v,ctx)=>{
  if(v.fulfillment!=='shipping'&&(v.pickupCity.length<2||!v.pickupState))ctx.addIssue({code:z.ZodIssueCode.custom,path:['pickupCity'],message:'Choose a public pickup city and state.'});
  if(v.fulfillment==='shipping'&&(v.pickupCity||v.pickupState))ctx.addIssue({code:z.ZodIssueCode.custom,path:['pickupCity'],message:'Pickup location applies only to pickup listings.'});
  if(v.fulfillment==='pickup'&&v.shipping!==0)ctx.addIssue({code:z.ZodIssueCode.custom,path:['shipping'],message:'Pickup-only listings cannot charge shipping.'});
+ if(v.reserveCents!==undefined&&(v.saleType!=='auction'||v.reserveCents<v.price))ctx.addIssue({code:z.ZodIssueCode.custom,path:['reserveCents'],message:'A reserve price applies only to auctions and must be at least the starting price.'});
 });
 
 // Collection listings need a larger bounded payload; other actions retain their
@@ -88,17 +92,18 @@ export function auctionView(row:ListingRow,viewerId?:string,ownBid?:Bid,stamp=Da
  const leading=!!viewerId&&row.leaderId===viewerId&&row.leadingBidId!==null&&row.status!=='cancelled'&&row.status!=='withdrawn';
  return {endAt:row.endAt,bidIncrement:row.bidIncrement,currentBid:row.currentBid,minNextBid:ended||next>marketplaceMaxCents?null:next,bidCount:row.bidCount,ended,leading,yourBid:ownBid?.amount??null,yourBidId:ownBid?.id??null,yourBidStatus:ownBid?(row.leadingBidId===ownBid.id&&leading?'leading':'outbid'):null,nonbinding:true};
 }
-export type ListingContext={aiEstimates?:Map<string,CombinedEstimate>;values:Map<string,MarketRow|null>;ownBids:Map<string,Bid>;stamp:number};
+export type ListingContext={aiEstimates?:Map<string,CombinedEstimate>;values:Map<string,MarketRow|null>;ownBids:Map<string,Bid>;stamp:number;terms?:Map<string,AuctionTerms>;maxes?:Map<string,number>};
 export async function listingContext(db:Db,rows:ListingRow[],viewerId?:string):Promise<ListingContext>{
- const stamp=Date.now(),values=new Map<string,MarketRow|null>(),ownBids=new Map<string,Bid>();
- if(viewerId){for(const batch of chunks(rows.filter(row=>row.saleType==='auction').map(row=>row.id))){
+ const stamp=Date.now(),values=new Map<string,MarketRow|null>(),ownBids=new Map<string,Bid>(),auctionIds=rows.filter(row=>row.saleType==='auction').map(row=>row.id);
+ if(viewerId){for(const batch of chunks(auctionIds)){
   const own=await db.select().from(auctionBids).where(inArray(auctionBids.id,db.select({id:sql<string>`(SELECT own.id FROM auction_bids own WHERE own.listing_id = ${sql.raw('listings.id')} AND own.bidder_id = ${viewerId} AND own.status IN ('leading','outbid') ORDER BY own.sequence DESC LIMIT 1)`}).from(listings).where(inArray(listings.id,batch))));
   for(const bid of own)ownBids.set(bid.listingId,bid);
  }}
- return {values,ownBids,stamp};
+ return {values,ownBids,stamp,terms:await auctionTerms(db,auctionIds),maxes:await viewerMaxes(db,auctionIds,viewerId)};
 }
 export function listingDto(row:ListingRow,seller:Pick<Profile,'id'|'name'|'handle'|'createdAt'>|undefined,viewerId:string|undefined,context:ListingContext):Listing{
- const items=listingItems(row),auction=auctionView(row,viewerId,context.ownBids.get(row.id),context.stamp),fulfillment=fulfillmentSchema.parse(row.fulfillment);
+ const items=listingItems(row),base=auctionView(row,viewerId,context.ownBids.get(row.id),context.stamp),fulfillment=fulfillmentSchema.parse(row.fulfillment);
+ const auction=base?bindingAuctionView(row,base,context.terms?.get(row.id),viewerId,context.maxes?.get(row.id)??null,context.stamp) as unknown as ListingAuction:null;
  // Select every public field explicitly; ledger identities, vault revision,
  // internal CAS versions and private inventory prices never leave this DTO.
  return {id:row.id,sellerId:row.sellerId,bookId:row.bookId,issueId:row.issueId,title:row.title,grade:row.grade,description:row.description,price:row.price,shipping:row.shipping,photos:JSON.parse(row.photos),cert:row.cert,status:row.status==='active'&&auction?.ended?'ended':row.status,createdAt:row.createdAt,safePurchaseOptIn:!!row.safePurchaseOptIn,safePurchaseVerifiedAt:row.safePurchaseVerifiedAt,locationCity:row.locationCity,locationState:row.locationState,seller:{id:seller?.id||'',name:seller?.name||'Former collector',handle:seller?.handle||'',...(seller?.createdAt?{createdAt:seller.createdAt}:{})},fulfillment,pickupCity:fulfillment==='shipping'?'':row.pickupCity,pickupState:fulfillment==='shipping'?'':row.pickupState,kind:row.kind==='collection'?'collection':'single',saleType:row.saleType==='auction'?'auction':'fixed',items,itemCount:items.length,auction};
@@ -120,7 +125,7 @@ export function closeListingStatements(db:Db,where:SQL,status:'withdrawn'|'cance
 export async function withdrawListing(db:Db,me:Profile,listingId:string){
  const checked=guard(db,sql`EXISTS (SELECT 1 FROM listings l WHERE l.id = ${listingId} AND l.seller_id = ${me.id} AND (l.sale_type != 'auction' OR l.bid_count = 0)) AND NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = ${listingId} AND o.status NOT IN ('cancelled','refunded','checkout_expired'))`);
  try{await db.batch([checked.start,...closeListingStatements(db,eq(listings.id,listingId),'withdrawn'),checked.finish])}
- catch(error){if(marketplaceGuardFailed(error))throw new ApiRequestError('A listing with an open sandbox order or accepted auction proposal history cannot be withdrawn. Contact maliktecks@gmail.com for support.',409);throw error}
+ catch(error){if(marketplaceGuardFailed(error))throw new ApiRequestError('A listing with an open order or existing auction bids cannot be withdrawn. Contact maliktecks@gmail.com for support.',409);throw error}
 }
 async function ownPhotos(db:Db,userId:string,ids:string[]){for(const batch of chunks([...new Set(ids)])){const rows=await db.select().from(media).where(inArray(media.id,batch));if(rows.length!==batch.length||rows.some(row=>row.userId!==userId))throw new ApiRequestError('Use only your own uploaded photos.',403)}}
 export async function initializeSellerListings(db:Db,me:Profile){
@@ -170,6 +175,10 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  const identitiesCurrent=identityChecks.length?sql.join(identityChecks,sql` AND `):sql`true`;
  if(copies.some(copy=>copy.catalogId!==undefined&&!linkedCatalogIssue(copy)))throw new ApiRequestError('Correct the directory issue for each selected comic before publishing, or unlink it as a personal record.',400);
  await ownPhotos(db,me.userId,[...value.photos,...items.flatMap(item=>item.photoId?[item.photoId]:[])]);
+ const termsReady=await auctionTablesExist(db);
+ if(value.saleType==='auction'&&!termsReady)throw new ApiRequestError('Auctions are being upgraded. Please try again shortly.',503);
+ if(termsReady)await resolveEndedAuctions(db);
+ const noTerms=(alias:string)=>termsReady?sql`NOT EXISTS (SELECT 1 FROM ch_web.marketplace_auction_terms t WHERE t.listing_id = ${sql.raw(alias)})`:sql`true`;
  const stamp=new Date().toISOString(),selectedJSON=JSON.stringify(selected);
  const checked=guard(db,sql`EXISTS (SELECT 1 FROM profiles p JOIN collections c ON c.user_id = p.user_id
   WHERE p.id = ${me.id} AND p.user_id = ${me.userId} AND p.visible = 1 AND p.moderated = 0 AND p.deletion_started_at IS NULL
@@ -185,28 +194,32 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
    AND legacy.items = '[]' AND NOT (legacy.sale_type = 'auction' AND legacy.end_at <= ${stamp})
    AND legacy.book_id IN (SELECT item.value FROM json_each(${selectedJSON}) item))
   AND NOT EXISTS (SELECT 1 FROM listing_inventory reserved JOIN listings occupied ON occupied.id = reserved.listing_id
-   WHERE reserved.seller_id = ${me.id} AND (occupied.status = 'active' OR EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = occupied.id AND o.status NOT IN ('cancelled','refunded','checkout_expired')))
-    AND NOT (occupied.sale_type = 'auction' AND occupied.end_at <= ${stamp})
+   WHERE reserved.seller_id = ${me.id} AND (occupied.status IN ('active','auction_won') OR EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = occupied.id AND o.status NOT IN ('cancelled','refunded','checkout_expired')))
+    AND NOT (occupied.sale_type = 'auction' AND occupied.status = 'active' AND occupied.end_at <= ${stamp} AND ${noTerms('occupied.id')})
     AND reserved.book_id IN (SELECT item.value FROM json_each(${selectedJSON}) item))`);
  const location=value.locationZip?await resolveLocation(db,value.locationZip):null;
- const listingId=crypto.randomUUID(),first=copies[0];
+ const listingId=crypto.randomUUID(),first=copies[0],legacyAuction=noTerms('listings.id');
  try{
   await db.batch([
    checked.start,
    // Expiry creates no order and releases this seller's preview copies in the
    // same transaction, before a new listing attempts to reserve them again.
-   db.update(listings).set({status:'ended'}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'active'),lte(listings.endAt,stamp))),
-   db.delete(listingInventory).where(and(eq(listingInventory.sellerId,me.id),inArray(listingInventory.listingId,db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'ended'),lte(listings.endAt,stamp)))))),
-   db.insert(listings).values({id:listingId,sellerId:me.id,bookId:first.id,issueId:value.kind==='single'?first.externalCatalog?listingDirectoryId(first):linkedCatalogIssue(first)?.id??null:null,title:value.title||(value.kind==='single'?first.title+' '+first.issue:vault.profile+"'s "+items.length+'-comic collection'),grade:value.kind==='single'?first.grade:'Mixed conditions · see each copy',description:value.description,price:value.price,shipping:value.shipping,photos:JSON.stringify(value.photos),cert:value.cert,status:'active',createdAt:stamp,safePurchaseOptIn:value.safePurchaseOptIn?1:0,...(location?{locationZip:location.zip,locationCity:location.city,locationState:location.state,latitude:location.latitude,longitude:location.longitude}:{}),kind:value.kind,saleType:value.saleType,items:JSON.stringify(items),itemCount:items.length,endAt:value.saleType==='auction'?new Date(Date.parse(stamp)+value.durationHours*3600000).toISOString():'',bidIncrement:value.bidIncrement,vaultRevision:source.revision,usaAttestedAt:value.usaAttest===true?stamp:'',fulfillment:value.fulfillment,pickupCity:value.pickupCity,pickupState:value.pickupState}),
+   // Only legacy previews end here; binding auctions are resolved first by resolveEndedAuctions.
+   db.update(listings).set({status:'ended'}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'active'),lte(listings.endAt,stamp),legacyAuction)),
+   db.delete(listingInventory).where(and(eq(listingInventory.sellerId,me.id),inArray(listingInventory.listingId,db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'ended'),lte(listings.endAt,stamp),legacyAuction))))),
+   db.insert(listings).values({id:listingId,sellerId:me.id,bookId:first.id,issueId:value.kind==='single'?first.externalCatalog?listingDirectoryId(first):linkedCatalogIssue(first)?.id??null:null,title:value.title||(value.kind==='single'?first.title+' '+first.issue:vault.profile+"'s "+items.length+'-comic collection'),grade:value.kind==='single'?first.grade:'Mixed conditions · see each copy',description:value.description,price:value.price,shipping:value.shipping,photos:JSON.stringify(value.photos),cert:value.cert,status:'active',createdAt:stamp,safePurchaseOptIn:value.safePurchaseOptIn?1:0,...(location?{locationZip:location.zip,locationCity:location.city,locationState:location.state,latitude:location.latitude,longitude:location.longitude}:{}),kind:value.kind,saleType:value.saleType,items:JSON.stringify(items),itemCount:items.length,endAt:value.saleType==='auction'?new Date(Date.parse(stamp)+value.durationHours*3600000).toISOString():'',bidIncrement:auctionIncrement(value.price),vaultRevision:source.revision,usaAttestedAt:value.usaAttest===true?stamp:'',fulfillment:value.fulfillment,pickupCity:value.pickupCity,pickupState:value.pickupState}),
    db.insert(listingInventory).select(db.select({sellerId:sql<string>`${me.id}`.as('seller_id'),bookId:sql<string>`json_extract(item.value, '$.bookId')`.as('book_id'),listingId:sql<string>`${listingId}`.as('listing_id')}).from(sql`json_each(${JSON.stringify(items)}) item`).where(sql`true`)),
+   ...(value.saleType==='auction'?[auctionTermsInsert(db,listingId,value.reserveCents??null,stamp)]:[]),
    checked.finish
-  ]);
+  ] as never);
  }catch(error){if(marketplaceGuardFailed(error)||/listing_inventory/.test(databaseMessage(error)))throw new ApiRequestError('A selected copy is already listed or your collection changed. Refresh before publishing.',409);throw error}
  return {listingId};
 }
 
 async function resultFor(db:Db,row:ListingRow,me:Profile,duplicate:boolean){const context=await listingContext(db,[row],me.id);return {saved:true,duplicate,listingId:row.id,auction:auctionView(row,me.id,context.ownBids.get(row.id)),note:'Nonbinding private preview only. No order, payment or transfer was created.'}}
 export async function placeBid(db:Db,me:Profile,raw:Record<string,unknown>){
+ const listingId=typeof raw.listingId==='string'?raw.listingId.trim():'',terms=listingId?(await auctionTerms(db,[listingId])).get(listingId):undefined;
+ if(terms){const {action,...input}=raw;void action;const result=await placeBindingBid(db,me,input,terms);const [row]=await db.select().from(listings).where(eq(listings.id,result.listingId));return {...result,auction:row?(await listingDtoAuction(db,row,me.id)):null}}
  const value=z.object({listingId:z.string().trim().min(1).max(100),amount:cents,requestId:z.string().uuid(),nonbindingConsent:z.literal(true)}).parse(raw);
  const [record]=await db.select().from(auctionBids).where(and(eq(auctionBids.bidderId,me.id),eq(auctionBids.requestId,value.requestId)));
  if(record){if(record.listingId!==value.listingId||record.amount!==value.amount)throw new ApiRequestError('This bid request was already used for a different proposal.',409);const [row]=await db.select().from(listings).where(eq(listings.id,record.listingId));if(!row)throw new ApiRequestError('Auction preview not found.',404);return resultFor(db,row,me,true)}
@@ -239,7 +252,10 @@ export async function placeBid(db:Db,me:Profile,raw:Record<string,unknown>){
  catch(error){const [repeat]=await db.select().from(auctionBids).where(and(eq(auctionBids.bidderId,me.id),eq(auctionBids.requestId,value.requestId)));if(repeat){if(repeat.listingId!==value.listingId||repeat.amount!==value.amount)throw new ApiRequestError('This bid request was already used for a different proposal.',409);const [fresh]=await db.select().from(listings).where(eq(listings.id,row.id));return resultFor(db,fresh,me,true)}if(marketplaceGuardFailed(error))throw new ApiRequestError('The auction changed while bidding. Refresh and review the new minimum.',409);throw error}
  const [fresh]=await db.select().from(listings).where(eq(listings.id,row.id));return resultFor(db,fresh,me,false);
 }
+async function listingDtoAuction(db:Db,row:ListingRow,viewerId:string){const context=await listingContext(db,[row],viewerId);return listingDto(row,undefined,viewerId,context).auction}
 export async function retractBid(db:Db,me:Profile,raw:Record<string,unknown>){
+ const target=typeof raw.listingId==='string'?raw.listingId.trim():'';
+ if(target&&(await auctionTerms(db,[target])).has(target))throw new ApiRequestError('Bids on ComicHuddle auctions are binding and cannot be retracted. If you entered the wrong amount, contact maliktecks@gmail.com before the auction ends.',409);
  const value=z.object({listingId:z.string().trim().min(1).max(100),bidId:z.string().uuid(),nonbindingConsent:z.literal(true)}).parse(raw);
  const [bid]=await db.select().from(auctionBids).where(and(eq(auctionBids.id,value.bidId),eq(auctionBids.listingId,value.listingId),eq(auctionBids.bidderId,me.id)));
  if(!bid)throw new ApiRequestError('Your bid record was not found.',404);
@@ -387,7 +403,7 @@ export async function checkMarketplaceDeletion(db:Db,me:Profile){
  const custody=await db.execute(sql`SELECT id FROM ch_web.safe_purchase_requests WHERE (buyer_user_id=${me.userId} OR seller_user_id=${me.userId}) AND status IN ('accepted','received_at_vault','inspected','shipped_to_buyer') LIMIT 1`);
  if(custody.rows.length)throw new ApiRequestError('Resolve your active SafePurchase inspection or shipment before account removal. Contact maliktecks@gmail.com for custody review.',409);
  const [orderHistory]=await db.select({id:commerceOrders.id}).from(commerceOrders).where(or(eq(commerceOrders.buyerUserId,me.userId),eq(commerceOrders.sellerUserId,me.userId))).limit(1);
- if(orderHistory)throw new ApiRequestError('Ask support at maliktecks@gmail.com to review your sandbox order and refund records before removing your account. Financial history is not silently deleted.',409);
+ if(orderHistory)throw new ApiRequestError('Ask support at maliktecks@gmail.com to review your order and refund records before removing your account. Financial history is not silently deleted.',409);
  const [sellerHistory]=await db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),gt(listings.bidCount,0),inArray(listings.status,['active','ended']))).limit(1);
  if(sellerHistory)throw new ApiRequestError('Ask support at maliktecks@gmail.com to cancel your auction previews with bid history before deleting your account. No payment or order was created.',409);
  const [openBid]=await db.select({id:auctionBids.id}).from(auctionBids).innerJoin(listings,eq(listings.id,auctionBids.listingId)).where(and(eq(auctionBids.bidderId,me.id),inArray(auctionBids.status,['leading','outbid']),eq(listings.status,'active'),gt(listings.endAt,new Date().toISOString()))).limit(1);

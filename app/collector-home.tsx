@@ -18,7 +18,7 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
  const [feed,setFeed]=useState<HomeFeed>(emptyFeed),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const reload=useCallback(async(signal:AbortSignal)=>{
   setLoading(true);setError('');
-  try{const response=await fetch('/api/catalog?'+new URLSearchParams({ids:[24,26,29,0,1,2].join(',')}),{signal,cache:'no-store'});if(!response.ok)throw Error();
+  try{const response=await fetch('/api/catalog?'+new URLSearchParams({ids:[24,26,29,0,1,2,3,4,5,6,7,8].join(',')}),{signal,cache:'no-store'});if(!response.ok)throw Error();
    const page=parseCatalogSearchPage(await response.json());if(!signal.aborted)setFeed({...emptyFeed,items:[...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id).map(homeComic),indexedCount:page.issueCount,asOf:new Date().toISOString()});
 
   }catch(e){if(!signal.aborted)setError('The directory could not load. Open the directory or retry below.');}
@@ -33,6 +33,5 @@ export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComi
   onBrowseKeys={()=>go('Directory')} onMarketplace={()=>go('Marketplace')}
   onProfile={onProfile} onWorkshop={()=>go('Comic Workshop')} onRegisterSpecialist={onProvider}/>
   {error&&<div role="alert" className="home-directory-error"><p>{error}</p><button className="button outline small-button" onClick={()=>void reload(new AbortController().signal)}>Retry directory</button></div>}
-  <div className="home-provider-link"><button className="inline-button" onClick={onProvider}>List my pressing studio</button><span>Vintage cover spotlight: Planet Comics #12, #55 and #27. Public-domain US editions; cover credits appear in the directory.</span></div>
  </>;
 }

@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
     { protocol: 'https', hostname: 'covers.openlibrary.org', pathname: '/**' },
     { protocol: 'https', hostname: 'static.metron.cloud', pathname: '/**' },
   ] },
-  serverExternalPackages: ['pg', 'better-auth'],
+  serverExternalPackages: ['pg', 'better-auth', '@electric-sql/pglite'],
+  // Local development only: let a phone on the same network load the dev server (e.g. CH_DEV_EXTRA_ORIGINS=http://10.0.0.11:3000).
+  allowedDevOrigins: (process.env.CH_DEV_EXTRA_ORIGINS || '').split(',').map(origin => origin.trim().replace(/^https?:\/\//, '').replace(/:\d+$/, '')).filter(Boolean),
   outputFileTracingIncludes: { '/**': ['./certificates/rds-ca.pem'] },
   async redirects() {
     const origin=process.env.BETTER_AUTH_URL;
@@ -22,6 +24,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
       { key: 'Referrer-Policy', value: 'same-origin' },
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },

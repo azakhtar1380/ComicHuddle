@@ -8,3 +8,69 @@
 @media(max-width:700px){.location-radius{padding:14px;grid-template-columns:minmax(0,1fr) 125px;gap:10px}.location-radius label{font-size:10px}.location-radius input,.location-radius select{font-size:12px;padding:10px 8px}.location-radius label button{width:38px}.buyer-protection-card{padding:17px}.buyer-protection-card h3{font-size:17px}.protection-badges>span{font-size:10px;padding:8px 10px}.safepurchase-market-card{padding:17px;gap:10px}.safepurchase-market-card h3{font-size:18px}.safepurchase-market-card p{font-size:12px}.collector-wallet{padding:18px;margin:20px 0}.cw-balances>div{padding:14px}.cw-balances strong{font-size:26px}.workshop-intro{display:block;margin:25px 0}.workshop-intro p{font-size:13px}.workshop-intro>.button{margin-top:19px}.press-room .care-live-count{font-size:11px}.press-room .care-section-top h2{font-size:25px}.press-room .care-provider-grid{gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}.specialist-copy{padding:12px}.specialist-title h3{font-size:16px}.specialist-title>svg{width:13px}.specialist-availability{font-size:8px;top:7px;right:7px;padding:5px 7px}.specialist-cover>div{padding:15px}.specialist-cover>div>span{font-size:13px}.specialist-cover>div>svg{width:25px}.specialist-footer{flex-wrap:wrap}.specialist-rating .care-stars svg{width:10px}.specialist-location{font-size:10px}.specialist-copy .care-tags span{font-size:9px;padding:5px 6px}.workshop-footnote{flex-wrap:wrap}.workshop-footnote p{flex-basis:calc(100% - 28px)}.workshop-footnote a{margin-left:28px}}
 @media(max-width:370px){.location-radius{grid-template-columns:1fr}.press-room .care-provider-grid{grid-template-columns:1fr}}
 .location-radius button:focus-visible,.location-radius input:focus-visible,.location-radius select:focus-visible,.specialist-card button:focus-visible,.collector-wallet button:focus-visible,.mp-mark-sold:focus-visible{outline:3px solid #b9352c;outline-offset:3px}
+
+/* Order progress stepper (Orders page) */
+.commerce-order .commerce-status{text-transform:none}
+.order-progress{margin:6px 0 16px}
+.order-progress ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:0;counter-reset:none}
+.order-progress li{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:0 4px;min-width:0;font-size:12px;color:#756c5c}
+.order-progress li::before{content:"";position:absolute;top:14px;left:-50%;width:100%;height:3px;background:#d5ccba;z-index:0}
+.order-progress li:first-child::before{display:none}
+.order-progress li.done::before,.order-progress li.current::before{background:#202632}
+.order-progress-dot{position:relative;z-index:1;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;border:2px solid #b8ae9b;background:#fffefa;color:#756c5c;flex-shrink:0}
+.order-progress li.done .order-progress-dot{background:#202632;border-color:#202632;color:#fffefa}
+.order-progress li.current .order-progress-dot{background:#f4ce58;border-color:#202632;color:#202632;box-shadow:0 0 0 3px rgba(244,206,88,.35)}
+.order-progress li.done,.order-progress li.current{color:#202632}
+.order-progress li.current .order-progress-label{font-weight:800}
+.order-progress-label{display:flex;flex-direction:column;gap:2px;line-height:1.3;overflow-wrap:anywhere}
+.order-progress-label small{font-size:10px;font-weight:500;color:#756c5c}
+.order-progress li.terminal::before{background:#c83e30}
+.order-progress li.terminal .order-progress-dot{background:#c83e30;border-color:#c83e30;color:#fff}
+.order-progress li.terminal.refunding .order-progress-dot{background:#fff5cf;border-color:#c83e30;color:#c83e30}
+.order-progress li.terminal{color:#8f2a20;font-weight:700}
+.order-progress-ended li.upcoming{opacity:.55}
+.order-progress-note{margin:10px 0 0;padding:8px 10px;border-left:3px solid #f4ce58;background:#fff5cf;font-size:12px;color:#544c3a}
+.order-progress .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:620px){
+ .order-progress ol{grid-template-columns:1fr;gap:10px}
+ .order-progress li{flex-direction:row;text-align:left;align-items:flex-start;gap:10px;padding:0}
+ .order-progress li::before{top:-10px;left:14px;width:3px;height:10px}
+ .order-progress-dot{width:26px;height:26px;font-size:12px}
+ .order-progress-label{padding-top:4px}
+}
+@media(prefers-reduced-motion:no-preference){.order-progress-dot{transition:background .2s,border-color .2s}}
+.mp-member-gate-listing{background:#fff5cf;border:1.5px solid #202632;box-shadow:3px 3px 0 #202632}.mp-member-gate-listing strong{display:block;font-size:15px;margin-bottom:2px}.mp-member-gate-listing>svg{flex-shrink:0}
+
+/* Protection, pickup, auctions (marketplace + orders) */
+.checkout-protection,.mp-safepurchase-panel,.order-callout{margin:14px 0;padding:14px 16px;border:1.5px solid #202632;border-radius:10px;background:#fffefa;font-size:13px;line-height:1.6}
+.checkout-protection strong,.mp-safepurchase-panel strong{display:flex;align-items:center;gap:6px;font-size:14px}
+.checkout-protection p,.mp-safepurchase-panel p,.order-callout p{margin:6px 0 0}
+.checkout-protection.is-safepurchase,.mp-safepurchase-panel{background:#eef6f2;border-color:#35666a}
+.mp-safepurchase-panel.is-soon{background:#fff5cf;border-color:#b8ae9b}
+.safepurchase-steps{margin:8px 0 0;padding-left:20px;display:grid;gap:4px}
+.safepurchase-detail-badge.is-soon{background:#fff5cf;color:#544c3a}
+.checkout-fulfillment{border:0;padding:0;margin:0 0 6px;display:flex;flex-wrap:wrap;gap:6px 18px}.checkout-fulfillment legend{font-weight:750;font-size:13px;margin-bottom:4px}
+.checkout-total{font-size:13px;margin:4px 0}
+.order-badges{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.order-protection-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid #b8ae9b;border-radius:999px;font-size:11px;font-weight:700;background:#fffefa}
+.order-protection-badge.is-safepurchase{background:#eef6f2;border-color:#35666a;color:#204a4d}
+.order-money{padding:10px 12px;border-left:3px solid #35666a;background:#eef6f2;font-size:13px}
+.order-callout address{font-style:normal;margin:4px 0}
+.pickup-code{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin:12px 0;padding:14px 16px;border:2px dashed #202632;border-radius:12px;background:#fff5cf}
+.pickup-code span{font-size:12px;font-weight:750;text-transform:uppercase;letter-spacing:.06em}
+.pickup-code strong{font-size:30px;letter-spacing:.24em;font-variant-numeric:tabular-nums}
+.pickup-code small{flex-basis:100%;font-size:12px;color:#544c3a}
+.pickup-code-form,.claim-form{display:grid;gap:10px;margin-top:14px}
+.claim-form fieldset{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 16px}.claim-form legend{font-weight:750;margin-bottom:4px}
+.inspection-console{margin-top:14px;padding:12px;border:1px dashed #35666a;border-radius:10px;display:grid;gap:10px}
+.order-feedback-slot{margin-top:14px;padding-top:12px;border-top:1px solid #d5ccba}
+.mp-guest-actions{display:grid;gap:10px}.mp-guest-actions p{margin:0;font-size:13px}
+.mp-seller-reputation{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12px}.mp-seller-reputation small{color:#756c5c}
+.mp-bid-history{margin-top:10px;font-size:12px}.mp-bid-history summary{cursor:pointer;font-weight:750}
+.mp-bid-history ol{list-style:none;margin:8px 0;padding:0;display:grid;gap:4px;max-height:220px;overflow:auto}
+.mp-bid-history li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;padding:4px 0;border-bottom:1px solid #ece4d3}
+.mp-bid-history li small{color:#756c5c}
+@media(max-width:620px){.pickup-code strong{font-size:26px}.mp-bid-history li{grid-template-columns:1fr auto}.mp-bid-history li small{grid-column:1/-1}}
+.carrier-progress{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:8px 10px;border-radius:8px;background:#f2efe6;font-size:13px}.carrier-progress small{flex-basis:100%;color:#756c5c;font-size:11px}.carrier-progress.is-problem{background:#fdeceb;border:1px solid #c83e30}
+.mp-detail-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-top:12px}.mp-detail-links>.inline-button{margin:0}.mp-reserved{margin:8px 0;padding:8px 12px;border-radius:8px;background:#eef6f2;border:1px solid #35666a;color:#204a4d;font-size:13px;font-weight:650}
+.carrier-progress{display:block}.carrier-progress>span{display:block}.carrier-progress>small{display:block;margin-top:2px}

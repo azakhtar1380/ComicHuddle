@@ -33,7 +33,7 @@ function fixture(overrides={}){
   if(specifier.endsWith('.css'))return {};
   throw Error('Unexpected client dependency '+specifier);
  }});
- vm.runInContext(compiled(source+'\nexport {ProviderCard, WorkshopComparison, ProviderForm};'),context);
+ vm.runInContext(compiled(source+'\nexport {ProviderCard, ProviderForm};'),context);
  return {states,refs,effects,calls,notices,props,ui:context.exports,render(){stateIndex=0;refIndex=0;effects.length=0;return context.exports.default(props)}};
 }
 function nodes(tree,predicate){const found=[];function walk(node){if(Array.isArray(node)){node.forEach(walk);return}if(!node||typeof node!=='object')return;if(predicate(node))found.push(node);walk(node.props?.children)}walk(tree);return found}
@@ -69,20 +69,22 @@ await test('Changing area recomputes earned ranks without altering the public re
 await test('Rating ties use review count and stable registration order, never price or a paid flag',()=>{
  const ranked=care.rankProviders([studio('z','A, MN',{createdAt:'2026-02-01',prices:{pressing:0},paid:true}),studio('b','A, MN'),studio('a','A, MN'),studio('more','A, MN',{reviewCount:5})]);assert.equal(ranked.find(p=>p.id==='more').rank,1);assert.equal(ranked.find(p=>p.id==='a').rank,2);assert.equal(ranked.find(p=>p.id==='b').rank,3);assert.equal(ranked.find(p=>p.id==='z').rank,4);
 });
-function card(p,extra={}){const f=fixture();return {f,tree:f.ui.ProviderCard({p,localRank:true,mine:false,compared:false,compareFull:false,onOpen:()=>f.calls.push('details'),onQuote:()=>f.calls.push('quote'),onMessage:()=>f.calls.push('message'),onCompare:()=>f.calls.push('compare'),...extra})}}
-await test('Current specialist cards show real services, location, review count and quote-first actions',()=>{
- const {tree}=card(rows[0]),value=text(tree);assert.match(value,/North Star Press/);assert.match(value,/Minneapolis, MN/);assert.match(value,/4 reviews/);assert.match(value,/Comic pressing|Pressing/);assert.match(value,/Request a Quote/);assert.ok(!value.includes('$0.00'));assert.ok(!value.includes('receipt-confirmed'));
+function card(p,extra={}){const f=fixture();return {f,tree:f.ui.ProviderCard({p,mine:false,onOpen:()=>f.calls.push('details'),onQuote:()=>f.calls.push('quote'),...extra})}}
+await test('Specialist cards show real services, location, rating, review count, starting price and a quote action',()=>{
+ const {tree}=card(rows[0]),value=text(tree);assert.match(value,/North Star Press/);assert.match(value,/Minneapolis, MN/);assert.match(value,/4\.6/);assert.match(value,/4 reviews/);assert.match(value,/Pressing/);assert.match(value,/From \$25\.00 per book/);assert.match(value,/Request a quote/);assert.ok(!value.includes('$0.00'));
 });
-await test('Current specialist card controls retain exact studio identity for quotes, inquiries and comparison',()=>{
- const {f,tree}=card(rows[0]);for(const [caption,action] of [['Request a Quote','quote'],['Send Message / Inquire','message'],['Compare','compare'],['Services & reviews','details']]){const button=nodes(tree,n=>n.type==='button'&&text(n).trim().startsWith(caption))[0];assert.ok(button,caption);button.props.onClick();assert.equal(f.calls.at(-1),action)}
+await test('A studio with no positive prices says "Price on request" instead of inventing $0',()=>{
+ const value=text(card({...rows[0],prices:{pressing:null,dry_cleaning:0}}).tree);assert.match(value,/Price on request/);assert.ok(!value.includes('$0.00'));
 });
-await test('Own studio cards avoid self-inquiries; closed studios still allow messages but disable new quote requests',()=>{
- const own=card(rows[0],{mine:true}),ownText=text(own.tree);assert.match(ownText,/My Studio/);assert.ok(!ownText.includes('Send Message / Inquire'));
- const closed=card({...rows[0],accepting:false});assert.equal(nodes(closed.tree,n=>n.type==='button'&&text(n).startsWith('Request a Quote'))[0].props.disabled,true);assert.ok(nodes(closed.tree,n=>n.type==='button'&&text(n).includes('Send Message / Inquire')).length);
+await test('Card controls open the exact studio profile and quote form',()=>{
+ const {f,tree}=card(rows[0]);for(const [caption,action] of [['Request a quote','quote'],['View profile','details']]){const button=nodes(tree,n=>n.type==='button'&&text(n).trim().startsWith(caption))[0];assert.ok(button,caption);button.props.onClick();assert.equal(f.calls.at(-1),action)}
 });
-await test('The studio comparison limit disables only a fourth unselected studio',()=>{
- const full=card(rows[0],{compareFull:true}),selected=card(rows[0],{compareFull:true,compared:true});
- assert.equal(nodes(full.tree,n=>n.type==='button'&&text(n).trim()==='Compare')[0].props.disabled,true);assert.equal(nodes(selected.tree,n=>n.type==='button'&&text(n).trim()==='Compare')[0].props.disabled,false);
+await test('Own studio cards avoid self-quotes; paused studios disable new quote requests',()=>{
+ const own=text(card(rows[0],{mine:true}).tree);assert.match(own,/Your studio/);assert.ok(!own.includes('Request a quote'));
+ const closed=card({...rows[0],accepting:false});assert.equal(nodes(closed.tree,n=>n.type==='button'&&text(n).startsWith('Request a quote'))[0].props.disabled,true);assert.match(text(closed.tree),/Requests paused/);
+});
+await test('Unrated studios render "New" rather than a fabricated score',()=>{
+ const value=text(card(rows[6]).tree);assert.match(value,/New/);assert.match(value,/0 reviews/);
 });
 console.log('\nWorkshop discovery results: '+passed+' passed, '+failures.length+' failed.');
 if(failures.length){console.error(JSON.stringify(failures,null,2));process.exitCode=1}

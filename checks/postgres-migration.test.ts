@@ -25,7 +25,7 @@ const pool = new Pool();
 before(async () => {
   engine = new PGlite();
   await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web; BEGIN;');
-  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
+  for (const name of ['001_original_comichuddle.sql', '002_runtime.sql', '004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql','026_binding_auctions.sql']) await engine.exec(readFileSync('db/postgres-migrations/' + name, 'utf8'));
   await engine.exec('COMMIT; SET search_path TO ch_web,public;');
   await engine.exec("INSERT INTO gcd.gcd_publisher VALUES(777,'Marvel',0);INSERT INTO gcd.gcd_series VALUES(777,'Amazing Spider-Man',777,0);INSERT INTO gcd.gcd_issue(id,series_id,number,publication_date,deleted) VALUES(7770,777,'300','1988',0),(7771,777,'301','1988',0);");
   const query = async (config: string | { text: string; rowMode?: string }, values: unknown[] = []) => {
@@ -97,7 +97,7 @@ test('listing an owned comic reserves its copy and blocks duplicate listings', a
   const result = await createListing(db, profile, input); assert.ok(result.listingId);
   await assert.rejects(createListing(db, profile, input), error => (error as { status?: number }).status === 409);
 });
-test('auction bids enforce seller restrictions, idempotency and retraction', async () => {
+test('binding auction bids enforce seller restrictions, idempotency and no retraction', async () => {
   const db = getDb(), stamp = new Date().toISOString();
   const [seller] = await db.select().from(profiles).where(eq(profiles.handle, 'pg_seller'));
   const photoId = (await db.select().from(media).where(eq(media.userId, seller.userId)))[0].id;
@@ -106,10 +106,10 @@ test('auction bids enforce seller restrictions, idempotency and retraction', asy
   await db.update(collections).set({ data: JSON.stringify(vault), revision: 'auction-revision' }).where(eq(collections.userId, seller.userId));
   const auction = await createListing(db, seller, { action: 'listing', kind: 'single', saleType: 'auction', bookIds: ['auction-copy'], description: 'QA isolated auction fixture.', price: 30000, shipping: 1500, photos: [photoId], attest: true, usaAttest: true });
   const [buyer] = await db.insert(profiles).values({ ...seller, id: crypto.randomUUID(), userId: crypto.randomUUID(), handle: 'pg_bidder', name: 'PG Bidder', createdAt: stamp }).returning();
-  const bid = { listingId: auction.listingId, amount: 30000, requestId: crypto.randomUUID(), nonbindingConsent: true };
+  const bid = { listingId: auction.listingId, amount: 30000, requestId: crypto.randomUUID(), bindingConsent: true };
   await assert.rejects(placeBid(db, seller, bid), error => (error as { status?: number }).status === 403);
   await placeBid(db, buyer, bid); const duplicate = await placeBid(db, buyer, bid); assert.equal(duplicate.duplicate, true);
   const [row] = await db.select().from(auctionBids).where(eq(auctionBids.requestId, bid.requestId));
-  await retractBid(db, buyer, { listingId: auction.listingId, bidId: row.id, nonbindingConsent: true });
-  assert.equal((await db.select().from(auctionBids).where(eq(auctionBids.id, row.id)))[0].status, 'retracted');
+  await assert.rejects(retractBid(db, buyer, { listingId: auction.listingId, bidId: row.id, nonbindingConsent: true }), error => (error as { status?: number }).status === 409);
+  assert.equal((await db.select().from(auctionBids).where(eq(auctionBids.id, row.id)))[0].status, 'leading');
 });

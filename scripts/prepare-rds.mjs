@@ -15,6 +15,8 @@ if (process.env.MIGRATE_ENRICHMENT_ON_BUILD === 'true') {
   if (migration.status !== 0) throw new Error('Additive enrichment migration failed.');
   const launch=spawnSync(process.execPath,['--import','tsx','scripts/migrate-launch.ts'],{stdio:'inherit'});
   if(launch.status!==0)throw new Error('Additive launch migration/diagnostics failed.');
+  const additive=spawnSync(process.execPath,['--import','tsx','scripts/migrate-additive.ts'],{stdio:'inherit'});
+  if(additive.status!==0)throw new Error('Additive migrations 024+ failed; existing records retained.');
 }
 if (process.env.INSPECT_RDS_CONNECTION === 'true') {
   const probe = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/inspect-rds-connection.ts'], { stdio: 'inherit' });

@@ -25,3 +25,17 @@
 .info-actions{display:flex;flex-wrap:wrap;gap:13px;margin-top:27px}
 .info-actions .button{font-size:12px;border:1.5px solid var(--ink);border-radius:6px;min-height:46px;box-shadow:3px 3px 0 var(--ink)}
 @media(max-width:700px){.feature-info{padding:0 18px 40px}.feature-page-strip{padding:8px 18px;font-size:8px}.feature-page-strip>span:last-child{display:none}.feature-info>header{gap:16px;align-items:center}.feature-info>header img{width:90px;height:74px}.feature-info nav{justify-content:flex-end;gap:3px 13px;font-size:10px}.feature-info nav a{min-height:35px;gap:5px}.feature-info nav svg{width:14px}.feature-info .info-hero{padding:25px}.feature-info .info-steps{grid-template-columns:1fr;gap:13px}.info-steps article{padding:20px;gap:13px}.info-steps h2{font-size:25px}.info-actions .button{width:100%;justify-content:center}.info-badges{gap:7px}.info-badges span{font-size:10px;padding:7px 9px}}
+/* Pro theme readability pass: real body sizes, theme radius/shadow and fonts. */
+.feature-info{font-family:var(--font-body)}
+.info-back{font-size:14px}
+.feature-info .info-hero{border-radius:var(--radius);box-shadow:var(--shadow-pop)}
+.info-hero h1,.info-steps h2,.info-note h2{font-family:var(--font-display)}
+.info-hero p{font-size:16px;line-height:1.6;color:#e5e7eb}
+.info-eyebrow{font-size:12px}
+.info-badges span{font-size:13px;border-radius:999px}
+.info-steps article{background:var(--surface);border-radius:var(--radius);border-color:var(--ink);box-shadow:var(--shadow)}
+.info-step{border-radius:50%}
+.info-steps p,.info-note p{font-size:15px;line-height:1.6}
+.info-note{background:var(--surface);border-radius:var(--radius)}
+.info-actions .button{font-size:15px;border-radius:12px}
+@media(max-width:700px){.info-badges span{font-size:12px}.info-steps h2{font-size:24px}}

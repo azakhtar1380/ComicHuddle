@@ -73,6 +73,6 @@ export async function collectorWallet(pool:Pool,userId:string,offset=0,mode:'liv
   const [unreconciled]=(await client.query<{n:string}>("SELECT count(*)::text AS n FROM ch_web.wallet_reconciliation_checks WHERE user_id=$1 AND NOT valid",[userId])).rows;
   const [remaining]=(await client.query<{n:string}>(`SELECT count(*)::text AS n ${candidates}`,[userId])).rows;
   return {...result,history:history.rows.slice(0,30),hasMore:history.rows.length>30,offset,unreconciledOrders:Number(unreconciled.n),remainingOrders:Number(remaining.n),withdrawalEnabled:false,
-   note:'Balances reflect confirmed platform payment and transfer receipts. Cash and manually marked sales do not create funds. Sandbox amounts are separate from real USD proceeds. Cash-out is unavailable until the payout service is connected.'};
+   note:'Balances come from confirmed ComicHuddle checkout payments. Cash sales and listings you mark as sold yourself do not add money. Test-mode amounts are kept separate from real money. Withdrawals are not available yet.'};
  }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
 }

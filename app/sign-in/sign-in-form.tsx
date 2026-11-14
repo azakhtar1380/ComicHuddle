@@ -2,6 +2,7 @@
 import {useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,Eye,EyeOff,LockKeyhole,ShieldCheck,Sparkles} from 'lucide-react';
 import {authErrorMessage,prepareAuthFields,type AuthFieldErrors} from '../../lib/auth-form';
+import {operator} from '../../lib/operator';
 import './sign-in.css';
 
 function returnPath(){
@@ -48,7 +49,7 @@ export default function SignInForm({initialRegister=false}:{initialRegister?:boo
      <button type="submit" className="button red auth-submit" disabled={busy}>{busy?'Connecting…':register?'Create free account':'Log in'} {!busy&&<ArrowRight size={17}/>}</button>
     </form>
     <p className="auth-switch">{register?'Already a collector?':'New to ComicHuddle?'} <button type="button" disabled={busy} onClick={()=>changeMode(!register)}>{register?'Log in':'Create a free account'}</button></p>
-    <div className="auth-footnote"><LockKeyhole size={14}/><p>Your account uses a secure connection. Email recovery is not connected in this preview; keep your password safe.</p></div>
+    <div className="auth-footnote"><LockKeyhole size={14}/><p>Your account uses a secure, encrypted connection. Forgot your password? <a href={'mailto:'+operator.supportEmail+'?subject=Password%20help'}>Contact support</a> from your account email and we&apos;ll help you get back in.</p></div>
    </section>
   </div>
  </main>;

@@ -1,0 +1,19 @@
+/* Seller earnings breakdown (listing builder, sales) and the owner revenue summary. */
+.seller-earnings{display:grid;gap:4px;margin:8px 0;padding:10px 12px;border:1px solid var(--line,rgba(127,127,127,.3));border-radius:10px;font-size:.92rem}
+.seller-earnings>div{display:flex;justify-content:space-between;gap:12px}
+.seller-earnings dt,.seller-earnings dd{margin:0}
+.seller-earnings dd{font-variant-numeric:tabular-nums;white-space:nowrap}
+.seller-earnings small{opacity:.75}
+.owner-revenue{margin:12px 0;display:grid;gap:4px}
+
+/* In-page confirmation dialog (replaces window.confirm). */
+.confirm-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45)}
+.confirm-dialog{width:min(420px,100%);padding:20px;border-radius:14px;background:var(--panel,var(--background,#fff));color:inherit;box-shadow:0 18px 48px rgba(0,0,0,.3)}
+.confirm-dialog h4{margin:0 0 8px}
+.confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}
+.confirm-actions .button{min-height:44px}
+/* Report-a-problem choices: radio and label on one row, 44px tap target. */
+.claim-form .claim-option{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
+.claim-form .claim-option input{width:20px;height:20px;margin:0;flex:none}
+.order-deadlines{line-height:1.5}
+.checkout-live-total{margin:4px 0 10px;font-size:.95rem}

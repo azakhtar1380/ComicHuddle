@@ -45,5 +45,5 @@ test('public product entry modules contain no active valuation or Market Pulse c
  for(const file of ['app/hub.tsx','app/shared-directory.tsx','app/comic-picker.tsx','app/network.tsx','app/marketplace.tsx','app/listing-builder.tsx','app/scan-comic.tsx','architecture/platform-v2/ui/Homepage.tsx','architecture/platform-v2/ui/DirectoryCard.tsx']){
   const source=readFileSync(file,'utf8');assert.doesNotMatch(source,/<(?:EstimatedValue|ListingEstimatedValue|CatalogFmv|MarketPulse|IssueValues|CombinedValue)\b|fetch\(['"]\/api\/(?:estimates|home-feed|recognition\/vision|activity)/,file);
  }
- const home=readFileSync('architecture/platform-v2/ui/Homepage.tsx','utf8');assert.match(home,/A Glimpse of the Directory/);assert.doesNotMatch(home,/Collector Picks|MCU \/ DC Film Keys|Top Ratio Variants|Value Collection/);assert.match(home,/<UpcomingPreview\/>/);
+ const home=readFileSync('architecture/platform-v2/ui/Homepage.tsx','utf8');assert.match(home,/id="directory-glimpse-title">Featured <span>issues<\/span>/);assert.match(home,/href="\/\?section=Directory"/);assert.doesNotMatch(home,/Collector Picks|MCU \/ DC Film Keys|Top Ratio Variants|Value Collection/);assert.match(home,/<UpcomingPreview\/>/);
 });
