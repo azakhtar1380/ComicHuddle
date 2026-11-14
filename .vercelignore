@@ -1,0 +1,12 @@
+# Never upload local secrets, local DB data, build output or tooling state.
+.env*
+.vercel
+.git
+.claude
+node_modules
+.next
+coverage
+*.log
+*.pem
+certificates
+.local-db
