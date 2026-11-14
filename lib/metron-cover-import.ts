@@ -84,8 +84,15 @@ export function matchByName(rows:NameCandidate[],series:SeriesIndex,issues:GcdIs
  const bySeries=new Map<number,GcdIssueRow[]>();for(const issue of issues){const list=bySeries.get(issue.seriesId);if(list)list.push(issue);else bySeries.set(issue.seriesId,[issue])}
  return rows.map(row=>{
   const number=normalizeIssueNumber(row.number),ids=row.yearBegan?series.get(normalizeSeriesName(row.series)+'|'+row.yearBegan)||[]:[];
-  const candidates=number?ids.flatMap(id=>(bySeries.get(id)||[]).filter(issue=>normalizeIssueNumber(issue.number)===number).map(issue=>4000000000+issue.id)):[];
-  const issueId=uniqueMatch(candidates);
+  const pool=number?ids.flatMap(id=>bySeries.get(id)||[]):[];
+  const candidates=pool.filter(issue=>normalizeIssueNumber(issue.number)===number).map(issue=>4000000000+issue.id);
+  let issueId=uniqueMatch(candidates);
+  // GCD stores multi-cover printings as separate issues numbered e.g. "1 [Cover A]".."1 [Cover E]".
+  // With no plain match, use the primary cover (Cover A / Direct / first listed) of that number.
+  if(!issueId&&!candidates.length&&number){
+   const covers=pool.filter(issue=>normalizeIssueNumber(String(issue.number||'').replace(/\[[^\]]*\]/g,''))===number);
+   if(covers.length){const rank=(n:string|null)=>/\[(cover a|direct)/i.test(n||'')?0:1;covers.sort((a,b)=>rank(a.number)-rank(b.number)||a.id-b.id);issueId=4000000000+covers[0].id}
+  }
   return {metronId:row.metronId,issueId,method:issueId?'name':new Set(candidates).size>1?'ambiguous':'unmatched'};
  });
 }
