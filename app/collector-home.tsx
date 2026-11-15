@@ -22,7 +22,7 @@ const usd=(value:number)=>new Intl.NumberFormat('en-US',{style:'currency',curren
 export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,safePurchaseLive,onStartCollection}:Props){
  const [issues,setIssues]=useState<Issue[]|null>(null),[error,setError]=useState(false),[query,setQuery]=useState('');
  const load=useCallback((signal?:AbortSignal)=>{
-  setError(false);
+
   fetch('/api/catalog?'+new URLSearchParams({ids:featuredIds.join(',')}),{signal,cache:'no-store'})
    .then(async response=>{if(!response.ok)throw Error();const page=parseCatalogSearchPage(await response.json());if(!signal?.aborted)setIssues([...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id))})
    .catch(()=>{if(!signal?.aborted){setError(true);setIssues([])}});
@@ -53,10 +53,10 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
     <div className="home-hunt" role="group" aria-labelledby="home-hunt-title">
      <p id="home-hunt-title" className="home-hunt-title">What are you hunting?</p>
      <div className="home-hunt-chips">
-      <a className="home-chip" href="/?section=Directory&focus=search"><KeyRound size={18} aria-hidden="true"/> A key issue</a>
-      <a className="home-chip" href="/characters"><Users size={18} aria-hidden="true"/> A character</a>
-      <a className="home-chip" href="/?section=Directory&view=series"><Layers size={18} aria-hidden="true"/> A full run</a>
-      <a className="home-chip" href="/?section=Marketplace&sell=single"><Tag size={18} aria-hidden="true"/> Something to sell</a>
+      <Link className="home-chip" href="/?section=Directory&focus=search"><KeyRound size={18} aria-hidden="true"/> A key issue</Link>
+      <Link className="home-chip" href="/characters"><Users size={18} aria-hidden="true"/> A character</Link>
+      <Link className="home-chip" href="/?section=Directory&view=series"><Layers size={18} aria-hidden="true"/> A full run</Link>
+      <Link className="home-chip" href="/?section=Marketplace&sell=single"><Tag size={18} aria-hidden="true"/> Something to sell</Link>
      </div>
     </div>
     <div className="ds-actions">
@@ -86,7 +86,7 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
 
   <section className="ds-section" aria-labelledby="home-directory-title">
    <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>See the whole directory <ArrowRight size={16}/></button></div>
-   {error?<ErrorState compact message="Couldn't load the directory. Try again." action={{label:'Try again',onClick:()=>load()}}/>
+   {error?<ErrorState compact message="Couldn't load the directory. Try again." action={{label:'Try again',onClick:()=>{setError(false);setIssues(null);load()}}}/>
     :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<button type="button" key={issue.id} className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Open '+issue.title+' #'+issue.number}>
      <span className="home-cover-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year||undefined} src={issue.cover||null} credit={issue.coverCredit||undefined}/></span>
      <strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher}{issue.year?' · '+issue.year:''}</small>
