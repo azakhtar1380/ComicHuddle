@@ -98,3 +98,5 @@
  .cp-browse-huddles .huddles-figure{max-height:190px}
  .cp-about-huddles{width:96px}
 }
+.cp-browse-hero .huddles-tip,.cp-browse-hero .huddles-tip .huddles-tip-text{color:var(--ink)}
+.cp-browse-hero p.huddles-tip{color:var(--ink);font-size:15px}
