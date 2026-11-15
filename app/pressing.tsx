@@ -221,7 +221,7 @@ function QuoteRequest({provider:p,vault,busy,openCollection,onBack,onSave}:{prov
    <fieldset><legend><span className="ws-num">4</span> Tell the studio</legend>
     {tips.length>0&&<div className="ws-tell"><b>Helpful to mention</b><ul>{[...new Set(tips)].map(t=><li key={t}>{t}</li>)}</ul></div>}
     <label><span>Notes for the studio <span className="ws-optional">(optional)</span></span><textarea name="notes" maxLength={2000} placeholder="Defects to address, signatures, fragile covers, your goal for each book."/></label>
-    <label className="ws-check"><input required type="checkbox"/> <span>This is for pressing, cleaning or a check-up, not restoration. See the {rules}.</span></label>
+    <label className="ws-check"><input required type="checkbox"/> <span>{selected.includes('restoration')?<>I understand restoration is permanent, must be disclosed whenever I sell the book, and CGC grades restored books on its Restored label. See the {rules}.</>:<>I understand care work can’t guarantee a higher grade. See the {rules}.</>}</span></label>
    </fieldset>
    <div className="ws-submit"><button className="ds-btn ds-btn-primary" disabled={busy||!books.length||!selected.length}>{busy?'Sending…':'Send quote request'} <ArrowRight size={16} aria-hidden="true"/></button>{!books.length&&<span className="ws-help">Pick at least one comic.</span>}</div>
   </form>}
@@ -264,7 +264,7 @@ export function ProviderForm({provider:p,me,busy,notice,onSave,onCancel}:{provid
    <label className="ws-check"><input type="checkbox" checked={mailIn} onChange={e=>setMailIn(e.target.checked)}/> Take books by mail</label>
    {mailIn&&<label><span>Mail-in address <span className="ws-optional">(private)</span></span><textarea required name="shippingAddress" maxLength={1000} defaultValue={p?.shippingAddress||''} placeholder="Name, street, city, state, ZIP"/><small className="ws-help"><Lock size={14} aria-hidden="true"/> Only shown to a customer after they accept your quote.</small></label>}
    <label className="ws-check"><input name="dropoff" type="checkbox" defaultChecked={p?.dropoff??false}/> Offer local drop-off</label>
-   <label>Your service terms<textarea required name="terms" maxLength={2000} defaultValue={p?.terms||'Pressing and dry cleaning only. No restoration. Payment, insurance and return shipping are agreed in each quote.'}/><small className="ws-help">We filled in a starting point. Collectors see these before they accept a quote.</small></label>
+   <label>Your service terms<textarea required name="terms" maxLength={2000} defaultValue={p?.terms||'Payment, insurance and return shipping are agreed in each quote. Any restoration is listed in writing on the invoice so it can be disclosed.'}/><small className="ws-help">We filled in a starting point. Collectors see these before they accept a quote.</small></label>
   </fieldset>
   <details className="ws-details" open={!!p}><summary><span className="ws-num">4</span> Make your page stand out {tag(false)}</summary>
    <div className="ws-details-body">

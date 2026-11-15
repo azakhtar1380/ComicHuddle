@@ -20,7 +20,7 @@ const json=privateJson;
 const now=()=>new Date().toISOString();
 const id=z.string().uuid();
 const short=(n:number)=>z.string().trim().min(1).max(n);
-const services=z.array(z.enum(['pressing','dry_cleaning','assessment','cgc'])).min(1).max(4).refine(v=>new Set(v).size===v.length);
+const services=z.array(z.enum(['pressing','dry_cleaning','assessment','cgc','restoration'])).min(1).max(5).refine(v=>new Set(v).size===v.length);
 const cents=z.number().int().min(0).max(100000000);
 const web=z.string().max(500).refine(s=>!s||(()=>{try{const url=new URL(s);return url.protocol==='https:'&&!!url.hostname&&!url.username&&!url.password}catch{return false}})(),'Use a public HTTPS website address without credentials.');
 async function ownedPhotos(db:Db,userId:string,ids:string[]){if(!ids.length)return true;const rows=await db.select().from(media).where(inArray(media.id,[...new Set(ids)]));return rows.length===new Set(ids).size&&rows.every(r=>r.userId===userId)}

@@ -2,7 +2,7 @@
 // Comic Workshop landing + directory: what the Workshop is, search and filters, real-data rails
 // (saved, recently viewed, top rated, near you, new) and a short service guide.
 import {useMemo,type ReactNode} from 'react';
-import {ArrowRight,ClipboardCheck,Droplets,Layers,MessageCircle,Search,ShieldCheck,Sparkles,Wrench,X} from 'lucide-react';
+import {ArrowRight,ClipboardCheck,Droplets,Layers,MessageCircle,Search,ShieldCheck,Sparkles,Wrench,X,Paintbrush} from 'lucide-react';
 import LocationRadiusFilter from '../../app/location-radius-filter';
 import {careServiceGuide,careServices,filterWorkshopProviders,recentlyAddedProviders,serviceCounts,sortWorkshopProviders,topRatedProviders,workshopAreaOptions,workshopLocation,type CareService,type Provider,type WorkshopSort} from '../../lib/pressing';
 import {EmptyState} from '../states';
@@ -13,7 +13,7 @@ export type DirectoryFilters={query:string;service:CareService|'all';accepting:b
 export const defaultFilters:DirectoryFilters={query:'',service:'all',accepting:false,location:'',radius:'nationwide',state:'',sort:'recommended'};
 export const hasActiveFilters=(f:DirectoryFilters)=>Boolean(f.query.trim()||f.service!=='all'||f.accepting||f.location||f.state);
 
-const serviceIcon:Record<CareService,typeof Layers>={pressing:Layers,dry_cleaning:Droplets,assessment:ClipboardCheck,cgc:ShieldCheck};
+const serviceIcon:Record<CareService,typeof Layers>={pressing:Layers,dry_cleaning:Droplets,assessment:ClipboardCheck,cgc:ShieldCheck,restoration:Paintbrush};
 
 function Rail({id,title,note,action,children}:{id:string;title:string;note?:string;action?:ReactNode;children:ReactNode}){
  return <section className="ws-rail" aria-labelledby={id}><div className="ws-rail-head"><div><h2 id={id} className="ws-rail-title">{title}</h2>{note&&<p className="ws-help">{note}</p>}</div>{action}</div>{children}</section>;
