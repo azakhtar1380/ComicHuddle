@@ -46,3 +46,8 @@
  .cp-tools{justify-content:stretch}.cp-search{max-width:none;flex-basis:100%}
  .cp-grid{grid-template-columns:repeat(2,1fr);gap:10px}
 }
+/* Section padding must beat the site-wide section reset (.cp-main section). */
+.cp-main section.cp-hero{padding:32px 36px}
+.cp-main section.cp-about,.cp-main section.cp-comics{padding:26px 30px}
+.cp-comics-head{align-items:center}
+@media(max-width:760px){.cp-main section.cp-hero{padding:24px 18px}.cp-main section.cp-about,.cp-main section.cp-comics{padding:20px 16px}}
