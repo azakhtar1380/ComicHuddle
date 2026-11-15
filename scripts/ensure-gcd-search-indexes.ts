@@ -12,6 +12,9 @@ try {
   ['comichuddle_gcd_issue_number_lookup','ON gcd.gcd_issue(lower(number),id)'],
   ['comichuddle_gcd_issue_title_search','ON gcd.gcd_issue USING gin(lower(title) gin_trgm_ops)'],
   ['comichuddle_gcd_series_name_search','ON gcd.gcd_series USING gin(lower(name) gin_trgm_ops)'],
+  // Directory views expose issues as 4000000000+gcd id; exact page/id lookups filter on that
+  // expression, which the plain id index cannot serve (it was a 2s full scan per page).
+  ['comichuddle_gcd_issue_catalog_id',"ON gcd.gcd_issue(('4000000000'::bigint+id))"],
  ]) {
   const state=(await client.query('SELECT indisvalid FROM pg_index WHERE indexrelid=to_regclass($1)',['gcd.'+name])).rows[0];
   if(state?.indisvalid===false)await client.query('DROP INDEX CONCURRENTLY gcd.'+name);
