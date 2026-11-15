@@ -1,5 +1,5 @@
 'use client';
-// The phone bottom bar: Home · Search · Scan · Workshop · Market · More.
+// The phone bottom bar: Home · Directory · Scan · Workshop · Market · More.
 // The current tab rises into a round bubble that pushes a bump up out of the bar. "More" opens the
 // Menu (every page plus your account). The bar tucks away while you scroll down and hides behind dialogs.
 import {useEffect, useRef, useState, type ComponentType} from 'react';
@@ -19,7 +19,7 @@ type Props = {
 };
 type Item = {id: string; label: string; Icon: ComponentType<{size?: number; strokeWidth?: number}>; match: string[]};
 const homeItem: Item = {id: 'Home', label: 'Home', Icon: Home, match: ['Home']};
-const searchItem: Item = {id: 'Directory', label: 'Search', Icon: Search, match: ['Directory']};
+const searchItem: Item = {id: 'Directory', label: 'Directory', Icon: Search, match: ['Directory']};
 const marketItem: Item = {id: 'Marketplace', label: 'Market', Icon: ShoppingBag, match: ['Marketplace']};
 const workshopItem: Item = {id: 'Pressing', label: 'Workshop', Icon: Wrench, match: ['Pressing']};
 const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'SafePurchase', 'About'];

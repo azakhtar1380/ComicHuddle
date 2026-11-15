@@ -60,7 +60,7 @@ export default function AccountMenu({signedIn, name, handle, stats, unread = 0, 
   const wallet = useWalletSummary(signedIn);
   const exploreGrid = <section className="am-explore" aria-labelledby="am-explore-title">
     <h3 id="am-explore-title" className="am-heading">Explore ComicHuddle</h3>
-    <div className="am-tiles">{explore.map(({id, label, hint, Icon}) => <button key={id} type="button" className={'am-tile' + (id === 'About' ? ' am-tile-wide am-tile-huddles' : '') + (current === id ? ' here' : '')} aria-current={current === id ? 'page' : undefined} onClick={() => onNavigate(id)}>
+    <div className="am-tiles">{explore.map(({id, label, hint, Icon}) => <button key={id} type="button" className={'am-tile' + (['Home', 'Directory', 'Scan', 'Pressing', 'Marketplace'].includes(id) ? ' am-in-dock' : '') + (id === 'About' ? ' am-tile-wide am-tile-huddles' : '') + (current === id ? ' here' : '')} aria-current={current === id ? 'page' : undefined} onClick={() => onNavigate(id)}>
       <span className="am-tile-icon"><Icon size={22} aria-hidden={true} strokeWidth={2.1} /></span><strong>{label}</strong><small>{current === id ? 'You are here' : hint}</small>
     </button>)}</div>
   </section>;
