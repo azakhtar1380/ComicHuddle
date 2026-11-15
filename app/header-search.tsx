@@ -10,7 +10,7 @@ type CharacterHit={characterId:number;name:string;portraitUrl:string|null;issueC
 type ComicHit={id:number;title:string;number:string;publisher:string;year:number|null};
 type Option={kind:'character';hit:CharacterHit;href:string}|{kind:'comic';hit:ComicHit;href:string};
 
-export const characterHref=(hit:{characterId:number;name:string})=>'/?'+new URLSearchParams({section:'Directory',character:String(hit.characterId),cname:hit.name});
+export const characterHref=(hit:{characterId:number;name:string})=>'/characters/'+hit.characterId;
 const comicHref=(hit:ComicHit)=>'/?'+new URLSearchParams({section:'Directory',issue:String(hit.id)});
 
 export default function HeaderSearch(){

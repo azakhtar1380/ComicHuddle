@@ -99,3 +99,26 @@ button.is-stat:hover strong{color:var(--is-red)}
 .issue-showcase .is-grade-table th,.issue-showcase .is-grade-table td{background:none;font:400 14px/1.4 'DM Sans',Arial,sans-serif;text-transform:none;letter-spacing:0;color:var(--is-ink)}
 .issue-showcase .is-grade-table tbody th{font-weight:700}
 .issue-showcase .is-grade-table thead th{font-size:12px;font-weight:600;color:var(--is-muted)}
+/* Close button sits inside the card's top-right corner (the dialog shell itself is transparent). */
+.dialog:has(>.issue-showcase){position:relative}
+.dialog:has(>.issue-showcase)>.close{position:absolute;top:26px;right:26px;z-index:5;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#f4f5f8;border:1px solid #e5e7eb;color:#141821;box-shadow:none}
+.dialog:has(>.issue-showcase)>.close:hover{background:#fde8e8;color:#c62828}
+.dialog:has(>.issue-showcase) .is-summary{padding-right:40px}
+a.is-care-card{color:inherit;text-decoration:none;transition:transform .15s,box-shadow .15s}
+a.is-care-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(198,40,40,.15)}
+.issue-showcase h4{font:700 15px/1.3 'DM Sans',Arial,sans-serif;letter-spacing:.2px;margin:18px 0 10px;color:var(--is-ink)}
+.is-keyline{display:flex;align-items:flex-start;gap:10px;border-radius:12px;padding:12px 14px;background:#f4f5f8;font-size:15px;line-height:1.5;color:#2b313b}
+.is-keyline>svg{flex:0 0 auto;margin-top:2px;color:var(--is-muted)}
+.is-keyline-key{background:var(--is-gold)}.is-keyline-key>svg{color:var(--is-ink)}
+.is-story p{font-size:16px;line-height:1.65;color:#2b313b;margin:0;max-width:760px}
+.issue-showcase .is-story .is-quiet{display:flex;margin:0}
+.is-crew{display:flex;flex-wrap:wrap;gap:10px 28px;margin:16px 0 0}
+.is-crew dt{font-size:12px;color:var(--is-muted)}.is-crew dd{margin:2px 0 0;font-weight:600;font-size:15px}
+.is-cast{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px}
+.is-castmember{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;border:1px solid var(--is-line);border-radius:14px;padding:14px 8px;color:var(--is-ink);text-decoration:none;background:#fff}
+.is-castmember strong{font-size:14px;line-height:1.25}.is-castmember span{font-size:12px;color:var(--is-red);font-weight:600}
+.is-castmember.debut{background:var(--is-red-soft);border-color:#f6caca}
+a.is-castmember:hover{border-color:var(--is-red);box-shadow:0 4px 12px rgba(20,24,33,.08)}
+a.is-castmember:hover strong{color:var(--is-red)}
+.is-inside>.is-more{margin-top:12px}
+@media(max-width:760px){.is-cast{grid-template-columns:repeat(3,1fr);gap:8px}.is-castmember{padding:10px 4px}.is-castmember .is-portrait-md{width:52px;height:52px}.dialog:has(>.issue-showcase)>.close{top:20px;right:20px}}

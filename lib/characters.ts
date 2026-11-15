@@ -288,3 +288,28 @@ export function characterSearchParams(params:URLSearchParams):{q:string;limit:nu
  const limit=rawLimit===null?8:Number(rawLimit);
  return limit>=1&&limit<=20?{q,limit}:null;
 }
+
+/** One character for its public page (/characters/[id]). Follows merges to the surviving row. */
+export type CharacterPage={characterId:number;name:string;aliases:string[];description:string|null;portraitUrl:string|null;issueCount:number|null;knownIssues:number;
+ firstAppearance:{issueId:number;title:string;number:string;year:number|null;publisher:string|null}|null;source:string};
+export async function characterPage(db:CatalogDb,characterId:number):Promise<CharacterPage|null>{
+ if(!Number.isSafeInteger(characterId)||characterId===0||!await characterTablesPresent(db).catch(()=>false))return null;
+ const found=await db.execute(sql`SELECT COALESCE(merged_into,character_id) AS id FROM ch_web.characters WHERE character_id=${characterId}`);
+ if(!found.rows[0])return null;
+ const id=Number(found.rows[0].id);
+ const rows=await db.execute(sql`SELECT c.character_id,c.name,c.aliases,c.description,c.portrait_key,c.issue_count,c.metron_id,c.wikidata_qid,
+   (SELECT count(*) FROM ch_web.character_issues ci WHERE ci.character_id=c.character_id)::integer AS known,
+   f.issue_id,s.name AS series,i.number,p.name AS publisher,CASE WHEN i.key_date ~ '^[0-9]{4}' THEN substring(i.key_date,1,4)::integer END AS year
+  FROM ch_web.characters c
+  LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=c.character_id AND issue_id IS NOT NULL AND NOT suppressed ORDER BY (source='metron') DESC LIMIT 1) f ON true
+  LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET}
+  LEFT JOIN gcd.gcd_series s ON s.id=i.series_id
+  LEFT JOIN gcd.gcd_publisher p ON p.id=s.publisher_id
+  WHERE c.character_id=${id}`);
+ const r=rows.rows[0];if(!r)return null;
+ const aliases=Array.isArray(r.aliases)?(r.aliases as unknown[]).filter((a):a is string=>typeof a==='string'&&!!a.trim()):[];
+ return {characterId:Number(r.character_id),name:String(r.name),aliases:aliases.slice(0,12),description:typeof r.description==='string'&&r.description.trim()?r.description.trim():null,
+  portraitUrl:portraitUrl(r.portrait_key),issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),knownIssues:Number(r.known||0),
+  firstAppearance:r.issue_id&&r.series?{issueId:Number(r.issue_id),title:String(r.series),number:String(r.number??''),year:r.year===null||r.year===undefined?null:Number(r.year),publisher:r.publisher?String(r.publisher):null}:null,
+  source:[r.metron_id?'Metron (metron.cloud)':null,r.wikidata_qid?'Wikidata (CC0)':null].filter(Boolean).join(' · ')||'ComicHuddle'};
+}
