@@ -1,0 +1,64 @@
+/* Add comic / Edit comic: header with Huddles, 3 numbered sections, Save pinned to the bottom of the dialog. */
+.ac-form{min-width:0}
+.ac-form *{box-sizing:border-box}
+.ac-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- Header ---------- */
+.ac-head{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:16px;align-items:center;margin:0 0 20px}
+.ac-head .ds-eyebrow{margin-bottom:6px}
+.collection-comic-form.ac-form .ac-head h2{font:800 clamp(34px,6vw,44px)/.95 var(--font-display);text-transform:uppercase;letter-spacing:-.5px;margin:0 0 10px;color:var(--ink)}
+.ac-form .ac-lede{font-size:16px;line-height:1.5;color:var(--ink-2,#3a3934);margin:0}
+.ac-huddles{width:180px;max-width:100%;justify-self:end}
+.ac-huddles .huddles-panel{box-shadow:4px 4px 0 var(--ink)}
+.ac-huddles .huddles-bubble{font-size:13px;line-height:1.25;padding:6px 10px;width:148px;max-width:none;top:20%;right:-24px}
+
+/* ---------- Progress (ds-steps) ---------- */
+.ac-progress{margin:0 0 20px}
+.ac-progress li{font-size:13px;align-items:flex-start;line-height:1.25}
+.ac-dot{flex:0 0 auto;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:2px solid currentColor;font:800 13px/1 var(--font-body)}
+.ac-progress li.current .ac-dot{background:var(--red);border-color:var(--red);color:#fff}
+.ac-progress li.done .ac-dot{background:var(--ink);border-color:var(--ink);color:var(--cream)}
+
+/* ---------- Numbered sections ---------- */
+.ac-step{border:1px solid var(--line);background:var(--cream);border-radius:var(--radius);padding:20px;margin:0 0 16px}
+.ac-step-head{display:flex;align-items:center;gap:12px;margin:0 0 16px}
+.ac-step-num{flex:0 0 auto;display:grid;place-items:center;width:36px;height:36px;border:2px solid var(--ink);border-radius:50%;background:var(--yellow);font:800 20px/1 var(--font-display);color:var(--ink)}
+.collection-comic-form.ac-form .ac-step-head h3{flex:1;min-width:0;font:800 24px/1.05 var(--font-display);text-transform:uppercase;margin:0;color:var(--ink)}
+.ac-step-head h3 em{font:600 14px/1 var(--font-body);font-style:normal;text-transform:none;color:var(--muted)}
+.ac-step-art{flex:0 0 auto;width:64px;height:auto;margin:-8px 0}
+.ac-step-body>:last-child{margin-bottom:0}
+.ac-step .comic-picker{margin-bottom:16px}
+.ac-step .comic-entry-mode{margin-bottom:16px}
+.ac-step .comic-entry-mode button{font-size:14px;min-height:46px}
+.ac-step .comic-count-mode{margin:0 0 12px}
+.ac-step .mp-choice-buttons button{min-height:44px;font-size:14px}
+.ac-step .comic-multi-picker,.ac-step .comic-choice-list{margin-bottom:0}
+.ac-step .comic-choice-count{font-size:14px}
+.ac-step .picker-help{font-size:14px}
+.ac-form .ac-help{font-size:14px;line-height:1.5;color:var(--muted);margin:0 0 12px}
+.ac-add-manual{width:100%;margin:0 0 16px}
+.ac-check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;color:var(--ink);margin:0 0 8px}
+.ac-check input{width:20px;height:20px;accent-color:var(--red)}
+.ac-form .ds-field textarea{min-height:96px;resize:vertical}
+
+/* ---------- Save: always visible ---------- */
+.ac-save-bar{position:sticky;bottom:0;z-index:5;display:grid;gap:8px;margin:8px 0 0;padding:12px 0;background:var(--paper);border-top:2px solid var(--ink)}
+.ac-save{width:100%;min-height:48px;font-size:16px}
+.ac-form .ac-error{margin:0;padding:10px 12px;background:#f8e2dc;border-left:4px solid var(--red);color:#8d211b}
+.ac-listed{margin:0 0 16px!important}
+
+/* ---------- Phone ---------- */
+@media(max-width:520px){
+ .ac-head{grid-template-columns:minmax(0,1fr) 108px;gap:12px;align-items:start}
+ .ac-huddles{width:108px}
+ .ac-huddles .huddles-bubble{display:none}
+ .ac-huddles .huddles-caption{font-size:12px;padding:4px 6px}
+ .collection-comic-form.ac-form .ac-head h2{font-size:34px}
+ .ac-form .ac-lede{font-size:15px}
+ .ac-progress{gap:6px}
+ .ac-progress li{flex-direction:column;align-items:flex-start;gap:4px;font-size:12px}
+ .ac-step{padding:16px}
+ .ac-step-art{width:56px}
+ .ac-step .comic-entry-mode button{font-size:14px;padding:8px}
+ .ac-save-bar{margin-left:-4px;margin-right:-4px;padding:12px 4px calc(12px + env(safe-area-inset-bottom))}
+}

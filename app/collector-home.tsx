@@ -1,37 +1,100 @@
 'use client';
-import {useCallback,useEffect,useState} from 'react';
-import Homepage from '../architecture/platform-v2/ui/Homepage';
-import type {ComicCardRecord,HomeFeed} from '../architecture/platform-v2/ui/types';
-import {catalog,type Issue} from '../lib/catalog';
+// Home: hero with search, what you can do, a glimpse of the directory, fresh listings (real only),
+// SafePurchase (only when live), rewards, and a join band.
+import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import {ArrowRight,Search} from 'lucide-react';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
-import './platform-v2.css';
+import type {Issue} from '../lib/catalog';
+import type {Listing} from '../lib/community';
+import HuddlesGuide,{HuddlesArt,type HuddlesPose} from '../components/huddles-guide';
+import {ErrorState} from '../components/states';
+import ResolvedComicCover from './resolved-comic-cover';
+import './home.css';
 
-export function homeComic(issue:Issue):ComicCardRecord{
- return {id:String(issue.id),title:issue.title,issueNumber:issue.number,publisher:issue.publisher,
-  publicationDate:issue.bibliography?.publicationDate|| (issue.year?String(issue.year):null),
-  coverUrl:issue.cover||null,coverCredit:issue.coverCredit||null,variant:issue.variant,
-  keyTags:issue.kind==='Key issue'?['Key issue']:[],rawFMVCents:null,cgc98FMVCents:null,
-  valuationAsOf:null,valuationKind:'unavailable',listingCount:0};
-}
-const emptyFeed:HomeFeed={items:[],market:[],indexedCount:0,asOf:'',feedKind:'editorial',filmKeys:[],ratioVariants:[]};
-export default function CollectorHome({go,onProfile,onProvider,onScan,onOpenComic}: {go:(value:string)=>void;onProfile:()=>void;onProvider:()=>void;onScan:()=>void;onOpenComic:(id:string)=>void}){
- const [feed,setFeed]=useState<HomeFeed>(emptyFeed),[loading,setLoading]=useState(true),[error,setError]=useState('');
- const reload=useCallback(async(signal:AbortSignal)=>{
-  setLoading(true);setError('');
-  try{const response=await fetch('/api/catalog?'+new URLSearchParams({ids:[24,26,29,0,1,2,3,4,5,6,7,8].join(',')}),{signal,cache:'no-store'});if(!response.ok)throw Error();
-   const page=parseCatalogSearchPage(await response.json());if(!signal.aborted)setFeed({...emptyFeed,items:[...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id).map(homeComic),indexedCount:page.issueCount,asOf:new Date().toISOString()});
+type Props={go:(section:string,tab?:string)=>void;onScan:()=>void;onOpenComic:(id:string)=>void;signedIn:boolean;listings:Listing[];safePurchaseLive:boolean;onStartCollection:()=>void};
+const featuredIds=[24,26,29,0,1,2,3,4,5,6,7,8];
+const usd=(value:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:value%1?2:0}).format(value);
 
-  }catch(e){if(!signal.aborted)setError('The directory could not load. Open the directory or retry below.');}
-  finally{if(!signal.aborted)setLoading(false);}
+export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,safePurchaseLive,onStartCollection}:Props){
+ const [issues,setIssues]=useState<Issue[]|null>(null),[error,setError]=useState(false),[query,setQuery]=useState('');
+ const load=useCallback((signal?:AbortSignal)=>{
+  setError(false);
+  fetch('/api/catalog?'+new URLSearchParams({ids:featuredIds.join(',')}),{signal,cache:'no-store'})
+   .then(async response=>{if(!response.ok)throw Error();const page=parseCatalogSearchPage(await response.json());if(!signal?.aborted)setIssues([...page.issues].sort((a,b)=>Number(!!b.cover?.startsWith('/covers/'))-Number(!!a.cover?.startsWith('/covers/'))||a.id-b.id))})
+   .catch(()=>{if(!signal?.aborted){setError(true);setIssues([])}});
  },[]);
- useEffect(()=>{const controller=new AbortController();void reload(controller.signal);return()=>controller.abort()},[reload]);
- const search=useCallback(async(query:string,signal:AbortSignal)=>{
-  const response=await fetch('/api/catalog?'+new URLSearchParams({q:query,limit:'6',offset:'0'}),{signal});
-  if(!response.ok)throw Error('Directory search unavailable.');return parseCatalogSearchPage(await response.json()).issues.map(homeComic);
- },[]);
- return <><Homepage feed={feed} loading={loading} search={search} onScan={onScan} onOpenComic={onOpenComic}
-  onBrowseKeys={()=>go('Directory')} onMarketplace={()=>go('Marketplace')}
-  onProfile={onProfile} onWorkshop={()=>go('Comic Workshop')} onRegisterSpecialist={onProvider}/>
-  {error&&<div role="alert" className="home-directory-error"><p>{error}</p><button className="button outline small-button" onClick={()=>void reload(new AbortController().signal)}>Retry directory</button></div>}
- </>;
+ useEffect(()=>{const abort=new AbortController();load(abort.signal);return()=>abort.abort()},[load]);
+ const search=(event:FormEvent)=>{event.preventDefault();const q=query.trim();window.location.assign('/?'+new URLSearchParams(q?{section:'Directory',q}:{section:'Directory'}))};
+ const fresh=listings.filter(listing=>listing.status==='active'&&!listing.example).slice(0,4);
+ const doors:{pose:HuddlesPose;title:string;body:string;cta:string;action:()=>void}[]=[
+  {pose:'directory',title:'Find any issue',body:'Search millions of comics by title, issue, character or creator.',cta:'Open the directory',action:()=>go('Directory')},
+  {pose:'scanner',title:'Scan & add your comics',body:'Point your phone at the barcode or cover. We find the issue.',cta:'Scan a comic',action:onScan},
+  {pose:'marketplace',title:'Buy, sell & trade',body:'One grail or the whole longbox, with real collectors.',cta:'Go to the marketplace',action:()=>go('Marketplace')},
+  {pose:'workshop',title:'Get your comics pressed',body:'Find pros near you who press, clean and prep for grading.',cta:'Find a pro',action:()=>go('Pressing')},
+ ];
+ return <div className="home ds-wrap">
+  <section className="home-hero" aria-labelledby="home-title">
+   <div className="home-hero-copy">
+    <p className="ds-eyebrow">ComicHuddle</p>
+    <h1 id="home-title" className="ds-title home-title">Know the book.<br/><span>Own the story.</span></h1>
+    <p className="ds-lede">Track your comics, find any issue, and buy, sell or trade with real collectors.</p>
+    <form className="home-search" role="search" onSubmit={search}>
+     <Search size={22} aria-hidden="true"/>
+     <input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search any comic…" aria-label="Search any comic" enterKeyHint="search" maxLength={120}/>
+     <button type="submit" className="ds-btn ds-btn-dark">Search</button>
+    </form>
+    <div className="ds-actions">
+     <button type="button" className="ds-btn ds-btn-primary" onClick={onStartCollection}>{signedIn?'Add your next comic':'Start your collection'} <ArrowRight size={18}/></button>
+     <button type="button" className="ds-btn ds-btn-secondary" onClick={()=>go('Marketplace')}>Browse the marketplace</button>
+    </div>
+   </div>
+   <HuddlesGuide pose="home" size="xl" caption="Issue #1 · Welcome" line="Every book has a story. Let's find yours!" className="home-hero-art"/>
+  </section>
+
+  <section className="ds-section home-doors" aria-labelledby="home-doors-title">
+   <div className="ds-section-head"><h2 id="home-doors-title">What you can <span>do here</span></h2></div>
+   <div className="ds-grid ds-grid-4">{doors.map(door=><button type="button" key={door.title} className="ds-card interactive home-door" onClick={door.action}>
+    <HuddlesArt pose={door.pose} size="md" decorative className="home-door-art"/>
+    <h3>{door.title}</h3><p>{door.body}</p><span className="home-door-go">{door.cta} <ArrowRight size={16}/></span>
+   </button>)}</div>
+  </section>
+
+  <section className="ds-section" aria-labelledby="home-directory-title">
+   <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>See the whole directory <ArrowRight size={16}/></button></div>
+   {error?<ErrorState compact message="Couldn't load the directory. Try again." action={{label:'Try again',onClick:()=>load()}}/>
+    :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<button type="button" key={issue.id} className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Open '+issue.title+' #'+issue.number}>
+     <span className="home-cover-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year||undefined} src={issue.cover||null} credit={issue.coverCredit||undefined}/></span>
+     <strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher}{issue.year?' · '+issue.year:''}</small>
+    </button>:<span key={index} className="home-cover home-skeleton" aria-hidden="true"/>)}</div>}
+  </section>
+
+  {fresh.length>0&&<section className="ds-section" aria-labelledby="home-fresh-title">
+   <div className="ds-section-head"><h2 id="home-fresh-title">Fresh in the <span>marketplace</span></h2><button type="button" className="ds-link" onClick={()=>go('Marketplace')}>See every listing <ArrowRight size={16}/></button></div>
+   <div className="ds-grid ds-grid-4">{fresh.map(listing=><a key={listing.id} className="ds-card home-listing" href={'/?'+new URLSearchParams({section:'Marketplace',listing:listing.id})}>
+    <span className="home-listing-art">{listing.photos[0]?<img src={'/api/media?id='+encodeURIComponent(listing.photos[0])+'&size=thumbnail'} alt="" loading="lazy"/>:<HuddlesArt pose="marketplace" size="sm" decorative/>}</span>
+    <strong>{listing.title}</strong>
+    <small>{listing.kind==='collection'?listing.itemCount+' comics':listing.grade}</small>
+    <span className="home-listing-price">{listing.saleType==='auction'?'Auction':usd(listing.price)}</span>
+   </a>)}</div>
+  </section>}
+
+  {safePurchaseLive&&<section className="ds-section home-strip home-strip-safe" aria-labelledby="home-safe-title">
+   <HuddlesArt pose="safepurchase" size="md" className="home-strip-art"/>
+   <div><p className="ds-eyebrow">SafePurchase</p><h2 id="home-safe-title">A careful path for a <span>valuable book.</span></h2>
+    <ol className="home-steps"><li><b>1</b> You buy</li><li><b>2</b> We check the book</li><li><b>3</b> It ships to you</li></ol>
+    <a className="ds-link" href="/safepurchase">Learn how it works <ArrowRight size={16}/></a></div>
+  </section>}
+
+  <section className="ds-section home-strip home-strip-rewards" aria-labelledby="home-rewards-title">
+   <HuddlesArt pose="wallet" size="md" className="home-strip-art"/>
+   <div><p className="ds-eyebrow">Collector rewards</p><h2 id="home-rewards-title">Earn while you <span>collect.</span></h2><p>Earn 1 point for every $1. 100 points = $1 credit.</p>
+    <a className="ds-link" href="/wallet">Open your wallet <ArrowRight size={16}/></a></div>
+  </section>
+
+  <section className="home-join" aria-labelledby="home-join-title">
+   <HuddlesArt pose="sign-in" size="md" className="home-join-art"/>
+   {signedIn?<div><h2 id="home-join-title">Add your <span>next comic.</span></h2><p>Scan it, search it or add it by hand. It takes a minute.</p><div className="ds-actions"><button type="button" className="ds-btn ds-btn-yellow" onClick={onStartCollection}>Add a comic</button><button type="button" className="ds-btn home-join-ghost" onClick={onScan}>Scan a comic</button></div></div>
+    :<div><h2 id="home-join-title">Join free.</h2><p>Your collection, your showcase, your people.</p><div className="ds-actions"><a className="ds-btn ds-btn-yellow" href="/sign-in?mode=register">Join free</a><a className="ds-btn home-join-ghost" href="/sign-in">Sign in</a></div></div>}
+  </section>
+ </div>;
 }

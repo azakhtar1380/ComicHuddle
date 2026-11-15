@@ -4,7 +4,6 @@ import {ArrowRight,BookOpen,Camera,ChevronRight,Gift,Lock,ScanLine,Search,Shield
 import ResolvedComicCover from '../../../app/resolved-comic-cover';
 import {DirectoryCard} from './DirectoryCard';
 import type {ComicCardRecord,HomeFeed} from './types';
-import UpcomingPreview from '../../../app/upcoming-preview';
 export type HomepageProps={feed:HomeFeed;loading?:boolean;search:(query:string,signal:AbortSignal)=>Promise<ComicCardRecord[]>;onOpenComic:(id:string)=>void;onScan:()=>void;onBrowseKeys:()=>void;onMarketplace:()=>void;onProfile:()=>void;onWorkshop:()=>void;onRegisterSpecialist:()=>void;safepurchaseEnabled?:boolean;rewardsEnabled?:boolean};
 
 const heroCovers=['/covers/planet-12.jpg','/covers/planet-55.jpg','/covers/planet-27.jpg'];
@@ -71,6 +70,5 @@ export default function Homepage(p:HomepageProps){
    <div className="v2-specialist-intro"><span className="v2-specialist-eyebrow"><Wrench size={18}/> COMIC WORKSHOP</span><h2 id="home-workshop-title">Good books.<br/><span>Careful hands.</span></h2><p>Find independent specialists for pressing, cleaning and pre-grading review. Compare services, ask questions, and request a quote for your book.</p><div className="v2-specialist-actions"><button type="button" className="ch-btn ch-btn-primary" onClick={p.onWorkshop}>Find a specialist <ArrowRight size={17}/></button><button type="button" className="ch-btn ch-btn-outline" onClick={p.onRegisterSpecialist}>List your studio <Wrench size={16}/></button></div></div>
    <div className="v2-specialist-services">{[{title:'Comic pressing',body:'Remove bends, ripples and handling marks before grading.',Icon:Wrench},{title:'Dry cleaning',body:'Safe surface cleaning by experienced hands.',Icon:BookOpen},{title:'Pre-grading review',body:'Know what to expect before you submit to a grading company.',Icon:ShieldCheck}].map(service=><article key={service.title}><service.Icon size={23}/><div><h3>{service.title}</h3><p>{service.body}</p></div></article>)}</div>
   </section>
-  <UpcomingPreview/>
  </div>;
 }

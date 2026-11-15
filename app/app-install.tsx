@@ -16,3 +16,16 @@ export function useAppInstall(){
  async function install(){const event=pending.current;if(!event){setInstructions(true);return}pending.current=null;try{await event.prompt();const result=await event.userChoice;if(result.outcome==='accepted')setInstalled(true)}catch{setInstructions(true)}}
  return {installed,instructions,setInstructions,install};
 }
+/** Body of the "Install ComicHuddle" dialog. Render it inside the dialog that opens when `instructions` is true. */
+export function InstallGuide(){
+ return <div className="form-dialog install-guide">
+  <p className="ds-eyebrow">Install the app</p>
+  <h2>Your longbox.<br/><span>One tap away.</span></h2>
+  <p>Put ComicHuddle on your home screen.</p>
+  <ol className="ds-steps install-guide-steps" style={{flexDirection:'column'}}>
+   <li><span><strong>iPhone:</strong> In Safari, tap Share → Add to Home Screen.</span></li>
+   <li><span><strong>Android:</strong> In Chrome, open the menu → Install app.</span></li>
+   <li><span><strong>Computer:</strong> In Chrome or Edge, click the install icon in the address bar.</span></li>
+  </ol>
+ </div>;
+}

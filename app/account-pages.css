@@ -1,0 +1,35 @@
+/* Settings, Rules, Orders and the account side panel */
+main section.settings-page,main section.rules-page,main section.orders-page{max-width:1240px;margin:0 auto;padding:0 0 var(--s8)}
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3);align-items:start}
+.settings-block{display:flex;flex-direction:column;gap:12px}
+.settings-block h2{font:800 30px/1 var(--font-display);text-transform:uppercase;margin:0}
+.settings-block h3{font:800 22px/1 var(--font-display);text-transform:uppercase;margin:0}
+.settings-block p{margin:0}
+.settings-block hr{border:0;border-top:1px solid var(--line);margin:8px 0;width:100%}
+.settings-block form{display:flex;flex-direction:column;align-items:flex-start}
+.settings-wide{width:100%;justify-content:flex-start}
+.settings-danger{color:var(--red);border-color:var(--red)}
+
+.rules-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:var(--s6);align-items:start}
+.rules-toc{position:sticky;top:120px;padding:18px;background:var(--cream);border:2px solid var(--ink)}
+.rules-toc ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.rules-toc a{color:var(--ink);font-weight:600;font-size:15px;text-decoration-color:var(--red);text-underline-offset:3px}
+main .rules-section{padding:0 0 var(--s4);margin:0 0 var(--s4);border-bottom:1px solid var(--line);scroll-margin-top:130px}
+.rules-section h2{font:800 34px/1 var(--font-display);text-transform:uppercase;margin:0 0 12px}
+.rules-section ul{margin:0 0 8px;padding-left:22px}
+.rules-section li{font-size:17px;line-height:1.55;color:var(--ink-2);margin-bottom:4px}
+.rules-contact{font-size:16px}
+
+/* Account side panel: right panel on desktop, bottom sheet on phones */
+.drawer-overlay .account-drawer.am-drawer{width:min(420px,100%);padding:28px 24px 32px;background:var(--paper);border-left:3px solid var(--ink)}
+.account-drawer.am-drawer>.close{top:12px;right:12px}
+@media(max-width:760px){
+ .settings-grid{grid-template-columns:1fr}
+ .rules-layout{grid-template-columns:1fr;gap:var(--s3)}
+ .rules-toc{position:static}
+ .rules-section h2{font-size:28px}
+ .drawer-overlay:has(.am-drawer){align-items:flex-end;padding:0}
+ .drawer-overlay .account-drawer.am-drawer{width:100%;max-height:90vh;border-left:0;border-top:3px solid var(--ink);border-radius:14px 14px 0 0;padding:22px 16px calc(24px + env(safe-area-inset-bottom));animation:am-sheet .22s ease-out}
+}
+@keyframes am-sheet{from{transform:translateY(40px)}to{transform:none}}
+@media(prefers-reduced-motion:reduce){.drawer-overlay .account-drawer.am-drawer{animation:none}}

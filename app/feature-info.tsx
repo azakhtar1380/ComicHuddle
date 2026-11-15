@@ -1,30 +1,83 @@
-import {ArrowLeft,ArrowRight,BookOpen,Camera,Gift,ShieldCheck,UserRound,Wallet} from 'lucide-react';
+import {ArrowRight,Clock,Package,ShieldCheck} from 'lucide-react';
+import Link from 'next/link';
 import './feature-info.css';
 import SiteHeader from './site-header';
 import SiteFooter from './site-footer';
+import CollectorWallet from './collector-wallet';
+import PageHeader from '../components/page-header';
+import {HowItWorks} from '../components/states';
 import {protectionConfig,type ProtectionEnv} from '../lib/commerce-protection';
+
+function Steps({label,steps}:{label:string;steps:[string,string][]}){
+ return <ol className="fi-steps" aria-label={label}>{steps.map(([title,body],index)=><li key={title}><span className="fi-step-num" aria-hidden="true">{index+1}</span><h3>{title}</h3><p>{body}</p></li>)}</ol>;
+}
+
 export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
  const wallet=kind==='wallet';
- // Read on the server: SafePurchase is only described as active when an Inspection Center is configured.
+ // Read on the server: SafePurchase is only described as available when an inspection center is configured.
  const protection=protectionConfig(process.env as ProtectionEnv),live=protection.safePurchaseEnabled,threshold='$'+(protection.thresholdCents/100).toLocaleString('en-US');
- const steps=wallet?[
-  ['Buy & earn','Earn 1 Collector Reward Point for every whole dollar you pay for items through ComicHuddle checkout, after discounts. Shipping and tax don’t earn points, and neither do uploads, bids, cash meetups or sales you mark yourself.'],
-  ['Turn points into credit','Convert points in blocks of 100. Every 100 points becomes $1 of store credit in your wallet.'],
-  ['Use credit at checkout','Choose how much credit to apply before you pay. Credit lowers the item price, not shipping or tax, and is held for that order so it can’t be spent twice. Pay the rest with any available payment method.'],
-  ['Good to know','Store credit works on ComicHuddle marketplace purchases. It isn’t cash: it can’t be withdrawn or sent to another member. If an order is refunded, the credit you used comes back and the points you earned on it are removed.'],
- ]:[
-  ['Automatic over '+threshold,'SafePurchase applies automatically to any single comic or collection with an item total of '+threshold+' or more. Below that, the seller can offer it or the buyer can add it at checkout. The listing and checkout show the SafePurchase badge and these steps before you pay'+(protection.feeCents?', including the '+'$'+(protection.feeCents/100).toFixed(2)+' inspection fee':'')+'.'],
-  ['Pay through the platform','A processor-confirmed payment starts the protected order. A checkout return page or an uploaded payment screenshot is never proof of payment. Orders and tracking remain in your private account.'],
-  ['Ship for inspection','Ship to the ComicHuddle Inspection Center address shown on the order, insured for the full sale value. Record tracking within 48 hours. A shipping label alone does not prove carrier handoff. A missed deadline triggers the order review and refund policy.'],
-  ['Inspect & confirm','Within 2 business days of arrival, inspectors check the title, issue, variant, printing and year, that the condition matches the listed grade, slab certification, undisclosed restoration or pressing, and every book in a collection. It does not replace professional grading. Passed books ship to the buyer insured, signature required. A failed inspection refunds the buyer in full automatically; if only part of a collection fails, the buyer chooses a pro-rated or full refund.'],
-  ['Review delivery','The buyer has a 48-hour inspection window after verified delivery to report damage, a wrong item or a material mismatch through Orders. Provide photos and keep the packaging. An open dispute freezes release while support reviews the evidence.'],
-  ['Resolve & release','Signed delivery, the 48-hour window and no open dispute are required before seller proceeds become available. Seller payouts stay paused until the payout service is connected. Approved refunds go to the original payment method, with on-site credit restored separately. Return instructions come from support.'],
- ];
- return <div className="feature-page"><a className="skip-link" href="#main-content">Skip to content</a><SiteHeader section={wallet?'Wallet':'SafePurchase'} standalone/><main id="main-content" tabIndex={-1} className="feature-info">
-  <a className="info-back" href="/"><ArrowLeft size={16}/> Back to ComicHuddle</a>
-  <section className={'info-hero '+(wallet?'info-wallet':'info-safe')}><span className="info-eyebrow">{wallet?<Gift size={20}/>:<ShieldCheck size={20}/>} {wallet?'COLLECTOR WALLET':'SAFEPURCHASE'}</span><h1>{wallet?'Your next chapter, rewarded.':'A careful path for a valuable book.'}</h1><p>{wallet?'Earn points when you buy. Turn them into store credit for your next find.':live?'Independent inspection before a valuable book reaches you, automatic on orders of '+threshold+' or more.':'Independent inspection for valuable books. The Inspection Center is coming soon.'}</p><div className="info-badges">{(wallet?['100 points = $1 credit','For ComicHuddle purchases','Not redeemable for cash']:[live?'Automatic at '+threshold+'+':'Coming soon','Insured, signature delivery','48-hour buyer review']).map(item=><span key={item}>{item}</span>)}</div></section>
-  <section className="info-steps" aria-label={wallet?'How rewards work':'SafePurchase workflow'}>{steps.map(([title,body],index)=><article key={title}><span className="info-step">{index+1}</span><div><h2>{title}</h2><p>{body}</p></div></article>)}</section>
-  <aside className="info-note"><h2>{wallet?'Your balances stay private.':live?'Protection depends on verified steps.':'SafePurchase inspection is coming soon.'}</h2><p>{wallet?'Only you can see your points, store credit and sales history, in My Profile and your wallet. Money from your own sales is tracked separately and never turns into reward credit. Points from test checkouts are kept apart from your real balance.':(live?'Every step is recorded on the order: carrier scans, the inspection result and signed delivery. Seller payouts stay paused until the payout service is connected.':'The Inspection Center isn’t open yet, so no order is inspected and nothing on ComicHuddle claims otherwise. Until it opens, orders of '+threshold+' or more check out with Standard Protection plus insured, signature-required shipping, and the seller is paid '+protection.standardHoldHours+' hours after delivery if no problem is reported.')}</p><p>Available payment methods depend on your device and region. No payment is taken while checkout is switched off.</p></aside>
-  <div className="info-actions"><a className="button red" href={wallet?'/?section=Wallet':'/?section=Marketplace'}>{wallet?'Open my wallet':'Explore the marketplace'}<ArrowRight size={17}/></a><a className="button outline" href="/?section=Orders">Orders &amp; support</a><a className="button outline" href="/?section=Scan"><Camera size={17}/> Scan a comic</a></div>
- </main><SiteFooter/></div>;
+ const fee=protection.feeCents?'$'+(protection.feeCents/100).toFixed(2):'';
+ return <div className="fi-page">
+  <a className="skip-link" href="#main-content">Skip to content</a>
+  <SiteHeader section={wallet?'Wallet':'SafePurchase'} standalone/>
+  <main id="main-content" tabIndex={-1} className="ds-wrap fi-main">
+   {wallet?<>
+    <PageHeader eyebrow="Wallet & rewards" title="Your wallet." accent="Your rewards." lede="Earn 1 point for every $1 you spend on comics. Shipping and tax don’t count." pose="wallet" caption="YOUR WALLET" line="Every $1 = 1 point."/>
+    <section className="fi-section" aria-label="Your balances"><CollectorWallet showInfoLink={false}/></section>
+    <section className="fi-section" aria-labelledby="fi-how">
+     <div className="ds-section-head"><h2 id="fi-how">How rewards <span>work.</span></h2></div>
+     <Steps label="How rewards work" steps={[
+      ['Earn','Earn 1 point for every $1 you spend on comics. Shipping and tax don’t count.'],
+      ['Redeem','Every 100 points = $1 in store credit.'],
+      ['Spend','Use your credit at checkout. It covers the comic, not shipping or tax.'],
+     ]}/>
+     <HowItWorks title="Good to know">
+      <p>Store credit works on ComicHuddle only. It can’t be cashed out or transferred.</p>
+      <p>Points come from comics you pay for through ComicHuddle checkout. Bids, cash meetups and sales you mark yourself don’t earn points.</p>
+      <p>If an order is refunded, the credit you used comes back. The points you earned on it are removed.</p>
+      <p>Only you can see your wallet. Points from test checkouts stay separate from your real balance.</p>
+     </HowItWorks>
+    </section>
+   </>:<>
+    <PageHeader eyebrow="SafePurchase" title="A careful path" accent="for a valuable book." lede="We check your comic before it ships to you." pose="safepurchase" caption="SAFEPURCHASE" line="We check it before it ships." actions={live?<Link className="ds-btn ds-btn-primary" href="/?section=Marketplace">Shop the marketplace <ArrowRight size={18} aria-hidden="true"/></Link>:<Link className="ds-btn ds-btn-secondary" href="/?section=Marketplace">Browse the marketplace <ArrowRight size={18} aria-hidden="true"/></Link>}/>
+    {!live&&<p className="fi-status" role="status"><Clock size={18} aria-hidden="true"/> SafePurchase isn’t open for orders yet.</p>}
+    <section className="fi-section" aria-labelledby="fi-steps">
+     <div className="ds-section-head"><h2 id="fi-steps">How it <span>works.</span></h2>{live&&<p>Automatic on orders of {threshold} or more.</p>}</div>
+     <Steps label="How SafePurchase works" steps={[
+      ['You buy','Pay through ComicHuddle checkout. The seller ships the book to us, not to you.'],
+      ['We check the book','We check it’s the right book, in the condition described. It isn’t official grading.'],
+      ['It ships to you','Books that pass ship to you insured, with a signature. If it fails, you get a full refund.'],
+     ]}/>
+     <p className="fi-callout"><ShieldCheck size={22} aria-hidden="true"/> You have 48 hours after delivery to report a problem.</p>
+    </section>
+    <section className="fi-section" aria-labelledby="fi-faq">
+     <div className="ds-section-head"><h2 id="fi-faq">Questions<span>.</span></h2></div>
+     {live&&<HowItWorks title="Which orders get it?">
+      <p>It’s automatic on a comic or collection of {threshold} or more.</p>
+      <p>Below that, the seller can offer it, or you can add it at checkout.</p>
+      <p>{fee?'There’s a '+fee+' fee. You’ll see it at checkout before you pay.':'You’ll see any fee at checkout before you pay.'}</p>
+     </HowItWorks>}
+     <HowItWorks title="What do you check?">
+      <p>The title, issue, variant, printing and year. That the condition matches the listing.</p>
+      <p>Slab certification, and any restoration or pressing the seller didn’t mention. For a collection, we check every book.</p>
+      <p>It isn’t official grading.</p>
+     </HowItWorks>
+     <HowItWorks title="How does shipping work?">
+      <p>The seller ships to our inspection center, insured for the full price, and adds tracking within 48 hours.</p>
+      <p>We check the book within 2 business days of arrival. Then it ships to you insured, with a signature.</p>
+     </HowItWorks>
+     <HowItWorks title="What if something’s wrong?">
+      <p>After delivery, you have 48 hours to report a problem. Take photos and keep the packaging.</p>
+      <p>Report it in Orders. The seller isn’t paid while we look into it.</p>
+      <p>If only part of a collection fails, you pick a partial or full refund. Refunds go back to how you paid.</p>
+     </HowItWorks>
+     <HowItWorks title="When does the seller get paid?">
+      <p>After signed delivery, once the 48 hours pass with no problem reported.</p>
+     </HowItWorks>
+    </section>
+    <div className="ds-actions fi-actions"><Link className="ds-btn ds-btn-secondary" href="/?section=Orders"><Package size={18} aria-hidden="true"/> Your orders</Link></div>
+   </>}
+  </main>
+  <SiteFooter/>
+ </div>;
 }

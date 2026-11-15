@@ -23,10 +23,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { '/**': ['./certificates/rds-ca.pem'] },
   async redirects() {
     const origin=process.env.BETTER_AUTH_URL;
+    // Retired pages: old bookmarks land on the home page.
+    const retired=[{source:'/upcoming',destination:'/',permanent:false},{source:'/fmv',destination:'/',permanent:false}];
     // Keep account cookies, CSRF origin checks and checkout returns on the
     // existing canonical production domain when Vercel adds its short alias.
-    if(process.env.VERCEL_ENV==='production'&&origin&&/^https:\/\/[a-z0-9.-]+$/i.test(origin)&&origin!=='https://comichuddle.vercel.app')return [{source:'/:path*',has:[{type:'host' as const,value:'comichuddle.vercel.app'}],destination:origin+'/:path*',permanent:false}];
-    return [];
+    if(process.env.VERCEL_ENV==='production'&&origin&&/^https:\/\/[a-z0-9.-]+$/i.test(origin)&&origin!=='https://comichuddle.vercel.app')return [...retired,{source:'/:path*',has:[{type:'host' as const,value:'comichuddle.vercel.app'}],destination:origin+'/:path*',permanent:false}];
+    return retired;
   },
   async headers() {
     return [{ source: '/:path*', headers: [

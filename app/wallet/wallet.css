@@ -1,54 +1,41 @@
-/* Collector Wallet on the Pro theme. Scoped (.collector-wallet.cw) so it overrides legacy wallet rules. */
-.collector-wallet.cw{display:grid;gap:14px;background:var(--surface);border:2px solid var(--ink);border-radius:var(--radius);box-shadow:var(--shadow-pop);padding:20px;margin:16px 0;font-family:var(--font-body);color:var(--ink);min-width:0}
-.collector-wallet.cw *{box-sizing:border-box}
-.collector-wallet.cw h3,.collector-wallet.cw h4{font-family:var(--font-display);color:var(--ink);margin:0;line-height:1.1}
-.collector-wallet.cw h3{display:flex;align-items:center;gap:8px;font-size:28px}
-.collector-wallet.cw h4{display:flex;align-items:center;gap:6px;font-size:21px}
-.collector-wallet.cw .cw-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.collector-wallet.cw .cw-heading .eyebrow{display:block;margin-bottom:4px}
-.collector-wallet.cw .cw-heading .inline-button{min-width:40px;min-height:40px;display:grid;place-items:center}
-.collector-wallet.cw .cw-tabs{display:inline-flex;gap:4px;padding:4px;background:var(--paper);border-radius:12px;width:max-content;max-width:100%;flex-wrap:wrap}
-.collector-wallet.cw .cw-tabs button{border:0;background:none;padding:8px 14px;border-radius:9px;font:600 14px var(--font-body);color:var(--muted);cursor:pointer;min-height:40px}
-.collector-wallet.cw .cw-tabs button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
-.collector-wallet.cw .cw-test-note{display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px 12px;border-radius:10px;background:var(--yellow-soft);border:1px solid #e5b800;font-size:14px;color:var(--ink)}
-.collector-wallet.cw .cw-test-note svg{flex-shrink:0;margin-top:3px}
-.collector-wallet.cw .cw-rewards{display:grid;gap:10px;margin:0;padding:16px;background:var(--yellow-soft);border:1px solid #e9d98c;border-radius:var(--radius)}
-.collector-wallet.cw .cw-balances{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.collector-wallet.cw .cw-balances>div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
-.collector-wallet.cw .cw-balances small{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
-.collector-wallet.cw .cw-balances strong{display:block;font:700 28px var(--font-display);margin-top:2px;overflow-wrap:anywhere}
-.collector-wallet.cw .cw-note{margin:0;font-size:14px;line-height:1.55;color:var(--muted)}
-.collector-wallet.cw .cw-progress-note{color:var(--ink)}
-.collector-wallet.cw .cw-success{margin:0;padding:8px 12px;border-radius:10px;background:#dcfce7;color:#14532d;font-size:14px;font-weight:600}
-.collector-wallet.cw .cw-error{margin:0;padding:8px 12px;border-radius:10px;background:#fff1f2;color:var(--red-dark);font-size:14px;font-weight:600}
-.collector-wallet.cw .cw-conversion{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
-.collector-wallet.cw .cw-conversion label{display:flex;flex-direction:column;gap:4px;flex:1 1 140px;font:600 14px var(--font-body)}
-.collector-wallet.cw .cw-conversion input{min-height:44px;padding:8px 12px;border:1px solid #c9ced6;border-radius:10px;font:400 15px var(--font-body);margin:0;width:100%}
-.collector-wallet.cw .cw-conversion .button{min-height:44px}
-.collector-wallet.cw .cw-conversion small{flex-basis:100%;font-size:13px;color:var(--muted)}
-.collector-wallet.cw .cw-rewards>.inline-button{justify-self:start;display:inline-flex;align-items:center;gap:4px;font-size:14px}
-.collector-wallet.cw .cw-reward-history{font-size:14px}
-.collector-wallet.cw .cw-reward-history summary{cursor:pointer;font-weight:700}
-.collector-wallet.cw .cw-reward-history ul,.collector-wallet.cw .cw-history ul{list-style:none;padding:0;margin:8px 0 0}
-.collector-wallet.cw .cw-reward-history li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #e9d98c;font-size:14px}
-.collector-wallet.cw .cw-reward-history li small{display:block;color:var(--muted);font-size:12.5px}
-.collector-wallet.cw .cw-reward-history li b{white-space:nowrap}
-.collector-wallet.cw .cw-section-title{margin-top:6px}
-.collector-wallet.cw .cw-recovery{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:2px solid var(--red);border-radius:12px;padding:10px 12px;background:#fff1f2}
-.collector-wallet.cw .cw-recovery p{margin:0;color:var(--ink);font-size:14px}
-.collector-wallet.cw .cw-history{border-top:1px solid var(--line);padding-top:10px}
-.collector-wallet.cw .cw-history-filter{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
-.collector-wallet.cw .cw-history-filter small{font-size:13px;color:var(--muted)}
-.collector-wallet.cw .cw-entry{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
-.collector-wallet.cw .cw-entry>span{flex:1;min-width:0}
-.collector-wallet.cw .cw-entry strong{display:block;font-size:15px}
-.collector-wallet.cw .cw-entry small{display:block;font-size:13px;color:var(--muted)}
-.collector-wallet.cw .cw-entry b{white-space:nowrap}
-.collector-wallet.cw .cw-pages{display:flex;gap:12px}
-.collector-wallet.cw>.button{justify-self:start}
-@media(max-width:480px){
- .collector-wallet.cw{padding:16px;box-shadow:none}
- .collector-wallet.cw .cw-balances{grid-template-columns:1fr}
- .collector-wallet.cw .cw-conversion .button{flex:1 1 100%;justify-content:center}
- .collector-wallet.cw>.button{justify-self:stretch;justify-content:center}
-}
+/* Collector Wallet: big balance cards, then history. Used on /wallet, the Wallet tab and My profile. */
+.cw2{display:grid;gap:var(--s3);min-width:0;font-family:var(--font-body);color:var(--ink)}
+.cw2 *{box-sizing:border-box}
+.cw2-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cw2 .cw2-private{margin:0;font:700 12px/1.2 var(--font-body);letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.cw2-tabs{display:inline-flex;gap:4px;padding:4px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);max-width:100%;flex-wrap:wrap}
+.cw2-tabs button{min-height:44px;padding:0 16px;border:0;border-radius:2px;background:none;font:700 15px/1 var(--font-body);color:var(--ink-2);cursor:pointer}
+.cw2-tabs button[aria-pressed=true]{background:var(--ink);color:var(--cream)}
+.cw2-icon{display:grid;place-items:center;width:44px;height:44px;border:2px solid var(--ink);border-radius:2px;background:var(--cream);color:var(--ink);cursor:pointer}
+.cw2-icon:disabled{opacity:.55;cursor:not-allowed}
+.cw2 .cw2-test{display:flex;gap:8px;align-items:flex-start;margin:0;padding:12px 16px;border:1px solid var(--ink);border-radius:2px;background:var(--yellow-soft);font-size:15px;color:var(--ink)}
+.cw2-test svg{flex:0 0 auto;margin-top:2px}
+.cw2-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3)}
+.cw2-card{display:flex;flex-direction:column;gap:8px;min-width:0;padding:var(--s3);background:var(--cream);border:1px solid var(--line);border-radius:var(--radius)}
+.cw2-card.cw2-points{border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);background:var(--dot),var(--yellow-soft)}
+.cw2-card h3{margin:0;font:700 12px/1.2 var(--font-body);letter-spacing:1.4px;text-transform:uppercase;color:var(--ink-2)}
+.cw2-card strong{display:block;font:800 clamp(40px,5vw,56px)/1 var(--font-display);color:var(--ink);overflow-wrap:anywhere}
+.cw2-card p{margin:0;font-size:14px;color:var(--muted)}
+.cw2-convert{display:grid;gap:12px;padding:var(--s3);background:var(--cream);border:1px solid var(--line);border-radius:var(--radius)}
+.cw2-form{display:flex;align-items:flex-start;gap:var(--s2);flex-wrap:wrap}
+.cw2-form .ds-field{flex:1 1 240px;margin:0}
+.cw2-form .ds-field input{margin:0}
+.cw2-form .ds-btn{margin-top:26px;min-height:46px}
+.cw2 .cw2-progress{margin:0;font-size:16px;color:var(--ink)}
+.cw2 .cw2-note{margin:0;font-size:14px;color:var(--muted);max-width:760px}
+.cw2 .cw2-success{margin:0;padding:10px 12px;border:2px solid var(--blue);border-radius:2px;background:#fff;font-size:15px;font-weight:600;color:var(--blue)}
+.cw2-history{display:grid;gap:12px;padding-top:var(--s3);border-top:2px solid var(--ink)}
+.cw2-history .ds-section-head{margin-bottom:0}
+.cw2-list{list-style:none;margin:0;padding:0}
+.cw2-list li{display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 0;border-bottom:1px solid var(--line)}
+.cw2-list li>svg{flex:0 0 auto;color:var(--ink-2)}
+.cw2-list li>span{flex:1;min-width:0}
+.cw2-list strong{display:block;font-size:15px;overflow-wrap:anywhere}
+.cw2-list small{display:block;font-size:13px;color:var(--muted)}
+.cw2-list b{white-space:nowrap;font-size:15px}
+.cw2 .cw2-empty{margin:0;padding:24px;border:2px dashed var(--line);border-radius:var(--radius);background:var(--cream);font-size:15px}
+.cw2-pages{display:flex;gap:12px}
+.cw2-rewards{margin:0}
+.cw2-actions{justify-content:flex-start}
+@media(max-width:860px){.cw2-cards{grid-template-columns:1fr}.cw2-card strong{font-size:44px}}
+@media(max-width:480px){.cw2-form .ds-btn{margin-top:0;width:100%}.cw2-convert{padding:var(--s2)}.cw2-card{padding:var(--s2)}}

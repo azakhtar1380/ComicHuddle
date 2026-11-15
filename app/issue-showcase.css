@@ -3,7 +3,7 @@
 .issue-showcase *{box-sizing:border-box}
 .is-hero{display:grid;grid-template-columns:minmax(180px,280px) 1fr;gap:40px;align-items:start}
 .is-cover .resolved-cover-frame{border-radius:10px;box-shadow:0 10px 26px rgba(20,24,33,.22);background:#f3f0e8}
-.is-cover .resolved-cover-credit,.is-cover-note{font-size:10px;line-height:1.5;color:var(--is-muted);background:none;padding:8px 2px 0}
+.is-cover .resolved-cover-credit,.is-cover-note{font-size:12px;line-height:1.5;color:var(--is-muted);background:none;padding:8px 2px 0}
 .is-cover-note a{color:inherit}
 .is-meta{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .is-key{display:inline-flex;align-items:center;gap:8px;background:var(--is-gold);border-radius:12px;padding:8px 14px;font-weight:600;font-size:16px;color:var(--is-ink)}

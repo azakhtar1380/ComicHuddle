@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect, useMemo, useRef, useState} from 'react';
-import {ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, Filter, Grid3X3, List, RefreshCw, Search} from 'lucide-react';
+import {Check, ChevronLeft, ChevronRight, Grid3X3, List, Plus, SlidersHorizontal, X} from 'lucide-react';
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
 import './shared-directory.css';
@@ -9,8 +9,9 @@ import ResolvedComicCover from './resolved-comic-cover';
 import ComicPicker from './comic-picker';
 import DirectoryTree from './directory-tree';
 import PublisherFilter from './publisher-filter';
-import ComicCoverPlaceholder from '../components/comic-cover-placeholder';
 import {Portrait} from './issue-showcase';
+import PageHeader from '../components/page-header';
+import {EmptyState, ErrorState, LoadingState} from '../components/states';
 
 type CharacterFilter={id:number;name:string};
 type CharacterHit={characterId:number;name:string;portraitUrl:string|null;issueCount:number|null};
@@ -27,8 +28,21 @@ type Props = {onOpen: (issue: Issue) => void; onWant: (issue: Issue) => void; on
 const pageSize = 12;
 const eras = ['Golden Age', 'Silver Age', 'Bronze Age', 'Copper Age', 'Modern Age'];
 const kinds = ['First appearance', 'Key issue', 'Cover spotlight', 'Series debut', 'Run builder', 'Catalog issue'];
-function DirectoryIssueCard({issue,onOpen}:{issue:Issue;onOpen:(issue:Issue)=>void}) {
- return <article className="sd-card sd-card-shell"><button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'More info about '+issue.title+' #'+issue.number+' · '+issue.publisher} onClick={()=>onOpen(issue)}><span className="sd-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span><span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}</span><span className="sd-more">More info <ArrowUpRight size={14} aria-hidden="true"/></span></span></button></article>;
+/** Per-card save state for "Add to my collection": saving, saved, or an error line. */
+type AddState='saving'|'saved'|{error:string};
+function DirectoryIssueCard({issue,onOpen,owned,state,disabled,onAdd}:{issue:Issue;onOpen:(issue:Issue)=>void;owned:boolean;state?:AddState;disabled:boolean;onAdd:(issue:Issue)=>void}) {
+ const label=issue.title+' #'+issue.number,year=issue.year>0?issue.year:null,problem=state&&typeof state==='object'?state.error:'';
+ return <article className="sd-card">
+  <button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'Open details for '+label+' · '+issue.publisher+(year?' · '+year:'')} onClick={()=>onOpen(issue)}>
+   <span className="sd-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span>
+   <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}{year?' · '+year:''}</span></span>
+  </button>
+  <div className="sd-card-actions">
+   {state==='saved'?<p className="sd-added" role="status"><Check size={16} aria-hidden="true"/> In your collection</p>
+    :<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm sd-add" disabled={disabled||state==='saving'} aria-label={(owned?'Add another copy of ':'Add to my collection: ')+label} onClick={()=>onAdd(issue)}>{state==='saving'?'Adding…':<><Plus size={16} aria-hidden="true"/> {owned?'Add another copy':'Add to my collection'}</>}</button>}
+   {problem&&<p className="ds-error sd-add-error" role="alert"><X size={14} aria-hidden="true"/> {problem}</p>}
+  </div>
+ </article>;
 }
 
 function syncedDate(value: string | null) {
@@ -55,7 +69,22 @@ function catalogPage(value: unknown): CatalogPage {
   return data as CatalogPage;
 }
 
-export default function SharedDirectory({onOpen}: Props) {
+export default function SharedDirectory({onOpen, onCollect, beforeCollection, ownedIds, saving}: Props) {
+  const [sheet,setSheet]=useState(false),[adding,setAdding]=useState<Record<number,AddState>>({});
+  const root=useRef<HTMLElement>(null),filtersRef=useRef<HTMLDivElement>(null);
+  const owned=useMemo(()=>new Set(ownedIds),[ownedIds]);
+  // Uses the same save path as the issue dialog: hub's collect() via onCollect, after the account gate.
+  async function addToCollection(issue:Issue){
+    if(adding[issue.id]==='saving')return;
+    if(beforeCollection&&!beforeCollection())return;
+    setAdding(state=>({...state,[issue.id]:'saving'}));
+    try{await onCollect(issue);setAdding(state=>({...state,[issue.id]:'saved'}))}
+    catch{setAdding(state=>({...state,[issue.id]:{error:'Couldn’t add it. Try again.'}}))}
+  }
+  // Mobile: the search sticks under the site header, whatever height it wraps to.
+  useEffect(()=>{const header=document.querySelector('.site-header'),target=root.current;if(!header||!target)return;const measure=()=>target.style.setProperty('--sd-header',Math.round(header.getBoundingClientRect().height)+'px');measure();if(typeof ResizeObserver==='undefined')return;const observer=new ResizeObserver(measure);observer.observe(header);return()=>observer.disconnect()},[]);
+  // Mobile filter sheet: Escape closes it, focus moves into it.
+  useEffect(()=>{if(!sheet)return;filtersRef.current?.querySelector<HTMLElement>('.sd-sheet-close')?.focus({preventScroll:true});const key=(event:KeyboardEvent)=>{if(event.key==='Escape')setSheet(false)};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key)},[sheet]);
   const [series,setSeries]=useState(''),[matched,setMatched]=useState<Issue|null>(null);
   // Header search deep link: /?section=Directory&q=... (Directory only mounts client-side after navigation)
   const linked = () => typeof window === 'undefined' ? '' : (new URLSearchParams(window.location.search).get('q') || '').trim().slice(0, 120);
@@ -116,28 +145,43 @@ export default function SharedDirectory({onOpen}: Props) {
   const publisherOptions = useMemo(()=>{const available=[...new Set([...(data?.publishers||[]),...(publisher?[publisher]:[])])];const preferred=['Marvel','DC','DC Comics','Image','Image Comics Inc.','Dark Horse','Dark Horse Comics LLC','IDW Publishing','Boom! Studios','Fiction House'].filter(name=>available.includes(name));const chosen=new Set(preferred);return [...preferred,...available.filter(name=>!chosen.has(name))]},[data?.publishers,publisher]);
   const pageNumber = data ? Math.floor(data.offset / data.limit) + 1 : 1;
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
-  return <section className="shared-directory directory-page">
-    <div className="page-intro"><div><div className="eyebrow">THE SHARED COMIC DIRECTORY</div><h1>FIND THE ISSUE.<br/><span>FOLLOW THE STORY.</span></h1><p>Search series, issue numbers, characters, publishers and creators. One directory for every collector.</p></div><div className="index-stamp"><strong>{data ? data.issueCount.toLocaleString('en-US') : '—'}</strong><span>ISSUES IN THE<br/>DIRECTORY</span></div></div>
-    <div className="sd-coverage" aria-live="polite"><BookOpen size={19}/><div><strong>{data ? data.issueCount.toLocaleString('en-US') + ' issues and counting' : 'Loading the directory…'}</strong><p>Every publisher, every era — from Golden Age classics to this week&apos;s releases. Metadata courtesy of the Grand Comics Database and Metron.{data?.lastGcdSyncedAt ? ' Updated ' + syncedDate(data.lastGcdSyncedAt) + '.' : data?.lastSyncedAt ? ' Updated ' + syncedDate(data.lastSyncedAt) + '.' : ''}</p></div></div>
-    <div className="sd-quick-find"><ComicPicker key={publisher+'|'+series} value={matched} label="Search the comic directory" initialQuery={query} onQueryChange={changeQuery} onChange={issue=>{setMatched(issue);if(issue)onOpen(issue)}}/></div>
+  const filterCount=[publisher,series,era,kind].filter(Boolean).length;
+  const filtered=filterCount>0||!!character||!!query.trim();
+  const updated=data?.lastGcdSyncedAt?syncedDate(data.lastGcdSyncedAt):data?.lastSyncedAt?syncedDate(data.lastSyncedAt):'';
+  const retryDirectory=()=>{invalidate();setRetry(value=>value+1)};
+  return <section ref={root} className="shared-directory directory-page">
+    <PageHeader eyebrow="Comic Directory" title="Find any issue." accent="Every era. Every publisher." lede="Search by title, issue, character or creator." pose="directory" caption="THE DIRECTORY" line="Try a character, creator or issue #."/>
+    <div className="sd-search" role="search">
+      <div className="sd-search-field"><ComicPicker key={publisher+'|'+series} value={matched} label="Search the directory" placeholder="Spider-Man, Claremont, #300…" helper="Pick a suggestion to open it, or browse the results below." initialQuery={query} onQueryChange={changeQuery} onChange={issue=>{setMatched(issue);if(issue)onOpen(issue)}}/></div>
+      <button type="button" className="ds-btn ds-btn-secondary sd-filter-toggle" aria-expanded={sheet} aria-controls="sd-filters" onClick={()=>setSheet(true)}><SlidersHorizontal size={18} aria-hidden="true"/> Filters{filterCount>0&&<span className="sd-filter-count" aria-label={filterCount+' active'}>{filterCount}</span>}</button>
+    </div>
+    {character&&<div className="sd-character-filter" role="status"><span>Showing comics with <strong>{character.name}</strong></span><button type="button" onClick={()=>chooseCharacter(null)} aria-label={'Remove the '+character.name+' filter'}>Clear <X size={16} aria-hidden="true"/></button></div>}
+    {shownHits.length>0&&<div className="sd-character-hits" aria-label="Matching characters"><span>Characters</span>{shownHits.map(hit=><button type="button" key={hit.characterId} onClick={()=>chooseCharacter({id:hit.characterId,name:hit.name})}><Portrait name={hit.name} src={hit.portraitUrl} size="sm"/>{hit.name}{hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')}</small>:null}</button>)}</div>}
     <div className="sd-browser"><DirectoryTree key={publisher} publishers={publisherOptions} publisher={publisher} series={series} onPublisher={value=>{invalidate();setPublisher(value);setSeries('');setQuery('');setMatched(null);setOffset(0)}} onSeries={value=>{invalidate();setSeries(value);setQuery('');setMatched(null);setOffset(0)}}/><div className="sd-browser-main">
-    <div className="sd-filters">
+    {sheet&&<button type="button" className="sd-sheet-backdrop" aria-label="Close filters" tabIndex={-1} onClick={()=>setSheet(false)}/>}
+    <div id="sd-filters" ref={filtersRef} className={'sd-filters'+(sheet?' open':'')} role="group" aria-label="Filters">
+      <div className="sd-sheet-head"><h2>Filters</h2><button type="button" className="sd-sheet-close" aria-label="Close filters" onClick={()=>setSheet(false)}><X size={22}/></button></div>
       <PublisherFilter options={publisherOptions} value={publisher} onChange={value=>{setSeries('');changeFilter(setPublisher,value)}}/>
       <label><span>Era</span><select aria-label="Filter era" value={era} onChange={event => changeFilter(setEra, event.target.value)}><option value="">All eras</option>{eras.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       <label><span>Issue type</span><select aria-label="Filter issue type" value={kind} onChange={event => changeFilter(setKind, event.target.value)}><option value="">All types</option>{kinds.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       <label className="sd-sort"><span>Sort</span><select aria-label="Sort directory" value={sort} onChange={event => changeFilter(setSort, event.target.value)}><option value="featured">Featured</option><option value="title">Title A–Z</option><option value="oldest">Oldest first</option><option value="newest">Newest first</option></select></label>
-      <div className="sd-view-toggle" aria-label="Directory layout"><button type="button" aria-label="Grid view" aria-pressed={!list} className={!list ? 'active' : ''} onClick={() => setList(false)}><Grid3X3 size={18}/></button><button type="button" aria-label="List view" aria-pressed={list} className={list ? 'active' : ''} onClick={() => setList(true)}><List size={18}/></button></div>
+      <div className="sd-view-toggle" role="group" aria-label="Directory layout"><button type="button" aria-label="Grid view" aria-pressed={!list} className={!list ? 'active' : ''} onClick={() => setList(false)}><Grid3X3 size={18}/></button><button type="button" aria-label="List view" aria-pressed={list} className={list ? 'active' : ''} onClick={() => setList(true)}><List size={18}/></button></div>
+      <div className="sd-sheet-actions">{filtered&&<button type="button" className="ds-link" onClick={resetFilters}>Clear all</button>}<button type="button" className="ds-btn ds-btn-dark" onClick={()=>setSheet(false)}>{!loading&&data?'Show '+data.total.toLocaleString('en-US')+' result'+(data.total===1?'':'s'):'Show results'}</button></div>
     </div>
-    {character&&<div className="sd-character-filter" role="status"><span>Showing issues featuring <strong>{character.name}</strong></span><button type="button" onClick={()=>chooseCharacter(null)} aria-label={'Remove the '+character.name+' filter'}>Clear ×</button></div>}
-    {shownHits.length>0&&<div className="sd-character-hits" aria-label="Matching characters"><span>Characters</span>{shownHits.map(hit=><button type="button" key={hit.characterId} onClick={()=>chooseCharacter({id:hit.characterId,name:hit.name})}><Portrait name={hit.name} src={hit.portraitUrl} size="sm"/>{hit.name}{hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')}</small>:null}</button>)}</div>}
-    <div className="sd-results-caption"><span role="status">{loading ? 'Searching the shared directory…' : error ? 'Directory unavailable' : data?.total ? `Showing ${data.offset + 1}–${data.offset + data.issues.length} of ${data.total.toLocaleString('en-US')} matches` : 'No matching issues'}</span><span>Confirm edition and printing before collecting.</span></div>
+    <div className="sd-results-caption"><span role="status">{loading ? 'Searching…' : error ? 'Directory unavailable' : data?.total ? `${data.offset + 1}–${data.offset + data.issues.length} of ${data.total.toLocaleString('en-US')} issues` : 'No matching issues'}</span>{filtered&&!loading&&<button type="button" className="ds-link sd-clear" onClick={resetFilters}>Clear search and filters</button>}</div>
+    {!loading&&!error&&!!data?.issues.length&&<p className="sd-edition-note">Make sure the edition and printing match your copy.</p>}
     <div className="sd-results" aria-busy={loading}>
-      {loading ? <div className="sd-state"><span className="sd-spinner" aria-hidden="true"/><h2>Opening the longbox…</h2><p>Loading stored issue records.</p></div> : error ? <div className="sd-state sd-error" role="alert"><BookOpen size={30}/><h2>The index is taking a pause.</h2><p>{error}</p><button type="button" className="button red" onClick={() => {invalidate(); setRetry(value => value + 1);}}><RefreshCw size={16}/> Retry directory</button></div> : data?.issues.length ? <div className={list ? 'sd-list' : 'sd-grid'}>
-        {data.issues.map(issue=><DirectoryIssueCard key={issue.id} issue={issue} onOpen={onOpen}/>)}
-      </div> : <div className="sd-state"><Search size={32}/><h2>{data?.issueCount === 0 ? 'The shared shelves are waiting.' : 'No match in the stored index.'}</h2><p>{data?.issueCount === 0 ? 'No bibliography has been loaded yet. Catalog coverage will appear here after an owner import.' : 'Try another series, creator or filter. You can still enter an unindexed comic manually in My collection.'}</p>{data && data.issueCount > 0 && <button type="button" className="button outline" onClick={resetFilters}>Clear search and filters</button>}</div>}
+      {loading ? <LoadingState message="Searching the directory…"/> : error ? <ErrorState message="Couldn’t load the directory. Try again." action={{label:'Try again',onClick:retryDirectory}}/> : data?.issues.length ? <div className={list ? 'sd-list' : 'sd-grid'}>
+        {data.issues.map(issue=><DirectoryIssueCard key={issue.id} issue={issue} onOpen={onOpen} owned={owned.has(issue.id)} state={adding[issue.id]} disabled={saving} onAdd={issue=>void addToCollection(issue)}/>)}
+      </div> : data?.issueCount === 0 ? <EmptyState title="Still filling up" message="The directory is still filling up. Check back soon."/> : <EmptyState title="No luck." message="Try another search, or add the comic by hand." action={{label:'Clear search and filters',onClick:resetFilters}}/>}
     </div>
-    {!loading && !error && data && data.total > data.limit && <nav className="sd-pagination" aria-label="Directory pages"><button type="button" disabled={data.offset === 0} onClick={() => {invalidate(); setOffset(Math.max(0, data.offset - data.limit));}}><ChevronLeft size={18}/> Previous</button><span>Page {pageNumber.toLocaleString('en-US')} of {totalPages.toLocaleString('en-US')}</span><form className="sd-page-jump" onSubmit={event=>{event.preventDefault();const value=Number(new FormData(event.currentTarget).get('page'));if(Number.isInteger(value)&&value>=1&&value<=totalPages){invalidate();setOffset((value-1)*data.limit)}}}><label htmlFor="directory-page-jump">Go to page</label><input id="directory-page-jump" name="page" type="number" min="1" max={totalPages} required inputMode="numeric" defaultValue={pageNumber}/><button type="submit">Go</button></form><button type="button" disabled={!data.hasMore} onClick={() => {invalidate(); setOffset(data.offset + data.limit);}}>Next <ChevronRight size={18}/></button></nav>}
+    {!loading && !error && data && data.total > data.limit && <nav className="sd-pagination" aria-label="Directory pages"><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={data.offset === 0} onClick={() => {invalidate(); setOffset(Math.max(0, data.offset - data.limit));}}><ChevronLeft size={18}/> Previous</button><span>Page {pageNumber.toLocaleString('en-US')} of {totalPages.toLocaleString('en-US')}</span><form className="sd-page-jump" onSubmit={event=>{event.preventDefault();const value=Number(new FormData(event.currentTarget).get('page'));if(Number.isInteger(value)&&value>=1&&value<=totalPages){invalidate();setOffset((value-1)*data.limit)}}}><label htmlFor="directory-page-jump">Go to page</label><input id="directory-page-jump" name="page" type="number" min="1" max={totalPages} required inputMode="numeric" defaultValue={pageNumber}/><button type="submit" className="ds-btn ds-btn-secondary ds-btn-sm">Go</button></form><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!data.hasMore} onClick={() => {invalidate(); setOffset(data.offset + data.limit);}}>Next <ChevronRight size={18}/></button></nav>}
     </div></div>
-    <div className="sd-attribution"><BookOpen size={20}/><div>{data && data.syncedIssueCount > 0 && <p>Comic metadata adapted from <a href="https://metron.cloud/" target="_blank" rel="noreferrer">Metron</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted Metron metadata retains that license.</p>}{data && (data.gcdIssueCount||0)>0&&<p>Comic metadata adapted from the <a href="https://www.comics.org/" target="_blank" rel="noreferrer">Grand Comics Database</a> for this shared index, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted GCD metadata retains that license.</p>}<p>Cover thumbnails identify the indexed edition. Artwork © the respective publishers and artists; the metadata license does not include artwork. Starter records retain their individual source credits. {data?.coverIssueCount!==undefined&&<>{data.coverIssueCount.toLocaleString('en-US')} records have a cover reference; source availability varies.</>}</p></div></div>
+    <footer className="sd-attribution">
+      {data&&<p className="sd-coverage">{data.issueCount.toLocaleString('en-US')} issues in the directory{updated?' · Updated '+updated:''}</p>}
+      {data && data.syncedIssueCount > 0 && <p>Comic metadata adapted from <a href="https://metron.cloud/" target="_blank" rel="noreferrer">Metron</a>, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted Metron metadata keeps that license.</p>}
+      {data && (data.gcdIssueCount||0)>0&&<p>Comic metadata adapted from the <a href="https://www.comics.org/" target="_blank" rel="noreferrer">Grand Comics Database</a>, licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Adapted GCD metadata keeps that license.</p>}
+      <p>Cover art © its publishers and artists. The metadata license doesn’t cover artwork. Starter records keep their own source credits.{data?.coverIssueCount!==undefined&&<> {data.coverIssueCount.toLocaleString('en-US')} records have a cover so far.</>}</p>
+    </footer>
   </section>;
 }

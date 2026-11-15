@@ -1,8 +1,19 @@
 import {ArrowUpRight} from 'lucide-react';
 import {goCollectComicGuideUrl} from '../lib/value-links';
+import HuddlesGuide from '../components/huddles-guide';
+import './cgc-guide.css';
 
 export default function CgcGuide(){
- return <div className="cgc-guide"><div><span className="eyebrow">CGC VALUES / EXTERNAL PRICE GUIDE</span><h3>GRADED? HEAD TO GOCOLLECT.</h3><p>Search your exact comic, grade and label on GoCollect. Its sign-in or plan requirements apply; values are not imported into ComicHuddle.</p></div><a className="button dark" href={goCollectComicGuideUrl} target="_blank" rel="noopener noreferrer" aria-label="Open the GoCollect comic price guide in a new tab">Open CGC price guide <ArrowUpRight size={18}/></a></div>;
+ return <section className="cgc-guide-card" aria-labelledby="cgc-guide-title">
+  <div className="cgc-guide-copy">
+   <p className="ds-eyebrow">Grading guide</p>
+   <h3 id="cgc-guide-title">Graded comic? <span>Check its value.</span></h3>
+   <p>GoCollect tracks prices for CGC-graded comics. Search your comic, grade and label there.</p>
+   <p className="cgc-guide-note">GoCollect is a separate site. Some features need an account. We don’t copy its prices into ComicHuddle.</p>
+   <a className="ds-btn ds-btn-dark" href={goCollectComicGuideUrl} target="_blank" rel="noopener noreferrer" aria-label="Open the GoCollect price guide (opens in a new tab)">Open the price guide <ArrowUpRight size={18} aria-hidden="true"/></a>
+  </div>
+  <HuddlesGuide pose="grading" caption="GRADING 101" line="Check the corners first." size="md" className="cgc-guide-art"/>
+ </section>;
 }
 
 export function FmvMethod(){

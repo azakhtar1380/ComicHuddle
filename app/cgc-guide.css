@@ -1,0 +1,13 @@
+/* Grading guide card: plain words on the left, Huddles (grading) on the right. */
+.cgc-guide-card{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:32px;align-items:center;background:var(--cream);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);border-radius:2px;padding:24px 32px;margin:0 0 24px}
+.cgc-guide-copy{min-width:0;max-width:620px}
+.cgc-guide-card h3{font:800 clamp(28px,4vw,36px)/1 var(--font-display);text-transform:uppercase;margin:0 0 12px;color:var(--ink)}
+.cgc-guide-card h3 span{color:var(--red)}
+.cgc-guide-card p{font-size:16px;line-height:1.55;color:var(--ink-2,#3a3934);margin:0 0 8px}
+.cgc-guide-card .cgc-guide-note{font-size:14px;color:var(--muted);margin-bottom:16px}
+.cgc-guide-art{width:200px;max-width:100%;justify-self:end}
+@media(max-width:620px){
+ .cgc-guide-card{grid-template-columns:minmax(0,1fr);gap:20px;padding:20px 16px}
+ .cgc-guide-art{order:-1;justify-self:center;width:180px}
+ .cgc-guide-card .ds-btn{width:100%;white-space:normal;text-align:center}
+}

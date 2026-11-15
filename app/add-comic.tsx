@@ -1,6 +1,6 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
-import {BookOpen,Check,Search} from 'lucide-react';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {BookOpen,Check,Search,X} from 'lucide-react';
 import {catalog,type Issue} from '../lib/catalog';
 import type {Vault} from '../lib/vault';
 import ComicPicker from './comic-picker';
@@ -8,39 +8,71 @@ import {SelectedComicList} from './comic-multi-picker';
 import {issueIdentity,listingDirectoryId} from '../lib/shared-catalog';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import {collectionGrade,ownershipFromForm,rawConditions,collectionGrades,slabLabels} from '../lib/collection-entry';
+import HuddlesGuide,{HuddlesArt} from '../components/huddles-guide';
+import './add-comic.css';
 
 type Props={vault:Vault;commit:(vault:Vault)=>Promise<boolean>;saving:boolean;onSaved:()=>void;allowMultiple?:boolean};
 function EntryMode({manual,setManual,disabled}:{manual:boolean;setManual:(value:boolean)=>void;disabled:boolean}){
- return <div className="comic-entry-mode" role="group" aria-label="Comic entry method"><button type="button" aria-pressed={!manual} disabled={disabled} className={!manual?'selected':''} onClick={()=>setManual(false)}><Search size={15}/> Find in directory</button><button type="button" aria-pressed={manual} disabled={disabled} className={manual?'selected':''} onClick={()=>setManual(true)}><BookOpen size={15}/> Unlisted comic</button></div>;
+ return <div className="comic-entry-mode" role="group" aria-label="How do you want to add it?"><button type="button" aria-pressed={!manual} disabled={disabled} className={!manual?'selected':''} onClick={()=>setManual(false)}><Search size={16}/> Search the directory</button><button type="button" aria-pressed={manual} disabled={disabled} className={manual?'selected':''} onClick={()=>setManual(true)}><BookOpen size={16}/> Add by hand</button></div>;
 }
-function ManualFields({title='',issue='',required=true}:{title?:string;issue?:string;required?:boolean}){return <div className="manual-comic-fields"><p className="picker-manual-note">A personal record. You can link the exact directory issue later.</p><label><span className="field-label">Series title<span className="required-mark" aria-hidden="true"> *</span></span><input name="title" defaultValue={title} placeholder="e.g. Amazing Spider-Man" maxLength={160} required={required}/></label><label><span className="field-label">Issue / edition<span className="required-mark" aria-hidden="true"> *</span></span><input name="issue" defaultValue={issue} placeholder="e.g. #300 · second printing" maxLength={40} required={required}/></label></div>}
+function ManualFields({title='',issue='',required=true}:{title?:string;issue?:string;required?:boolean}){return <div className="manual-comic-fields"><p className="ac-help">Just for your collection. You can link it to the directory later.</p><label className="ds-field"><span>Title<span className="required-mark" aria-hidden="true"> *</span></span><input name="title" defaultValue={title} placeholder="e.g. Amazing Spider-Man" maxLength={160} required={required}/></label><label className="ds-field"><span>Issue / edition<span className="required-mark" aria-hidden="true"> *</span></span><input name="issue" defaultValue={issue} placeholder="e.g. #300 · second printing" maxLength={40} required={required}/></label></div>}
+
+/** One numbered section of the form. */
+function Step({n,title,optional=false,art,children}:{n:number;title:string;optional?:boolean;art?:ReactNode;children:ReactNode}){
+ return <section className="ac-step" aria-labelledby={'ac-step-'+n}>
+  <div className="ac-step-head"><span className="ac-step-num" aria-hidden="true">{n}</span><h3 id={'ac-step-'+n}><span className="ac-sr">Step {n}: </span>{title}{optional&&<em> · optional</em>}</h3>{art}</div>
+  <div className="ac-step-body">{children}</div>
+ </section>;
+}
+function Progress({labels,current}:{labels:string[];current:number}){
+ return <ol className="ds-steps ac-progress" aria-label="Steps">{labels.map((label,index)=><li key={label} className={index+1<current?'done':index+1===current?'current':''} aria-current={index+1===current?'step':undefined}><span className="ac-dot" aria-hidden="true">{index+1<current?<Check size={14}/>:index+1}</span>{label}</li>)}</ol>;
+}
+function FormHead({eyebrow,title,lede}:{eyebrow:string;title:string;lede:ReactNode}){
+ return <header className="ac-head"><div className="ac-head-copy"><p className="ds-eyebrow">{eyebrow}</p><h2>{title}</h2><p className="ac-lede">{lede}</p></div><HuddlesGuide pose="add-comic" caption="YOUR LONGBOX" line="Every detail counts." size="md" className="ac-huddles"/></header>;
+}
+const stepLabels=['Pick issue','Condition & grade','Private details'];
+const gradingArt=<HuddlesArt pose="grading" size="sm" className="ac-step-art" decorative/>;
 
 type PendingComic={id:string;title:string;issue:string;directory?:Issue};
 export default function AddComicForm({vault,commit,saving,onSaved,allowMultiple=false}:Props){
- const [entries,setEntries]=useState<PendingComic[]>([]),[multiple,setMultiple]=useState(false),[manual,setManual]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const [entries,setEntries]=useState<PendingComic[]>([]),[multiple,setMultiple]=useState(false),[manual,setManual]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[graded,setGraded]=useState(false);
  const formRef=useRef<HTMLFormElement>(null),submitting=useRef(false),manualId=useRef<string|null>(null);
  const limit=Math.max(0,1000-vault.books.length),disabled=saving||busy;
- function addIssue(issue:Issue|null){if(!issue)return;setError('');if(entries.some(entry=>entry.directory?.id===issue.id)){setError('That issue is already in your list.');return}if(!limit||multiple&&entries.length>=limit){setError('Your collection can hold up to 1,000 owned copies.');return}const next={id:crypto.randomUUID(),title:issue.title,issue:'#'+issue.number,directory:issue};setEntries(previous=>multiple?[...previous,next]:[next])}
- function manualEntry(data:FormData):PendingComic|null{const title=String(data.get('title')||'').trim(),issue=String(data.get('issue')||'').trim();if(!title&&!issue)return null;if(!title||!issue)throw Error('Enter a series title and issue for the unlisted comic.');manualId.current ||= crypto.randomUUID();return {id:manualId.current,title,issue}}
- function addManual(){if(!formRef.current)return;try{const next=manualEntry(new FormData(formRef.current));if(!next)throw Error('Enter the unlisted comic before adding it.');if(!limit||multiple&&entries.length>=limit)throw Error('Your collection can hold up to 1,000 owned copies.');setEntries(previous=>multiple?[...previous,next]:[next]);manualId.current=null;for(const name of ['title','issue']){const field=formRef.current.elements.namedItem(name);if(field instanceof HTMLInputElement)field.value=''}setError('')}catch(problem){setError(problem instanceof Error?problem.message:'Check the comic details.')}}
- return <div className="form-dialog collection-comic-form"><div className="eyebrow">{allowMultiple?'BUILD YOUR LISTING':'YOUR PERSONAL COLLECTION'}</div><h2>ADD YOUR<br/><span>{multiple?'NEXT COMICS.':'NEXT COMIC.'}</span></h2><form ref={formRef} onSubmit={async event=>{
+ function addIssue(issue:Issue|null){if(!issue)return;setError('');if(entries.some(entry=>entry.directory?.id===issue.id)){setError('That comic is already on your list.');return}if(!limit||multiple&&entries.length>=limit){setError('Your collection can hold up to 1,000 comics.');return}const next={id:crypto.randomUUID(),title:issue.title,issue:'#'+issue.number,directory:issue};setEntries(previous=>multiple?[...previous,next]:[next])}
+ function manualEntry(data:FormData):PendingComic|null{const title=String(data.get('title')||'').trim(),issue=String(data.get('issue')||'').trim();if(!title&&!issue)return null;if(!title||!issue)throw Error('Add both a title and an issue number.');manualId.current ||= crypto.randomUUID();return {id:manualId.current,title,issue}}
+ function addManual(){if(!formRef.current)return;try{const next=manualEntry(new FormData(formRef.current));if(!next)throw Error('Type the title and issue first.');if(!limit||multiple&&entries.length>=limit)throw Error('Your collection can hold up to 1,000 comics.');setEntries(previous=>multiple?[...previous,next]:[next]);manualId.current=null;for(const name of ['title','issue']){const field=formRef.current.elements.namedItem(name);if(field instanceof HTMLInputElement)field.value=''}setError('')}catch(problem){setError(problem instanceof Error?problem.message:'Check the comic details.')}}
+ const current=!entries.length&&!manual?1:!graded?2:3;
+ return <div className="form-dialog collection-comic-form ac-form">
+  <FormHead eyebrow={allowMultiple?'Build your listing':'Your collection'} title={multiple?'Add comics':'Add a comic'} lede="Pick the exact issue. What you paid stays private."/>
+  <Progress labels={stepLabels} current={current}/>
+  <form ref={formRef} onSubmit={async event=>{
   event.preventDefault();if(submitting.current)return;setError('');const data=new FormData(event.currentTarget);let chosen=[...entries];
-  try{if(manual){const pending=manualEntry(data);if(pending)chosen=multiple?[...chosen,pending]:[pending]}if(!chosen.length)throw Error('Choose at least one comic from the dropdown, or add an unlisted comic.');if(chosen.length>limit)throw Error('Your collection can hold up to 1,000 owned copies.')}catch(problem){setError(problem instanceof Error?problem.message:'Check your comics.');return}
+  try{if(manual){const pending=manualEntry(data);if(pending)chosen=multiple?[...chosen,pending]:[pending]}if(!chosen.length)throw Error('Pick at least one comic, or add one by hand.');if(chosen.length>limit)throw Error('Your collection can hold up to 1,000 comics.')}catch(problem){setError(problem instanceof Error?problem.message:'Check your comics.');return}
   // Keep copy IDs stable if an acknowledgement is lost and the user retries.
   setEntries(chosen);if(manual){manualId.current=null;for(const name of ['title','issue']){const field=event.currentTarget.elements.namedItem(name);if(field instanceof HTMLInputElement)field.value=''}}
   const copies=chosen.map(entry=>({id:entry.id,title:entry.title,issue:entry.issue,grade:String(data.get('grade')||'').trim(),price:Number(data.get('price')||0),...(entry.directory?issueIdentity(entry.directory):{})}));
   const ids=new Set(copies.map(copy=>copy.id)),books=[...vault.books.filter(copy=>!ids.has(copy.id)),...copies],tradeBookIds=[...vault.tradeBookIds.filter(id=>!ids.has(id)),...(data.get('trade')?copies.map(copy=>copy.id):[])];
   submitting.current=true;setBusy(true);
-  try{if(await commit({...vault,books,tradeBookIds}))onSaved();else setError('The save was not confirmed. Your selected comics are still here. Check the account message before retrying.')}catch{setError('Your comics could not be saved. Your selection is still here; please retry.')}finally{submitting.current=false;setBusy(false)}
+  try{if(await commit({...vault,books,tradeBookIds}))onSaved();else setError('We’re not sure that saved. Your picks are still here. Try again.')}catch{setError('Couldn’t save your comics. Your picks are still here. Try again.')}finally{submitting.current=false;setBusy(false)}
  }}><fieldset className="comic-form-fields" disabled={disabled}>
-  <div className="comic-count-mode"><div className="mp-choice-buttons" role="group" aria-label="Number of comics"><button type="button" className={!multiple?'selected':''} aria-pressed={!multiple} onClick={()=>{setMultiple(false);setEntries(previous=>previous.slice(0,1));setError('')}}>One comic</button><button type="button" className={multiple?'selected':''} aria-pressed={multiple} onClick={()=>{setMultiple(true);setError('')}}>Multiple comics</button></div></div>
-  <EntryMode manual={manual} disabled={disabled} setManual={value=>{setManual(value);setError('');manualId.current=null}}/>
-  {manual?<><ManualFields required={!entries.length}/><button type="button" className="button outline" onClick={addManual}>Add unlisted comic to the list</button></>:<ComicPicker value={null} disabled={disabled} clearOnChoose onChange={addIssue} label="Find a comic in the directory"/>}
-  <SelectedComicList items={entries.map(entry=>({id:entry.id,title:entry.title,issue:entry.issue,cover:entry.directory?.cover,subtitle:entry.directory?[entry.directory.publisher,entry.directory.year||null,entry.directory.variant].filter(Boolean).join(' · '):'Unlisted personal record'}))} disabled={disabled} onRemove={id=>setEntries(previous=>previous.filter(entry=>entry.id!==id))}/>
-  <label>{multiple?'Condition / grading for these copies':'Condition / grading'}<input name="grade" placeholder="e.g. Raw VF or CGC 9.8 Universal" maxLength={80}/></label>
-  <label><span className="field-label">Your private purchase price {multiple?'per comic ':''}(USD)<span className="required-mark" aria-hidden="true"> *</span></span><input name="price" type="number" min="0" max="10000000" step="0.01" defaultValue="0" required/></label>
-  <label className="check-label"><input type="checkbox" name="trade"/> I would consider trading {multiple?'these comics':'this comic'}</label><p className="data-caption">{multiple?'The condition and purchase price above apply to each selected copy. You can edit individual copies afterward. ':''}Every entry is an owned physical copy. Purchase details stay private.</p>
-  {error&&<p className="comic-entry-error" role="alert">{error}</p>}<div className="comic-save-actions"><button className="button red" disabled={disabled||!manual&&!entries.length}>{disabled?'Saving your comics…':allowMultiple?'Save & return to listing':multiple?'Save selected comics':'Save to my collection'} <Check size={16}/></button></div>
+  <Step n={1} title="Pick issue">
+   <div className="comic-count-mode"><div className="mp-choice-buttons" role="group" aria-label="How many comics?"><button type="button" className={!multiple?'selected':''} aria-pressed={!multiple} onClick={()=>{setMultiple(false);setEntries(previous=>previous.slice(0,1));setError('')}}>One comic</button><button type="button" className={multiple?'selected':''} aria-pressed={multiple} onClick={()=>{setMultiple(true);setError('')}}>Several comics</button></div></div>
+   <EntryMode manual={manual} disabled={disabled} setManual={value=>{setManual(value);setError('');manualId.current=null}}/>
+   {manual?<><ManualFields required={!entries.length}/><button type="button" className="ds-btn ds-btn-secondary ac-add-manual" onClick={addManual}>Add to my list</button></>:<ComicPicker value={null} disabled={disabled} clearOnChoose onChange={addIssue} label="Search for your comic" helper="Search by title, issue, year, publisher or character. Pick the exact edition."/>}
+   <SelectedComicList items={entries.map(entry=>({id:entry.id,title:entry.title,issue:entry.issue,cover:entry.directory?.cover,subtitle:entry.directory?[entry.directory.publisher,entry.directory.year||null,entry.directory.variant].filter(Boolean).join(' · '):'Added by hand'}))} disabled={disabled} onRemove={id=>setEntries(previous=>previous.filter(entry=>entry.id!==id))}/>
+  </Step>
+  <Step n={2} title="Condition & grade" art={gradingArt}>
+   <label className="ds-field"><span>{multiple?'Condition or grade for these comics':'Condition or grade'}</span><input name="grade" placeholder="e.g. Raw VF or CGC 9.8 Universal" maxLength={80} onInput={event=>setGraded(!!event.currentTarget.value.trim())}/><small>Raw (like VF) or slabbed (like CGC 9.8). Leave it blank if you’re not sure.</small></label>
+  </Step>
+  <Step n={3} title="Private details" optional>
+   <label className="ds-field"><span>What you paid {multiple?'per comic ':''}(USD)<span className="required-mark" aria-hidden="true"> *</span></span><input name="price" type="number" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue="0" required/><small>Only you can see this. Leave it at 0 if you’d rather not say.</small></label>
+   <label className="check-label ac-check"><input type="checkbox" name="trade"/> I’m open to trading {multiple?'these comics':'this comic'}</label>
+   <p className="ac-help">{multiple?'This condition and price apply to every comic you picked. You can change each one later. ':''}Only add comics you own.</p>
+  </Step>
+  <div className="ac-save-bar">
+   {error&&<p className="ds-error ac-error" role="alert"><X size={16} aria-hidden="true"/> {error}</p>}
+   <button type="submit" className="ds-btn ds-btn-primary ac-save" disabled={disabled||!manual&&!entries.length}>{disabled?'Saving…':allowMultiple?'Save & back to listing':multiple?'Save comics':'Save to my collection'} <Check size={18}/></button>
+  </div>
  </fieldset></form></div>;
 }
 
@@ -49,22 +81,43 @@ export function OwnedComicForm({vault,bookId,commit,saving,listed,onSaved}:Props
  const [format,setFormat]=useState<'RAW'|'GRADED'>(copy.ownership?.format||'RAW');
  const [selected,setSelected]=useState<Issue|null>(copy.catalogId!==undefined?catalog[copy.catalogId]??null:null),[manual,setManual]=useState(copy.catalogId===undefined&&!copy.externalCatalog),[unlink,setUnlink]=useState(false),[error,setError]=useState('');
  const linkedLookup=useRef(0);
- useEffect(()=>{if(!copy.externalCatalog)return;const lookup=++linkedLookup.current,controller=new AbortController(),directoryId=listingDirectoryId(copy);let active=true;void fetch('/api/catalog?id='+directoryId,{signal:controller.signal}).then(async r=>{if(!r.ok)throw Error();const page=parseCatalogSearchPage(await r.json());if(!page.issues[0]||page.issues[0].id!==directoryId)throw Error();return page.issues[0]}).then(issue=>{if(active&&linkedLookup.current===lookup)setSelected(issue)}).catch(()=>{if(active&&linkedLookup.current===lookup){setManual(true);setError('The linked source record is not in the shared directory yet. You can keep this copy as a personal record.')}});return()=>{active=false;controller.abort()}},[copy.id]);
- return <div className="form-dialog collection-comic-form"><div className="eyebrow">YOUR ACTUAL COPY / YOUR OWN ESTIMATE</div><h2>THE DETAILS<br/><span>MATTER.</span></h2><p>{copy.title} {copy.issue}</p><form onSubmit={async event=>{
-  event.preventDefault();setError('');if(listed){setError('Withdraw or cancel the active listing before changing this copy’s recorded details.');return}if(!manual&&!selected){setError('Choose the exact directory issue or select Unlisted comic.');return}
+ useEffect(()=>{if(!copy.externalCatalog)return;const lookup=++linkedLookup.current,controller=new AbortController(),directoryId=listingDirectoryId(copy);let active=true;void fetch('/api/catalog?id='+directoryId,{signal:controller.signal}).then(async r=>{if(!r.ok)throw Error();const page=parseCatalogSearchPage(await r.json());if(!page.issues[0]||page.issues[0].id!==directoryId)throw Error();return page.issues[0]}).then(issue=>{if(active&&linkedLookup.current===lookup)setSelected(issue)}).catch(()=>{if(active&&linkedLookup.current===lookup){setManual(true);setError('This issue isn’t in the directory yet. You can still keep it.')}});return()=>{active=false;controller.abort()}},[copy.id]);
+ return <div className="form-dialog collection-comic-form ac-form">
+  <FormHead eyebrow="Your copy" title="Edit comic" lede={<>{copy.title} {copy.issue}<br/>Pick the exact issue. What you paid stays private.</>}/>
+  <Progress labels={stepLabels} current={manual||selected?2:1}/>
+  <form onSubmit={async event=>{
+  event.preventDefault();setError('');if(listed){setError('This comic is listed for sale. Take down the listing to edit it.');return}if(!manual&&!selected){setError('Pick the exact issue, or choose Add by hand.');return}
   const data=new FormData(event.currentTarget),{catalogId:previous,externalCatalog:previousExternal,...own}=copy;void previous;
   const title=manual?String(data.get('title')).trim():selected!.title,issue=manual?String(data.get('issue')).trim():'#'+selected!.number;
   const identity=!manual?issueIdentity(selected!):previousExternal&&!unlink&&title===copy.title&&issue===copy.issue?{externalCatalog:previousExternal}:{};
-  let ownership=copy.ownership;try{if(ownership)ownership=ownershipFromForm(data,format)}catch{setError('Check the recorded condition, grade, certification, purchase price and acquisition date.');return}
+  let ownership=copy.ownership;try{if(ownership)ownership=ownershipFromForm(data,format)}catch{setError('Check the condition, grade, cert number, price and date.');return}
   const updated={...own,condition:undefined,title,issue,grade:ownership?collectionGrade(ownership):String(data.get('grade')||'').trim(),price:Number(data.get('price')),...identity,...(ownership?{ownership}:{})};
   if(await commit({...vault,books:vault.books.map(book=>book.id===bookId?updated:book)}))onSaved();
  }}><fieldset className="comic-form-fields" disabled={saving||listed}>
-  {listed&&<p className="comic-entry-error">This copy is included in an active listing. Withdraw or cancel that listing before editing its details.</p>}
-  <EntryMode manual={manual} disabled={saving||listed} setManual={value=>{linkedLookup.current++;setManual(value);setUnlink(value);setSelected(null);setError('')}}/>
-  {manual?<ManualFields title={copy.title} issue={copy.issue}/>:<ComicPicker value={selected} disabled={saving||listed} onChange={issue=>{linkedLookup.current++;setSelected(issue);setError('')}}/>}
-  {copy.ownership?<><label>Copy format<select value={format} onChange={event=>setFormat(event.target.value as 'RAW'|'GRADED')}><option value="RAW">Raw / ungraded</option><option value="GRADED">CGC graded</option></select></label>{format==='RAW'?<label>Owner-stated condition<select name="rawCondition" defaultValue={copy.ownership.rawCondition||''}><option value="">Condition not recorded</option>{rawConditions.map(value=><option value={value} key={value}>{value.replaceAll('_',' ')}</option>)}</select></label>:<><label><span className="field-label">CGC grade<span className="required-mark" aria-hidden="true"> *</span></span><select name="grade" defaultValue={copy.ownership.grade||''} required><option value="" disabled>Select grade</option>{collectionGrades.map(value=><option key={value}>{value}</option>)}</select></label><label>Label<select name="labelType" defaultValue={copy.ownership.labelType||'Universal'}>{slabLabels.map(value=><option key={value}>{value}</option>)}</select></label><label><span className="field-label">Certification number<span className="required-mark" aria-hidden="true"> *</span></span><input name="certificationNumber" inputMode="numeric" pattern="[0-9]{5,20}" maxLength={20} defaultValue={copy.ownership.certificationNumber||''} required/></label></>}<label>Purchase price (USD, optional)<input name="purchasePrice" inputMode="decimal" defaultValue={copy.ownership.purchasePriceCents===null?'':(Number(copy.ownership.purchasePriceCents)/100).toFixed(2)}/></label><label>Acquired on<input name="acquiredOn" type="date" defaultValue={copy.ownership.acquiredOn||''}/></label><label>Private ownership notes<textarea name="notes" maxLength={500} defaultValue={copy.ownership.notes}/></label><p className="data-caption">Certification details are owner stated. Purchase details and notes stay private.</p></>:<label><span className="field-label">Condition / grading<span className="required-mark" aria-hidden="true"> *</span></span><input name="grade" maxLength={80} defaultValue={copy.grade} placeholder="e.g. Raw VF or CGC 9.8 Universal" required disabled={listed}/></label>}
-  <label><span className="field-label">Your private purchase price (USD)<span className="required-mark" aria-hidden="true"> *</span></span><input name="price" type="number" min="0" max="10000000" step="0.01" defaultValue={copy.price} required disabled={listed}/></label>
-  <p className="data-caption">Choose the exact issue, year and edition. Your purchase price stays private.</p>
-  {error&&<p className="comic-entry-error" role="alert">{error}</p>}<button className="button red" disabled={saving||listed||!manual&&!selected}>Save comic details <Check size={16}/></button>
+  {listed&&<p className="ds-error ac-error ac-listed" role="status"><X size={16} aria-hidden="true"/> This comic is listed for sale. Take down the listing to edit it.</p>}
+  <Step n={1} title="Pick issue">
+   <EntryMode manual={manual} disabled={saving||listed} setManual={value=>{linkedLookup.current++;setManual(value);setUnlink(value);setSelected(null);setError('')}}/>
+   {manual?<ManualFields title={copy.title} issue={copy.issue}/>:<ComicPicker value={selected} disabled={saving||listed} label="Search for your comic" onChange={issue=>{linkedLookup.current++;setSelected(issue);setError('')}}/>}
+  </Step>
+  <Step n={2} title="Condition & grade" art={gradingArt}>
+   {copy.ownership?<>
+    <label className="ds-field"><span>Raw or graded?</span><select value={format} onChange={event=>setFormat(event.target.value as 'RAW'|'GRADED')}><option value="RAW">Raw / ungraded</option><option value="GRADED">CGC graded</option></select></label>
+    {format==='RAW'?<label className="ds-field"><span>Condition</span><select name="rawCondition" defaultValue={copy.ownership.rawCondition||''}><option value="">Not set</option>{rawConditions.map(value=><option value={value} key={value}>{value.replaceAll('_',' ')}</option>)}</select></label>
+     :<><label className="ds-field"><span>CGC grade<span className="required-mark" aria-hidden="true"> *</span></span><select name="grade" defaultValue={copy.ownership.grade||''} required><option value="" disabled>Pick a grade</option>{collectionGrades.map(value=><option key={value}>{value}</option>)}</select></label><label className="ds-field"><span>Label type</span><select name="labelType" defaultValue={copy.ownership.labelType||'Universal'}>{slabLabels.map(value=><option key={value}>{value}</option>)}</select></label><label className="ds-field"><span>Cert number<span className="required-mark" aria-hidden="true"> *</span></span><input name="certificationNumber" inputMode="numeric" pattern="[0-9]{5,20}" maxLength={20} defaultValue={copy.ownership.certificationNumber||''} required/><small>On the CGC label. 5 to 20 digits.</small></label></>}
+   </>:<label className="ds-field"><span>Condition or grade<span className="required-mark" aria-hidden="true"> *</span></span><input name="grade" maxLength={80} defaultValue={copy.grade} placeholder="e.g. Raw VF or CGC 9.8 Universal" required disabled={listed}/><small>Raw (like VF) or slabbed (like CGC 9.8).</small></label>}
+  </Step>
+  <Step n={3} title="Private details" optional>
+   <label className="ds-field"><span>What you paid (USD)<span className="required-mark" aria-hidden="true"> *</span></span><input name="price" type="number" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={copy.price} required disabled={listed}/><small>Only you can see this.</small></label>
+   {copy.ownership&&<>
+    <label className="ds-field"><span>Purchase price for your records (USD)</span><input name="purchasePrice" inputMode="decimal" defaultValue={copy.ownership.purchasePriceCents===null?'':(Number(copy.ownership.purchasePriceCents)/100).toFixed(2)}/></label>
+    <label className="ds-field"><span>Date you got it</span><input name="acquiredOn" type="date" defaultValue={copy.ownership.acquiredOn||''}/></label>
+    <label className="ds-field"><span>Private notes</span><textarea name="notes" maxLength={500} rows={3} defaultValue={copy.ownership.notes}/></label>
+   </>}
+   <p className="ac-help">Prices and notes are only visible to you.</p>
+  </Step>
+  <div className="ac-save-bar">
+   {error&&<p className="ds-error ac-error" role="alert"><X size={16} aria-hidden="true"/> {error}</p>}
+   <button type="submit" className="ds-btn ds-btn-primary ac-save" disabled={saving||listed||!manual&&!selected}>Save changes <Check size={18}/></button>
+  </div>
  </fieldset></form></div>;
 }

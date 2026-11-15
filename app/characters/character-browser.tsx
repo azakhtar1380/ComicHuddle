@@ -35,7 +35,7 @@ export default function CharacterBrowser(){
   {fresh&&items.list.length>0&&<div className="cp-people">{items.list.map(hit=><a key={hit.characterId} href={'/characters/'+hit.characterId} className="cp-person">
    <Portrait name={hit.name} src={hit.portraitUrl} size="lg"/>
    <strong>{hit.name}</strong>
-   {hit.firstAppearance?<small><Star size={12} fill="currentColor"/> {hit.firstAppearance.title} #{hit.firstAppearance.number}{hit.firstAppearance.year?' ('+hit.firstAppearance.year+')':''}</small>:hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')} comics</small>:<small className="cp-faint">Details coming soon</small>}
+   {hit.firstAppearance?<small><Star size={12} fill="currentColor"/> {hit.firstAppearance.title} #{hit.firstAppearance.number}{hit.firstAppearance.year?' ('+hit.firstAppearance.year+')':''}</small>:hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')} comics</small>:<small className="cp-faint">Details on the way</small>}
   </a>)}</div>}
   {fresh&&!searching&&items.list.length<items.total&&<div className="cp-pager"><button type="button" disabled={loading} onClick={()=>{setItems(previous=>({...previous,loadingMore:true}));setOffset(items.list.length)}}>{loading?'Loading…':'Show more characters'}</button></div>}
   <p className="cp-source">Character data: Metron (metron.cloud) · Wikidata (CC0). New characters and portraits are added daily.</p>
