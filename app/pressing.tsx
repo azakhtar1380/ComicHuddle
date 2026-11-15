@@ -50,9 +50,9 @@ export default function PressRoom({tab,signedIn,net,vault,gate:parentGate,notice
   catch(e){if(ticket===request.current)setError(e instanceof Error?e.message:'Couldn’t load studios. Try again.')}
   finally{if(ticket===request.current){setReady(true);setRefreshing(false)}}
  },[location,radius]);
- useEffect(()=>{const requests=request;const timer=tab==='Pressing'&&signedIn?setTimeout(()=>void refresh(),0):undefined;return()=>{clearTimeout(timer);requests.current++}},[tab,signedIn,me?.id,refresh]);
+ useEffect(()=>{const requests=request;const timer=tab==='Pressing'?setTimeout(()=>void refresh(),0):undefined;return()=>{clearTimeout(timer);requests.current++}},[tab,signedIn,me?.id,refresh]);
  useEffect(()=>{if(tab!=='Pressing')syncStudioUrl(null,urlOwned)},[tab]);
- useEffect(()=>{if(tab!=='Pressing'||!signedIn||!ready||deepLinked.current)return;const target=new URLSearchParams(window.location.search).get('provider');if(target){deepLinked.current=true;urlOwned.current=true;void openProvider(target)}},[tab,signedIn,ready]);
+ useEffect(()=>{if(tab!=='Pressing'||!ready||deepLinked.current)return;const target=new URLSearchParams(window.location.search).get('provider');if(target){deepLinked.current=true;urlOwned.current=true;void openProvider(target)}},[tab,signedIn,ready]);
  // Header/account shortcuts ("My requests", "List your studio"…) arrive as a numbered command from the hub.
  const [seenCommand,setSeenCommand]=useState(command.id);
  if(command.id!==seenCommand){setSeenCommand(command.id);setDetail(null);setQuoteFor(null);setJob(null);setReviewFor(null);setReport(null);setEditing(command.view==='register');setView(command.view==='register'||command.view==='provider'||command.view==='studio'?'studio':command.view==='requests'?'requests':'find')}
@@ -77,7 +77,7 @@ export default function PressRoom({tab,signedIn,net,vault,gate:parentGate,notice
  }
  function startQuote(p:Provider){if(!gate())return;setDetail(null);setQuoteFor(p);window.scrollTo?.({top:0,behavior:'smooth'})}
  function registerStudio(){if(!me){onRegister();return}if(!gate())return;closeAll();setView('studio');setEditing(true)}
- function browse(){if(!signedIn){gate();return}closeAll();setEditing(false);setView('find');requestAnimationFrame(()=>document.getElementById('ws-results')?.scrollIntoView({behavior:'smooth',block:'start'}))}
+ function browse(){closeAll();setEditing(false);setView('find');requestAnimationFrame(()=>document.getElementById('ws-results')?.scrollIntoView({behavior:'smooth',block:'start'}))}
  function backToDirectory(){selection.current++;setDetail(null);syncStudioUrl(null,urlOwned)}
 
  const customerJobs=data.jobs.filter(j=>!j.isProvider),providerJobs=data.jobs.filter(j=>j.isProvider);
@@ -88,13 +88,13 @@ export default function PressRoom({tab,signedIn,net,vault,gate:parentGate,notice
  return <div className="ws">
   <PageHeader eyebrow="Comic Workshop" title="Good books." accent="Careful hands." lede="Find trusted studios to press, clean and prep your comics for grading. Free quotes, tracked start to finish." pose="workshop" line="Ask for a quote before you ship anything."
    actions={<><button type="button" className="ds-btn ds-btn-primary" onClick={browse}><Search size={17} aria-hidden="true"/> Find a studio</button><button type="button" className="ds-link" onClick={registerStudio}>{data.mine?'Manage my studio':'List your studio, free'}</button></>}/>
-  <nav className="ws-tabs" aria-label="Comic Workshop">{([['find','Discover',Search,0],['requests','My requests',Package,openCount(customerJobs)],['studio','My studio',Wrench,openCount(providerJobs)]] as const).map(([id,name,Icon,count])=><button key={id} type="button" aria-current={view===id?'page':undefined} className={view===id?'active':''} onClick={()=>{closeAll();setEditing(false);setView(id)}}><Icon size={17} aria-hidden="true"/>{name}{count>0&&<b aria-label={count+' open'}>{count}</b>}</button>)}</nav>
+  <nav className="ws-tabs" aria-label="Comic Workshop">{([['find','Discover',Search,0],['requests','My requests',Package,openCount(customerJobs)],['studio','My studio',Wrench,openCount(providerJobs)]] as const).map(([id,name,Icon,count])=><button key={id} type="button" aria-current={view===id?'page':undefined} className={view===id?'active':''} onClick={()=>{if(id!=='find'&&!signedIn){gate();return}closeAll();setEditing(false);setView(id)}}><Icon size={17} aria-hidden="true"/>{name}{count>0&&<b aria-label={count+' open'}>{count}</b>}</button>)}</nav>
 
   {!signedIn&&<SignedOutIntro onJoin={()=>{gate()}}/>}
-  {signedIn&&error&&<div className="ws-error"><ErrorState compact message={error} action={{label:refreshing?'Trying again…':'Retry',onClick:()=>void refresh()}}/></div>}
-  {signedIn&&!ready&&!error&&<LoadingState message="Loading studios…"/>}
+  {error&&<div className="ws-error"><ErrorState compact message={error} action={{label:refreshing?'Trying again…':'Retry',onClick:()=>void refresh()}}/></div>}
+  {!ready&&!error&&<LoadingState message="Loading studios…"/>}
 
-  {signedIn&&ready&&view==='find'&&<>
+  {ready&&view==='find'&&<>
    {findStep==='directory'&&<WorkshopDiscover providers={data.providers} hasMore={data.hasMore} refreshing={refreshing} filters={filters} setFilters={setFilters} memory={memory} meId={me?.id} meLocation={me?.location} hasStudio={!!data.mine} onOpen={id=>void openProvider(id)} onRegister={registerStudio}/>}
    {findStep==='profile'&&detail&&<StudioProfile detail={detail} meId={me?.id} busy={busy} saved={memory.isSaved(detail.provider.id)} onToggleSave={()=>memory.toggleSaved(detail.provider.id)} notice={notice} onBack={backToDirectory} onQuote={()=>startQuote(detail.provider)} onEdit={registerStudio}
      onReview={()=>{if(gate())setReviewFor(detail.provider)}} onReport={(type,id)=>{if(gate())setReport({type,id})}}
@@ -146,7 +146,7 @@ function SignedOutIntro({onJoin}:{onJoin:()=>void}){
    <li><b>Ask for a free quote</b><span>Pick comics from your collection. The studio replies with a price and timeline.</span></li>
    <li><b>Track every step</b><span>Shipping, intake, care and return, with photos, in one private record.</span></li>
   </ol>
-  <EmptyState compact title="Sign in to browse studios" message="It’s free. Search studios, read reviews and ask for quotes." action={{label:'Sign in or join free',onClick:onJoin}}/>
+  <p className="ws-guest-note">Browse every studio freely. <button type="button" className="ds-link" onClick={onJoin}>Sign in or join free</button> to ask for a quote or message a studio.</p>
  </section>;
 }
 

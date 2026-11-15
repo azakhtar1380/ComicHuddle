@@ -476,3 +476,4 @@
 .ws section:not(.ws-pro-band):not(.ws-improve){padding:0}
 .ws-jobs button>.ws-job-main{flex:1 1 220px}
 @media (max-width:760px){.ws-jobs button>.ws-job-main{flex-basis:calc(100% - 40px)}.ws-jobs button>.ws-job-state{flex:1 1 auto}}
+.ws-guest-note{margin:14px 0 0;font-size:15px;color:var(--ink-2,#3a3935)}

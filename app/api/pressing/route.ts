@@ -65,9 +65,11 @@ async function commitCareEvent(db:Db,job:JobRow,actor:P,update:Partial<JobRow>,s
 async function ownJob(db:Db,jobId:string,p:P){const [j]=await db.select().from(careJobs).where(eq(careJobs.id,jobId));return j&&[j.providerProfileId,j.requesterId].includes(p.id)?j:null}
 
 export async function GET(req:Request){try{
- const u=await getChatGPTUser();if(!u)return json({error:'Sign in to open Comic Workshop.'},401);
- const db=getDb(),url=new URL(req.url);const [me]=await db.select().from(profiles).where(eq(profiles.userId,u.userId));
+ // Guests may browse public studios (providerDto strips private intake details); requests need an account.
+ const u=await getChatGPTUser();
+ const db=getDb(),url=new URL(req.url);const [me]=u?await db.select().from(profiles).where(eq(profiles.userId,u.userId)):[];
  if(url.searchParams.get('kind')==='job'){
+  if(!u)return json({error:'Sign in to open your workshop requests.'},401);
   if(!me)return json({error:'Create your free collector profile first.'},403);
   const j=await ownJob(db,url.searchParams.get('id')||'',me);if(!j)return json({error:'Request not found.'},404);
   const rows=await db.select().from(careEvents).where(eq(careEvents.jobId,j.id)).orderBy(careEvents.createdAt);

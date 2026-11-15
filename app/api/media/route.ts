@@ -41,7 +41,10 @@ export async function GET(req:Request){try{
   ))).limit(1):[];
   // Narrow catalog-cover exception: a listing's front photo (active or sold) for a Directory
   // issue, or an approved collector cover. Every other sold-listing photo stays private.
-  if(!listed&&!await isPublicCoverPhoto(db,id))return json('Photo not found.',404);
+  // Public Comic Workshop studios: their logo and before/after portfolio photos.
+  let studioPhoto=false;
+  if(!listed&&owner.visible){const [provider]=await db.select().from(careProviders).where(eq(careProviders.profileId,owner.id));if(provider?.visible&&!provider.moderated)studioPhoto=provider.logoId===id||(JSON.parse(provider.portfolio) as {before:string;after:string}[]).some(p=>p.before===id||p.after===id)}
+  if(!listed&&!studioPhoto&&!await isPublicCoverPhoto(db,id))return json('Photo not found.',404);
   return photoResponse(req,id,asset.contentType);
  }
  let shared=asset.userId===user.userId;
