@@ -1,15 +1,15 @@
 'use client';
 import Link from 'next/link';
 import {useEffect,useState} from 'react';
-import {BookOpen,Camera,ChevronDown,Clock3,Home,Lock,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
+import {BookOpen,Camera,ChevronDown,Clock3,Home,Lock,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,User,Users,Wallet,Wrench} from 'lucide-react';
 import MobileDock from './mobile-dock';
 import HeaderSearch from './header-search';
 import {publicSection} from '../lib/section-navigation';
 import './site-header.css';
 
 type Props={section?:string;name?:string;signedIn?:boolean;sessionKnown?:boolean;scanOpen?:boolean;drawerOpen?:boolean;messageCount?:number;onNavigate?:(section:string)=>void;onScan?:()=>void;onMessages?:()=>void;onAccount?:()=>void;standalone?:boolean};
-const entries=[{id:'Home',label:'Home',Icon:Home},{id:'Marketplace',label:'Shop',Icon:ShoppingBag},{id:'Directory',label:'Comic Directory',Icon:BookOpen},{id:'Pressing',label:'Comic Workshop',Icon:Wrench},{id:'Wallet',label:'Wallet & Rewards',Icon:Wallet},{id:'Collectors',label:'My Collection',Icon:User}];
-const destination=(section:string)=>section==='Home'?'/':section==='Wallet'?'/wallet':'/?'+new URLSearchParams({section:publicSection(section)});
+const entries=[{id:'Home',label:'Home',Icon:Home},{id:'Marketplace',label:'Shop',Icon:ShoppingBag},{id:'Directory',label:'Comic Directory',Icon:BookOpen},{id:'Characters',label:'Characters',Icon:Users},{id:'Pressing',label:'Comic Workshop',Icon:Wrench},{id:'Wallet',label:'Wallet & Rewards',Icon:Wallet},{id:'Collectors',label:'My Collection',Icon:User}];
+const destination=(section:string)=>section==='Home'?'/':section==='Wallet'?'/wallet':section==='Characters'?'/characters':'/?'+new URLSearchParams({section:publicSection(section)});
 
 /** One professional storefront header shared by every page. */
 export default function SiteHeader({section='Home',name='Collector',signedIn=false,sessionKnown=false,scanOpen=false,drawerOpen=false,messageCount=0,onNavigate,onScan,onMessages,onAccount,standalone=false}:Props){
@@ -39,7 +39,7 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
     </div>
    </div>
    <nav className="ch-nav" aria-label="Main navigation"><div className="ch-wrap">
-    {entries.map(({id,label,Icon})=>{const active=section===id||(id==='Collectors'&&section==='My Profile'),className='site-nav-item'+(active?' nav-active':'');return onNavigate&&id!=='Wallet'?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}><Icon size={16}/><span>{label}</span></button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}><Icon size={16}/><span>{label}</span></Link>})}
+    {entries.map(({id,label,Icon})=>{const active=section===id||(id==='Collectors'&&section==='My Profile'),className='site-nav-item'+(active?' nav-active':'');return onNavigate&&id!=='Wallet'&&id!=='Characters'?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}><Icon size={16}/><span>{label}</span></button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}><Icon size={16}/><span>{label}</span></Link>})}
     <Link href="/upcoming" className={'site-nav-item'+(section==='Upcoming'?' nav-active':'')} aria-current={section==='Upcoming'?'page':undefined}><Clock3 size={16}/><span>Coming Soon</span></Link>
    </div></nav>
   </header>

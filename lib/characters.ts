@@ -313,3 +313,32 @@ export async function characterPage(db:CatalogDb,characterId:number):Promise<Cha
   firstAppearance:r.issue_id&&r.series?{issueId:Number(r.issue_id),title:String(r.series),number:String(r.number??''),year:r.year===null||r.year===undefined?null:Number(r.year),publisher:r.publisher?String(r.publisher):null}:null,
   source:[r.metron_id?'Metron (metron.cloud)':null,r.wikidata_qid?'Wikidata (CC0)':null].filter(Boolean).join(' · ')||'ComicHuddle'};
 }
+
+/** Character browse for /characters: popular (portraits and most appearances first) or A–Z, optional first letter. */
+export type CharacterBrowse={characters:CharacterSearchResult[];total:number;offset:number;limit:number};
+export function characterBrowseParams(params:URLSearchParams):{letter:string|null;sort:'popular'|'az';offset:number;limit:number}|null{
+ const allowed=['letter','sort','offset','limit'];if([...params.keys()].some(k=>!allowed.includes(k)))return null;
+ const letter=params.get('letter'),sort=params.get('sort')||'popular',offset=Number(params.get('offset')||0),limit=Number(params.get('limit')||24);
+ if(letter!==null&&!/^([a-z]|#)$/i.test(letter))return null;
+ if(sort!=='popular'&&sort!=='az')return null;
+ if(!Number.isSafeInteger(offset)||offset<0||offset>200000||!Number.isSafeInteger(limit)||limit<1||limit>60)return null;
+ return {letter:letter?letter.toLowerCase():null,sort,offset,limit};
+}
+export async function browseCharacters(db:CatalogDb,options:{letter:string|null;sort:'popular'|'az';offset:number;limit:number}):Promise<CharacterBrowse>{
+ const empty={characters:[],total:0,offset:options.offset,limit:options.limit};
+ if(!await characterTablesPresent(db).catch(()=>false))return empty;
+ const letter=options.letter==='#'?sql`AND lower(c.name) !~ '^[a-z]'`:options.letter?sql`AND lower(c.name) LIKE ${options.letter+'%'}`:sql``;
+ // Wikidata-only minor entries (few sitelinks, no Metron record) are left out of browsing; they stay searchable.
+ const visible=sql`c.merged_into IS NULL AND (c.metron_id IS NOT NULL OR COALESCE(c.sitelinks,0)>3) ${letter}`;
+ const order=options.sort==='az'?sql`lower(c.name),c.character_id`:sql`(c.portrait_key IS NULL),c.issue_count DESC NULLS LAST,c.sitelinks DESC NULLS LAST,lower(c.name),c.character_id`;
+ const [count,rows]=await Promise.all([
+  db.execute(sql`SELECT count(*)::integer AS n FROM ch_web.characters c WHERE ${visible}`),
+  db.execute(sql`WITH page AS (SELECT c.character_id,c.name,c.portrait_key,c.issue_count FROM ch_web.characters c WHERE ${visible} ORDER BY ${order} LIMIT ${options.limit} OFFSET ${options.offset})
+   SELECT p.*,f.issue_id,s.name AS series,i.number,CASE WHEN i.key_date ~ '^[0-9]{4}' THEN substring(i.key_date,1,4)::integer END AS year FROM page p
+   LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=p.character_id AND issue_id IS NOT NULL AND NOT suppressed ORDER BY (source='metron') DESC LIMIT 1) f ON true
+   LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET} LEFT JOIN gcd.gcd_series s ON s.id=i.series_id`)]);
+ const base=metronCoverCdnBase(),position=new Map<number,number>();
+ const list=rows.rows.map((r,index)=>{position.set(Number(r.character_id),index);return {characterId:Number(r.character_id),name:String(r.name),portraitUrl:portraitUrl(r.portrait_key,base),issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),
+  firstAppearance:r.issue_id&&r.series?{issueId:Number(r.issue_id),title:String(r.series),number:String(r.number??''),year:r.year===null||r.year===undefined?null:Number(r.year)}:null}});
+ return {characters:list,total:Number(count.rows[0]?.n||0),offset:options.offset,limit:options.limit};
+}

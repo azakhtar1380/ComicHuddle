@@ -18,3 +18,39 @@
 .mobile-scan-dock>a{text-decoration:none}
 
 .mobile-scan-dock>a{display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+/* v2: Home · Shop · SCAN · Directory · More (comic-page sheet with every section). */
+@media(max-width:1050px){
+ .mobile-bottom.mobile-scan-dock.dock-v2,html[data-app-view=true] .mobile-bottom.mobile-scan-dock.dock-v2{grid-template-columns:repeat(2,minmax(52px,1fr)) 64px repeat(2,minmax(52px,1fr))}
+ .mobile-scan-dock.dock-v2>:is(button,a){font-size:10px}
+ .mobile-scan-dock.dock-v2>:is(button,a)[aria-current=page]{color:var(--red)}
+ .mobile-scan-dock.dock-v2>:is(button,a)[aria-current=page]>svg{stroke-width:2.6}
+ .dock-more.open{background:var(--yellow)}
+}
+.dock-sheet{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-width:560px;margin-inline:auto;max-height:88vh;padding:0;border:0;background:transparent;overflow:visible}
+.dock-sheet::backdrop{background:rgba(20,18,14,.62)}
+.dock-sheet[open]{animation:dock-rise .22s ease-out}
+@keyframes dock-rise{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.dock-sheet[open]{animation:none}}
+.dock-page{background:#fffdf7;border:3px solid var(--ink,#20201f);border-bottom:0;border-radius:20px 20px 0 0;padding:16px 14px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;
+ background-image:radial-gradient(rgba(32,32,31,.09) 1px,transparent 1.2px);background-size:9px 9px}
+.dock-page-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 4px 14px}
+.dock-page-head h2{margin:0;font:800 30px/1 'Barlow Condensed',Impact,sans-serif;text-transform:uppercase;letter-spacing:.3px;color:var(--ink,#20201f);transform:rotate(-1.5deg)}
+.dock-page-head h2>span{display:inline-block;background:var(--yellow,#efd369);border:2px solid var(--ink,#20201f);padding:2px 8px;margin-right:6px;box-shadow:3px 3px 0 var(--ink,#20201f);transform:rotate(-2deg)}
+.dock-close{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;border:2px solid var(--ink,#20201f);background:#fff;box-shadow:2px 2px 0 var(--ink,#20201f)}
+.dock-panels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dock-panel{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:3px;min-height:104px;padding:12px 12px 11px;text-align:left;border:3px solid var(--ink,#20201f);border-radius:4px;box-shadow:4px 4px 0 var(--ink,#20201f);overflow:hidden;color:var(--ink,#20201f);transition:transform .12s,box-shadow .12s}
+.dock-panel:nth-child(odd){transform:rotate(-.6deg)}.dock-panel:nth-child(even){transform:rotate(.6deg)}
+.dock-panel:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink,#20201f)}
+.dock-panel.wide{grid-column:1/-1;min-height:84px}
+.dock-panel::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(0,0,0,.16) 1.4px,transparent 1.6px);background-size:8px 8px;opacity:.55;pointer-events:none}
+.dock-panel>*{position:relative}
+.dock-panel strong{font:800 21px/1 'Barlow Condensed',Impact,sans-serif;text-transform:uppercase;letter-spacing:.3px}
+.dock-panel small{font:600 11px/1.3 'DM Sans',Arial,sans-serif;opacity:.85}
+.dock-panel-icon{position:absolute;top:9px;right:9px;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#fff;border:2px solid var(--ink,#20201f);color:var(--ink,#20201f)}
+.dock-panel.wide .dock-panel-icon{top:50%;transform:translateY(-50%);right:14px}
+.tone-red{background:#d4473a;color:#fff}.tone-yellow{background:#efd369}.tone-blue{background:#9cc6e3}.tone-cream{background:#f6eedd}.tone-ink{background:#20201f;color:#fff}.tone-green{background:#8fd0a8}
+.tone-ink::before,.tone-red::before{background-image:radial-gradient(rgba(255,255,255,.18) 1.4px,transparent 1.6px)}
+.dock-here{position:absolute!important;top:10px;left:10px;font:800 10px/1 'DM Sans',Arial,sans-serif;font-style:normal;text-transform:uppercase;letter-spacing:.8px;background:#fff;color:var(--red,#c83e30);border:2px solid var(--ink,#20201f);padding:4px 6px;transform:rotate(-4deg)}
+.dock-panel.here{outline:3px dashed var(--red,#c83e30);outline-offset:3px}
+@media(min-width:1051px){.dock-sheet{display:none}}
