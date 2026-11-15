@@ -1,5 +1,5 @@
 'use client';
-// My collection: the heart of the app. Collection · Wants · For trade, with search, sort, filters,
+// My collection: the heart of the app. Collection · For trade (the Wants tab is hidden; its code and data are kept), with search, sort, filters,
 // grid/list views, a ⋯ menu per comic, select mode for bulk actions, and a detail view of your copy.
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowRight,Bookmark,Camera,Check,CheckSquare,ChevronDown,Download,Grid3X3,List,Lock,MoreHorizontal,Pencil,Plus,Repeat2,Search,ShoppingBag,SlidersHorizontal,Sparkles,Trash2,Upload,X} from 'lucide-react';
@@ -15,6 +15,8 @@ import './my-collection.css';
 
 type Book=Vault['books'][number];
 export type CollectionTab='collection'|'wants'|'trade';
+/** Owner decision 2026-11-15: hide the Wants tab. Saved wants stay in the database; flip this to bring the tab back. */
+const SHOW_WANTS=false;
 type Props={
  vault:Vault;loaded:boolean;saving:boolean;signedIn:boolean;status:string;
  commit:(vault:Vault)=>Promise<boolean>;gate:()=>boolean;notice:(message:string)=>void;
@@ -56,7 +58,7 @@ function useRecords(ids:number[]){
 }
 
 export default function MyCollection(p:Props){
- const {vault,saving,tab}=p;
+ const {vault,saving}=p,tab:CollectionTab=p.tab==='wants'&&!SHOW_WANTS?'collection':p.tab;
  const [query,setQuery]=useState(''),[sort,setSort]=useState<Sort>('recent'),[view,setView]=useState<'grid'|'list'>('grid');
  const [publisher,setPublisher]=useState(''),[format,setFormat]=useState<''|'raw'|'graded'>(''),[condition,setCondition]=useState(''),[tradeOnly,setTradeOnly]=useState(false);
  const [sheet,setSheet]=useState(false),[selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
@@ -154,14 +156,14 @@ export default function MyCollection(p:Props){
   {!p.loaded?<LoadingState message={p.status.includes('unavailable')?'Couldn’t load your collection.':'Loading your collection…'}/>:<>
   <div className="mc-summary" role="list">
    <div role="listitem"><strong>{vault.books.length}</strong><span>Comics</span></div>
-   <div role="listitem"><strong>{wants.length}</strong><span>Wants</span></div>
+   {SHOW_WANTS&&<div role="listitem"><strong>{wants.length}</strong><span>Wants</span></div>}
    <div role="listitem"><strong>{tradeCount}</strong><span>For trade</span></div>
    <div role="listitem"><strong>{p.featuredIds.length}</strong><span>On showcase</span></div>
   </div>
   {p.status.startsWith('Save failed')||p.status.includes('unavailable')?<p className="ds-error" role="alert">Couldn’t reach your collection. <button type="button" className="ds-link" onClick={p.onReconnect}>Try again</button></p>:null}
 
   <div className="mc-tabs" role="tablist" aria-label="Collection views">
-   {([['collection','Collection',vault.books.length],['trade','For trade',tradeCount],['wants','Wants',wants.length]] as [CollectionTab,string,number][]).map(([id,label,count])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'active':''} onClick={()=>{setSelected(new Set());setSelecting(false);p.onTab(id)}}>{label} <em>{count}</em></button>)}
+   {([['collection','Collection',vault.books.length],['trade','For trade',tradeCount],...(SHOW_WANTS?[['wants','Wants',wants.length]]:[])] as [CollectionTab,string,number][]).map(([id,label,count])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'active':''} onClick={()=>{setSelected(new Set());setSelecting(false);p.onTab(id)}}>{label} <em>{count}</em></button>)}
   </div>
 
   {tab!=='wants'&&<>

@@ -82,7 +82,7 @@
 .ap-id p{margin:0;font-size:14px;color:var(--muted)}
 .ap-id .ap-meta:empty{display:none}
 .ap-id .ds-link{min-height:32px;font-size:14px}
-.ap-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ap-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .ap-stats button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:68px;background:var(--cream);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--ink);cursor:pointer}
 .ap-stats button:hover{border-color:var(--ink)}
 .ap-stats strong{font:800 28px/1 var(--font-display)}

@@ -2,7 +2,7 @@
 // The signed-in account panel: who you are (picture, name, @handle), your numbers, and every personal
 // tool in one place. Navigation lives in "More" (components/more-menu.tsx).
 import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {ArrowLeftRight, Bookmark, Camera, ChevronRight, Gavel, Layers, LogOut, MessageCircle, Receipt, Repeat, Settings, ShieldCheck, ShoppingBag, Sparkles, Tag, Wallet, Wrench} from 'lucide-react';
+import {ArrowLeftRight, Camera, ChevronRight, Gavel, Layers, LogOut, MessageCircle, Receipt, Repeat, Settings, ShieldCheck, ShoppingBag, Sparkles, Tag, Wallet, Wrench} from 'lucide-react';
 import UserAvatar from './user-avatar';
 import AdminBadge from './admin-badge';
 
@@ -75,7 +75,6 @@ export default function AccountPanel(props: AccountPanelProps) {
     {status && <p className="am-status" role="status">{status}{onReconnect && <button type="button" className="ds-link" onClick={onReconnect}>Reconnect</button>}</p>}
     {stats && <div className="ap-stats">
       <button type="button" onClick={() => onNavigate('Collection', 'collection')}><strong>{stats.comics.toLocaleString('en-US')}</strong><span>Comics</span></button>
-      <button type="button" onClick={() => onNavigate('Collection', 'wants')}><strong>{stats.wants.toLocaleString('en-US')}</strong><span>Wants</span></button>
       <button type="button" onClick={() => onNavigate('Collection', 'trade')}><strong>{stats.forTrade.toLocaleString('en-US')}</strong><span>For trade</span></button>
     </div>}
     <button type="button" className="ap-wallet" onClick={() => onNavigate('Wallet')}>
@@ -86,7 +85,6 @@ export default function AccountPanel(props: AccountPanelProps) {
 
     <section className="ap-group" aria-labelledby="ap-collect"><h3 id="ap-collect" className="mm-heading">Collection</h3>
       {row('My collection', Layers, 'Collection', 'collection')}
-      {row('Saved comics (wants)', Bookmark, 'Collection', 'wants')}
       {row('For trade', Repeat, 'Collection', 'trade')}
     </section>
     <section className="ap-group" aria-labelledby="ap-sell"><h3 id="ap-sell" className="mm-heading">Buying & selling</h3>
