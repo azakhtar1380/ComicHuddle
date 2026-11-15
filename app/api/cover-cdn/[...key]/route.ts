@@ -1,9 +1,10 @@
 // Serves our own copies of Metron covers from the private S3 bucket until CloudFront is
 // available (then METRON_COVER_CDN_BASE points at CloudFront and this route goes unused).
-// Only the copier's exact key shapes are readable; responses are cached at the edge.
+// Only the copiers' exact key shapes are readable (covers, plus character portraits from
+// scripts/import-characters.ts); responses are cached at the edge.
 import {GetObjectCommand,S3Client} from '@aws-sdk/client-s3';
 export const runtime='nodejs';
-const IMAGE=/^metron\/[1-9][0-9]{0,9}\/(card|dense)\.webp$/,MANIFEST='metron/manifest.ndjson.gz';
+const IMAGE=/^(metron\/[1-9][0-9]{0,9}\/(card|dense)|metron-characters\/[1-9][0-9]{0,9}\/portrait)\.webp$/,MANIFEST='metron/manifest.ndjson.gz';
 let client:S3Client|null=null;
 // Vercel reserves AWS_* names, so deployed credentials use COVER_AWS_*; local runs may use AWS_*.
 function s3(){const e=process.env,id=e.COVER_AWS_ACCESS_KEY_ID,secret=e.COVER_AWS_SECRET_ACCESS_KEY;return client??=new S3Client({region:e.COVER_AWS_REGION||e.AWS_REGION||'us-east-2',...(id&&secret?{credentials:{accessKeyId:id,secretAccessKey:secret}}:{})})}

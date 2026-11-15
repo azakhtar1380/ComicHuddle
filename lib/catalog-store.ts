@@ -6,9 +6,10 @@ import {withCatalogCovers} from './catalog-covers';
 import {catalog,type Issue} from './catalog';
 import {catalogSearchDto,searchCatalog} from './catalog-search';
 import {catalogSearchText,eraForYear,metronDirectoryId,plainCatalogText} from './shared-catalog';
+import {characterIssueIds,characterTablesPresent} from './characters';
 
 export type CatalogDb=ReturnType<typeof getDb>;
-export type CatalogFilters={q:string;limit:number;offset:number;publisher?:string;series?:string;era?:string;kind?:string;sort?:string;after?:number};
+export type CatalogFilters={q:string;limit:number;offset:number;publisher?:string;series?:string;era?:string;kind?:string;sort?:string;after?:number;character?:number};
 export async function readableCatalog(_db:CatalogDb){return directoryIssues;}
 async function loadCatalogOverview(db:CatalogDb){
  const cached=await db.execute(sql`SELECT metadata FROM gcd.comichuddle_catalog_read_state WHERE id='directory'`);
@@ -55,10 +56,12 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  const readCatalog=await readableCatalog(db);
  const meta=await catalogOverview(db);
  if(!meta.issueCount){
-   const base=searchCatalog(filter.q,catalog.length,0).issues.filter(i=>(!filter.publisher||i.publisher===filter.publisher)&&(!filter.series||i.title===filter.series)&&(!filter.era||i.era===filter.era)&&(!filter.kind||i.kind===filter.kind));
+   const base=searchCatalog(filter.q,catalog.length,0).issues.filter(i=>filter.character===undefined&&(!filter.publisher||i.publisher===filter.publisher)&&(!filter.series||i.title===filter.series)&&(!filter.era||i.era===filter.era)&&(!filter.kind||i.kind===filter.kind));
   base.sort((a,b)=>filter.sort==='title'?a.title.localeCompare(b.title)||a.id-b.id:filter.sort==='oldest'?a.year-b.year||a.id-b.id:filter.sort==='newest'?b.year-a.year||a.id-b.id:a.id-b.id);
   return {...meta,issues:base.slice(filter.offset,filter.offset+filter.limit),total:base.length,limit:filter.limit,offset:filter.offset,hasMore:filter.offset+filter.limit<base.length};
  }
+ // Character filter (migration 030): issues known to contain the character; none before the migration.
+ if(filter.character!==undefined&&!await characterTablesPresent(db).catch(()=>false))return {...meta,issues:[],total:0,limit:filter.limit,offset:filter.offset,hasMore:false};
  const {numbers,words,years}=catalogQueryParts(filter.q);
  const terms=[...years.map(year=>eq(readCatalog.year,year)),...numbers.map(n=>sql`lower(${readCatalog.number}) = ${n}`),...words.map(w=>like(readCatalog.searchText,'%'+w+'%'))];
  if(filter.publisher)terms.push(eq(readCatalog.publisher,filter.publisher));
@@ -72,6 +75,7 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
   if(filter.series)result.push(sql`${ref('title')}=${filter.series}`);
   if(filter.era)result.push(sql`${ref('era')}=${filter.era}`);
   if(filter.kind)result.push(sql`${ref('kind')}=${filter.kind}`);
+  if(filter.character!==undefined){const ids=characterIssueIds(filter.character);result.push(alias==='n'?sql`${ref('id')} IN (${ids})`:sql`(${ref('id')} IN (${ids}) OR 4000000000::bigint+${ref('gcd_id')} IN (${ids}))`)}
   return result.length?sql.join(result,sql` AND `):sql`true`;
  };
  const state=await db.execute(sql`SELECT retained_ids FROM gcd.comichuddle_catalog_read_state WHERE id='directory'`);
@@ -82,6 +86,7 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
  let nativeBase=sql`SELECT n.id,n.title,n.year FROM gcd.comichuddle_native_directory n WHERE ${nativeTerms('n')} ${excluded}`;
  if((!filter.sort||filter.sort==='featured')&&!filter.era&&!filter.kind){
   const rawTerms=[sql`(i.deleted=0 OR i.deleted IS NULL)`,...years.map(year=>sql`(i.key_date LIKE ${String(year)+'-%'} OR (COALESCE(i.key_date,'') !~ '^[0-9]{4}' AND i.publication_date LIKE ${'%'+year+'%'}))`),...numbers.map(n=>sql`lower(i.number)=${n}`)];
+  if(filter.character!==undefined)rawTerms.push(sql`i.id IN (SELECT issue_id-4000000000 FROM ch_web.character_issues WHERE character_id=${filter.character} AND issue_id>=4000000000)`);
   if(retainedGcd.length)rawTerms.push(sql`i.id NOT IN (${sql.join(retainedGcd.map(id=>sql`${id}`),sql`,`)})`);
   if(words.length||filter.publisher||filter.series){
    const st=words.map(w=>sql`(lower(s.name) LIKE ${'%'+w+'%'} OR lower(p.name) LIKE ${'%'+w+'%'})`);
@@ -99,7 +104,7 @@ export async function searchSharedCatalog(db:CatalogDb,filter:CatalogFilters){
   nativeBase=sql`SELECT 4000000000::bigint+i.id AS id,''::text AS title,0 AS year FROM gcd.gcd_issue i WHERE ${sql.join(rawTerms,sql` AND `)}`;
  }
  const base=sql`${nativeBase} UNION ALL ${extra}`;
- const filtered=!!(filter.q||filter.publisher||filter.series||filter.era||filter.kind);
+ const filtered=!!(filter.q||filter.publisher||filter.series||filter.era||filter.kind||filter.character!==undefined);
  const order=filter.sort==='title'?sql`title,id`:filter.sort==='oldest'?sql`year,id`:filter.sort==='newest'?sql`year DESC,id`:sql`id`;
  const cursor=filter.after===undefined?sql``:sql`WHERE id>${filter.after}`;
  const offset=filter.after===undefined?filter.offset:0,bound=offset+filter.limit+1;

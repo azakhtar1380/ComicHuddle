@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
-import {useEffect,useState,type FormEvent} from 'react';
-import {BookOpen,Camera,ChevronDown,Clock3,Home,Lock,MessageCircle,ScanLine,Search,ShieldCheck,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
+import {useEffect,useState} from 'react';
+import {BookOpen,Camera,ChevronDown,Clock3,Home,Lock,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,User,Wallet,Wrench} from 'lucide-react';
 import MobileDock from './mobile-dock';
+import HeaderSearch from './header-search';
 import {publicSection} from '../lib/section-navigation';
 import './site-header.css';
 
@@ -13,7 +14,6 @@ const destination=(section:string)=>section==='Home'?'/':section==='Wallet'?'/wa
 /** One professional storefront header shared by every page. */
 export default function SiteHeader({section='Home',name='Collector',signedIn=false,sessionKnown=false,scanOpen=false,drawerOpen=false,messageCount=0,onNavigate,onScan,onMessages,onAccount,standalone=false}:Props){
  const [session,setSession]=useState({signedIn:false,name:'Collector'});
- const [query,setQuery]=useState('');
  useEffect(()=>{
   if(sessionKnown)return;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
   void fetch('/api/account-summary',{credentials:'same-origin',cache:'no-store',signal:controller.signal}).then(async response=>response.ok?response.json():null).then(value=>{if(!controller.signal.aborted&&value&&typeof value.signedIn==='boolean')setSession({signedIn:value.signedIn,name:typeof value.name==='string'?value.name:'Collector'})}).catch(()=>undefined).finally(()=>clearTimeout(timer));
@@ -21,7 +21,6 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
  },[sessionKnown]);
  const authenticated=sessionKnown?signedIn:session.signedIn,displayName=sessionKnown?name:session.name;
  const navigate=(next:string)=>{if(onNavigate)onNavigate(next);else window.location.assign(destination(next))};
- const submit=(event:FormEvent)=>{event.preventDefault();const q=query.trim();window.location.assign('/?'+new URLSearchParams(q?{section:'Directory',q}:{section:'Directory'}))};
  const brand=<img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/>;
  const scan=onScan?<button type="button" className="ch-scan-button" aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={onScan}><ScanLine size={18}/><span>Scan</span></button>:<Link href="/?section=Scan" className="ch-scan-button" aria-label="Scan a comic"><ScanLine size={18}/><span>Scan</span></Link>;
  return <>
@@ -30,11 +29,7 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
   <header className="site-header ch-header">
    <div className="ch-wrap ch-header-row">
     {onNavigate?<button type="button" className="brand" onClick={()=>navigate('Home')} aria-label="ComicHuddle home">{brand}</button>:<Link href="/" className="brand" aria-label="ComicHuddle home">{brand}</Link>}
-    <form className="ch-search" role="search" onSubmit={submit}>
-     <Search size={18} aria-hidden="true"/>
-     <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search titles, characters, issues…" aria-label="Search the comic directory" enterKeyHint="search" maxLength={120}/>
-     <button type="submit">Search</button>
-    </form>
+    <HeaderSearch/>
     <div className="ch-actions">
      {scan}
      {onMessages?<button type="button" className="header-inbox ch-icon" aria-label="Open messages" onClick={onMessages}><MessageCircle size={20}/>{messageCount>0&&<span>{messageCount}</span>}</button>:<Link className="header-inbox ch-icon" href="/?section=Messages" aria-label="Open messages"><MessageCircle size={20}/></Link>}

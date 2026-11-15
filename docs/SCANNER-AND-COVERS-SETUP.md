@@ -216,3 +216,28 @@ The policy covers this bucket only. HeadObject is authorised by `s3:GetObject`, 
 ```
 
 Keep the bucket private, with Block Public Access on. Serve it only through a CloudFront distribution that uses Origin Access Control (OAC). The bucket policy should allow `s3:GetObject` only to the `cloudfront.amazonaws.com` service principal, with `AWS:SourceArn` set to that distribution.
+
+## 10. Characters (key issues, first appearances, character search)
+
+Migration `030_characters.sql` (apply with `node --import tsx scripts/migrate-additive.ts`) adds the character tables. Data comes from Metron (CC BY-SA 4.0) and Wikidata (CC0); the profile API returns the attribution line `Character data: Metron (metron.cloud) · Wikidata (CC0)`.
+
+- `GET /api/issues/{id}/profile`: key-issue reasons, first appearances (with portraits), characters, teams, credits and description. If an issue is linked to Metron but has no character data yet, the route fetches `issue/{id}/` once (2 s timeout, shared budget). Otherwise it returns `status: "pending"` and queues the issue for the crawler.
+- `GET /api/characters/search?q=&limit=`: name and alias search for header suggestions and the directory filter.
+- `GET /api/catalog?...&character=<id>`: the directory restricted to issues known to contain that character.
+
+**Metron budget.** Metron allows 20 calls per minute and 5,000 per day per account. Every character call is reserved in `ch_web.metron_api_budget` (UTC day) before it is sent, and the barcode/cover lookups recorded in `provider_request_windows` count against the same total. Limits (env, optional): `METRON_SHARED_DAILY_MAX` (4500, all callers together), `METRON_CRAWLER_DAILY_MAX` (3700, which leaves headroom for the deployed app), `METRON_APP_DAILY_MAX` and `METRON_SHARED_MINUTE_MAX` (18). Set `METRON_DAILY_BUDGET=800` on the deployment so barcode lookups stay inside that headroom. Image downloads from static.metron.cloud are not API calls and are not counted.
+
+**Daily job** (run from the repo root with the database env set; resumable, and it stops cleanly when the day's budget is used):
+
+```
+node --import tsx scripts/crawl-metron-characters.ts
+node --import tsx scripts/import-characters.ts --portraits 1000
+```
+
+The crawler caches its data in `.metron-cache/characters/` (gitignored), in this order: queued profile requests, the full character list, curated and Wikidata key issues, their characters, first-appearance issues, the remaining characters, extra issue-list pages, and then the remaining issue details. The importer links all harvested Metron issues to catalog issues, loads only the new cache lines, recomputes the derived tables, and copies portraits to `s3://$COVER_S3_BUCKET/metron-characters/<id>/portrait.webp` (240px WebP, served through `/api/cover-cdn`). If the issue harvest or the GCD data changes, add `--relink`.
+
+**Wikidata** (a few SPARQL queries; responses are cached in `.metron-cache/wikidata/`; re-run monthly with `--refresh`):
+
+```
+node --import tsx scripts/import-wikidata-first-appearances.ts [--refresh] [--dry-run]
+```

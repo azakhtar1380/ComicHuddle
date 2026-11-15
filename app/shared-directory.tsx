@@ -10,6 +10,12 @@ import ComicPicker from './comic-picker';
 import DirectoryTree from './directory-tree';
 import PublisherFilter from './publisher-filter';
 import ComicCoverPlaceholder from '../components/comic-cover-placeholder';
+import {Portrait} from './issue-showcase';
+
+type CharacterFilter={id:number;name:string};
+type CharacterHit={characterId:number;name:string;portraitUrl:string|null;issueCount:number|null};
+/** Deep link from the header: /?section=Directory&character=<id>&cname=<name>. */
+function linkedCharacter():CharacterFilter|null{if(typeof window==='undefined')return null;const params=new URLSearchParams(window.location.search),id=Number(params.get('character'));return params.has('character')&&Number.isSafeInteger(id)?{id,name:(params.get('cname')||'Selected character').slice(0,80)}:null}
 
 type CatalogPage = {
   issues: Issue[]; total: number; limit: number; offset: number; hasMore: boolean;
@@ -54,6 +60,7 @@ export default function SharedDirectory({onOpen}: Props) {
   // Header search deep link: /?section=Directory&q=... (Directory only mounts client-side after navigation)
   const linked = () => typeof window === 'undefined' ? '' : (new URLSearchParams(window.location.search).get('q') || '').trim().slice(0, 120);
   const [query, setQuery] = useState(linked), [debouncedQuery, setDebouncedQuery] = useState(linked);
+  const [character,setCharacter]=useState<CharacterFilter|null>(linkedCharacter),[characterHits,setCharacterHits]=useState<{q:string;hits:CharacterHit[]}>({q:'',hits:[]});
   const [publisher, setPublisher] = useState(''), [era, setEra] = useState(''), [kind, setKind] = useState(''), [sort, setSort] = useState('featured');
   const [offset, setOffset] = useState(0), [list, setList] = useState(false), [retry, setRetry] = useState(0);
   const [data, setData] = useState<CatalogPage | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState('');
@@ -62,7 +69,7 @@ export default function SharedDirectory({onOpen}: Props) {
   function invalidate() {generation.current++; controller.current?.abort(); setLoading(true); setError('');}
   function changeQuery(value: string) {if (value === query) return; invalidate(); setQuery(value); setOffset(0);}
   function changeFilter(set: (value: string) => void, value: string) {invalidate(); set(value); setOffset(0); setRetry(count => count + 1);}
-  function resetFilters() {invalidate(); setQuery(''); setPublisher(''); setSeries(''); setMatched(null); setEra(''); setKind(''); setSort('featured'); setOffset(0); setRetry(value => value + 1);}
+  function resetFilters() {invalidate(); setCharacter(null); setQuery(''); setPublisher(''); setSeries(''); setMatched(null); setEra(''); setKind(''); setSort('featured'); setOffset(0); setRetry(value => value + 1);}
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 300);
@@ -81,6 +88,7 @@ export default function SharedDirectory({onOpen}: Props) {
     if (series) params.set('series',series);
     if (era) params.set('era', era);
     if (kind) params.set('kind', kind);
+    if (character) params.set('character', String(character.id));
     setLoading(true); setError('');
     void (async () => {
       try {
@@ -97,7 +105,13 @@ export default function SharedDirectory({onOpen}: Props) {
       } finally {if (current()) setLoading(false);}
     })();
     return () => {abort.abort(); if (generation.current === request) generation.current++;};
-  }, [query, debouncedQuery, publisher, series, era, kind, sort, offset, retry]);
+  }, [query, debouncedQuery, publisher, series, era, kind, sort, offset, retry, character]);
+  // Characters matching the typed search, offered as one-tap filters.
+  useEffect(()=>{const q=debouncedQuery.trim();if(q.length<2||character)return;const abort=new AbortController();
+    fetch('/api/characters/search?'+new URLSearchParams({q,limit:'6'}),{signal:abort.signal}).then(r=>r.ok?r.json():null).then(body=>{if(!abort.signal.aborted)setCharacterHits({q,hits:Array.isArray(body?.characters)?body.characters:[]})}).catch(()=>undefined);
+    return()=>abort.abort()},[debouncedQuery,character]);
+  function chooseCharacter(next:CharacterFilter|null){invalidate();setCharacter(next);setQuery('');setMatched(null);setOffset(0);const url=new URL(window.location.href);if(next){url.searchParams.set('character',String(next.id));url.searchParams.set('cname',next.name)}else{url.searchParams.delete('character');url.searchParams.delete('cname')}url.searchParams.delete('q');window.history.replaceState(window.history.state,'',url)}
+  const shownHits=!character&&characterHits.q===debouncedQuery.trim()&&debouncedQuery.trim().length>=2?characterHits.hits:[];
 
   const publisherOptions = useMemo(()=>{const available=[...new Set([...(data?.publishers||[]),...(publisher?[publisher]:[])])];const preferred=['Marvel','DC','DC Comics','Image','Image Comics Inc.','Dark Horse','Dark Horse Comics LLC','IDW Publishing','Boom! Studios','Fiction House'].filter(name=>available.includes(name));const chosen=new Set(preferred);return [...preferred,...available.filter(name=>!chosen.has(name))]},[data?.publishers,publisher]);
   const pageNumber = data ? Math.floor(data.offset / data.limit) + 1 : 1;
@@ -114,6 +128,8 @@ export default function SharedDirectory({onOpen}: Props) {
       <label className="sd-sort"><span>Sort</span><select aria-label="Sort directory" value={sort} onChange={event => changeFilter(setSort, event.target.value)}><option value="featured">Featured</option><option value="title">Title A–Z</option><option value="oldest">Oldest first</option><option value="newest">Newest first</option></select></label>
       <div className="sd-view-toggle" aria-label="Directory layout"><button type="button" aria-label="Grid view" aria-pressed={!list} className={!list ? 'active' : ''} onClick={() => setList(false)}><Grid3X3 size={18}/></button><button type="button" aria-label="List view" aria-pressed={list} className={list ? 'active' : ''} onClick={() => setList(true)}><List size={18}/></button></div>
     </div>
+    {character&&<div className="sd-character-filter" role="status"><span>Showing issues featuring <strong>{character.name}</strong></span><button type="button" onClick={()=>chooseCharacter(null)} aria-label={'Remove the '+character.name+' filter'}>Clear ×</button></div>}
+    {shownHits.length>0&&<div className="sd-character-hits" aria-label="Matching characters"><span>Characters</span>{shownHits.map(hit=><button type="button" key={hit.characterId} onClick={()=>chooseCharacter({id:hit.characterId,name:hit.name})}><Portrait name={hit.name} src={hit.portraitUrl} size="sm"/>{hit.name}{hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')}</small>:null}</button>)}</div>}
     <div className="sd-results-caption"><span role="status">{loading ? 'Searching the shared directory…' : error ? 'Directory unavailable' : data?.total ? `Showing ${data.offset + 1}–${data.offset + data.issues.length} of ${data.total.toLocaleString('en-US')} matches` : 'No matching issues'}</span><span>Confirm edition and printing before collecting.</span></div>
     <div className="sd-results" aria-busy={loading}>
       {loading ? <div className="sd-state"><span className="sd-spinner" aria-hidden="true"/><h2>Opening the longbox…</h2><p>Loading stored issue records.</p></div> : error ? <div className="sd-state sd-error" role="alert"><BookOpen size={30}/><h2>The index is taking a pause.</h2><p>{error}</p><button type="button" className="button red" onClick={() => {invalidate(); setRetry(value => value + 1);}}><RefreshCw size={16}/> Retry directory</button></div> : data?.issues.length ? <div className={list ? 'sd-list' : 'sd-grid'}>

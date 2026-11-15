@@ -15,7 +15,7 @@ function integer(value:string|null,fallback:number,min:number,max:number){
 export async function GET(req:Request){
  try{
  const params=req?new URL(req.url).searchParams:new URLSearchParams();
-  const allowed=['q','id','ids','limit','offset','publisher','series','era','kind','sort','browse','after'];
+  const allowed=['q','id','ids','limit','offset','publisher','series','era','kind','sort','browse','after','character'];
  if([...params.keys()].some(name=>!allowed.includes(name))||allowed.some(name=>params.getAll(name).length>1))return json({error:'Use one supported value for each search parameter.'},400);
  if(params.has('ids')){
   const raw=params.get('ids')||'';if([...params.keys()].length!==1||!/^\d+(,\d+){0,24}$/.test(raw))return json({error:'Use up to 25 exact directory IDs.'},400);
@@ -37,11 +37,14 @@ export async function GET(req:Request){
   const publisher=params.get('publisher')||undefined,series=params.get('series')||undefined,era=params.get('era')||undefined,kind=params.get('kind')||undefined,sort=params.get('sort')||'featured';
   if([publisher,series,era,kind].some(value=>value&&value.length>160)||!['featured','title','oldest','newest'].includes(sort))return json({error:'Choose valid directory filters and sort order.'},400);
   if(params.has('browse')){
-   if(params.get('browse')!=='series'||!publisher||['series','era','kind','sort'].some(key=>params.has(key)))return json({error:'Choose a publisher to browse its stored series.'},400);
+   if(params.get('browse')!=='series'||!publisher||['series','era','kind','sort','character'].some(key=>params.has(key)))return json({error:'Choose a publisher to browse its stored series.'},400);
    return json(await browseSharedSeries(getDb(),{publisher,q:query,limit,offset}));
   }
   const after=params.has('after')?integer(params.get('after'),0,0,Number.MAX_SAFE_INTEGER):undefined;
   if(params.has('after')&&(after===undefined||sort&&sort!=='featured'))return json({error:'Use an integer issue cursor with the default directory sort.'},400);
-  return json(await searchSharedCatalog(getDb(),{q:query,limit,offset,publisher,series,era,kind,sort,after}));
+  // character: a Metron character id (> 0) or a Wikidata-only character (-QID number) from /api/characters/search.
+  const rawCharacter=params.get('character'),character=rawCharacter!==null&&/^-?[1-9][0-9]{0,9}$/.test(rawCharacter)&&Math.abs(Number(rawCharacter))<=2147483647?Number(rawCharacter):undefined;
+  if(rawCharacter!==null&&character===undefined)return json({error:'Use an integer character ID.'},400);
+  return json(await searchSharedCatalog(getDb(),{q:query,limit,offset,publisher,series,era,kind,sort,after,character}));
  }catch(error){let cause:unknown=error;let code='unknown';for(let depth=0;depth<5&&cause;depth++){const item=cause as {code?:string;cause?:unknown};if(item.code)code=item.code;cause=item.cause}console.error('ComicHuddle catalog read stopped; database code '+code);return json({error:'The saved comic directory could not be loaded. Please retry.'},503)}
 }
