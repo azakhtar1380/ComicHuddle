@@ -134,3 +134,5 @@ main .home section{padding-left:0;padding-right:0}
  .home-hero-art{max-width:170px;margin-top:-4px}
  .home-hero .home-hero-actions .ds-btn svg{display:none}
 }
+/* phones already have search in the header */
+@media(max-width:860px){.home-hero .home-search{display:none}}

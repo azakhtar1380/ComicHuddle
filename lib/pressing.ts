@@ -53,3 +53,71 @@ export function canCareTransition(status:string,next:string,isProvider:boolean,s
  const allowed:Record<string,string[]>=isProvider?{requested:['declined'],quoted:['declined'],approved:['received'],in_transit:['received'],received:['pressing','returning'],pressing:sendToCgc?['at_grading','returning']:['returning'],at_grading:['returning']}:{requested:['cancelled'],quoted:['cancelled'],approved:['in_transit','cancelled'],returning:['completed']};
  return !!allowed[status]?.includes(next);
 }
+
+/* ---- Workshop discovery helpers (client + checks). Educational copy only: no provider data is invented here. ---- */
+export type CareServiceGuide={id:CareService;short:string;what:string;why:string;tell:string[]};
+export const careServiceGuide:CareServiceGuide[]=[
+ {id:'pressing',short:'Flattens non-color-breaking bends, waves and ripples.',what:'Controlled heat, humidity and pressure relax the paper so non-color-breaking bends, spine rolls and waviness lie flatter.',why:'Small dents and waves can cost a book grade points. Many collectors press before sending a key issue for grading.',tell:['Which defects you want addressed (bends, waves, spine roll)','Any color-breaking creases, tears or tape','Signatures, stamps or anything else to protect']},
+ {id:'dry_cleaning',short:'Lifts surface dirt, dust shadows and light soiling.',what:'Dry methods such as specialist erasers and sponges lift surface dirt and dust shadows without water or solvents.',why:'Surface grime makes covers look dull and can read as wear. It is often paired with pressing.',tell:['Where the dirt or shadowing is','Glossy or matte cover stock, if you know it','Pencil marks or writing you want left alone']},
+ {id:'assessment',short:'An expert look before you spend on grading.',what:'The studio inspects the copy, notes defects and tells you whether pressing or cleaning is likely to help.',why:'Not every book benefits. An assessment helps you decide before paying for care, shipping and grading.',tell:['Your goal: keep, sell or grade','The grade you are hoping for, if any','Front, back and spine photos (send them in Messages)']},
+ {id:'cgc',short:'Help preparing or submitting books to CGC.',what:'Depending on the studio, they prep books for you to send yourself, or submit them to CGC through their dealer account.',why:'Submissions have paperwork, tiers and packing rules. A studio can save time, especially right after pressing.',tell:['Whether you want them to submit or only prep','Your preferred CGC tier and any label notes','Declared values you are comfortable with']},
+];
+export const careGuideFor=(id:string)=>careServiceGuide.find(g=>g.id===id);
+export type WorkshopSort='recommended'|'rating'|'distance'|'newest'|'name';
+export function sortWorkshopProviders(rows:Provider[],sort:WorkshopSort):Provider[]{
+ const byRating=(a:Provider,b:Provider)=>((b.rating??-1)-(a.rating??-1))||b.reviewCount-a.reviewCount;
+ const byName=(a:Provider,b:Provider)=>a.name.localeCompare(b.name,'en',{sensitivity:'base'});
+ const byDistance=(a:Provider,b:Provider)=>(a.distanceMiles??Infinity)-(b.distanceMiles??Infinity)||0;
+ const newest=(a:Provider,b:Provider)=>b.createdAt.localeCompare(a.createdAt);
+ const order:Record<WorkshopSort,(a:Provider,b:Provider)=>number>={
+  recommended:(a,b)=>Number(b.accepting)-Number(a.accepting)||byDistance(a,b)||byRating(a,b)||byName(a,b),
+  rating:(a,b)=>byRating(a,b)||byName(a,b),
+  distance:(a,b)=>byDistance(a,b)||byRating(a,b)||byName(a,b),
+  newest:(a,b)=>newest(a,b)||byName(a,b),
+  name:byName};
+ return [...rows].sort(order[sort]);
+}
+/** Real counts of listed studios per service, most offered first. */
+export function serviceCounts(rows:Provider[]){return careServices.map(s=>({id:s.id as CareService,name:s.name,count:rows.filter(p=>p.services.includes(s.id)).length})).sort((a,b)=>b.count-a.count)}
+/** Studios with enough verified reviews to be ranked (see rankProviders), best first. */
+export const topRatedProviders=(rows:Provider[],limit=3)=>rows.filter(p=>p.rank!==null).sort((a,b)=>(a.rank??0)-(b.rank??0)).slice(0,limit);
+export function recentlyAddedProviders(rows:Provider[],now=Date.now(),days=60,limit=3){const since=new Date(now-days*864e5).toISOString();return rows.filter(p=>p.createdAt>=since).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,limit)}
+/** What a studio has (and hasn't) filled in, for the owner's "improve your listing" checklist. */
+export function studioCompleteness(p:Provider){
+ const items=[
+  {id:'logo',label:'Add a logo',done:!!p.logoId},
+  {id:'portfolio',label:'Add before-and-after photos',done:p.portfolio.length>0},
+  {id:'prices',label:'List a starting price',done:p.services.some(s=>typeof p.prices[s]==='number')},
+  {id:'specialties',label:'Add your specialties',done:!!p.specialties.trim()},
+  {id:'website',label:'Add your website',done:!!p.website},
+  {id:'zip',label:'Add a ZIP code so nearby collectors find you',done:!!p.locationZip||!!p.locationCity}];
+ return {items,done:items.filter(i=>i.done).length,total:items.length};
+}
+export function ratingBreakdown(reviews:{rating:number}[]){return {counts:[5,4,3,2,1].map(star=>({star,count:reviews.filter(r=>Math.round(r.rating)===star).length})),total:reviews.length}}
+export type ReviewSort='newest'|'highest'|'lowest';
+export function sortReviews<T extends {rating:number;updatedAt:string}>(rows:T[],sort:ReviewSort):T[]{
+ return [...rows].sort((a,b)=>sort==='highest'?b.rating-a.rating||b.updatedAt.localeCompare(a.updatedAt):sort==='lowest'?a.rating-b.rating||b.updatedAt.localeCompare(a.updatedAt):b.updatedAt.localeCompare(a.updatedAt));
+}
+export const careClosed=(status:string)=>['completed','cancelled','declined'].includes(status);
+/** Plain-language "what happens next" for a request, from the viewer's side. */
+export function careNextStep(job:{status:string;isProvider:boolean;method:'mail'|'dropoff';sendToCgc:boolean}):string{
+ const p=job.isProvider;
+ switch(job.status){
+  case 'requested':return p?'Send a quote':'Waiting for the studio’s quote';
+  case 'quoted':return p?'Waiting for the collector to accept':'Review and accept the quote';
+  case 'approved':return p?(job.method==='mail'?'Waiting for the books to ship':'Confirm when the books are dropped off'):(job.method==='mail'?'Ship your books and add tracking':'Drop off your books');
+  case 'in_transit':return p?'Confirm the books arrived':'Books on the way to the studio';
+  case 'received':return p?'Start the care work':'The studio has your books';
+  case 'pressing':return p?(job.sendToCgc?'Submit to CGC or return the books':'Return the books'):'Care work in progress';
+  case 'at_grading':return p?'Return the books once graded':'At CGC for grading';
+  case 'returning':return p?'Waiting for the collector to confirm':'Confirm when your books are back';
+  case 'completed':return 'Finished';
+  case 'cancelled':return 'Cancelled';
+  case 'declined':return 'Declined by the studio';
+  default:return '';
+ }
+}
+export function careProgress(status:string,sendToCgc:boolean){
+ const stages=careStages.filter(s=>s!=='at_grading'||sendToCgc),alias:Record<string,string>={quoted:'requested',in_transit:'approved'},i=stages.indexOf(alias[status]||status);
+ return {step:i<0?0:i+1,total:stages.length};
+}

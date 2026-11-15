@@ -10,6 +10,7 @@ import {listingDirectoryId,sharedProviderIdentity} from '../lib/shared-catalog';
 import {ComicArt,Modal,uploadPhoto} from './network';
 import PageHeader from '../components/page-header';
 import {EmptyState,LoadingState} from '../components/states';
+import {handOffBooksForSale} from '../lib/listing-draft';
 import './my-collection.css';
 
 type Book=Vault['books'][number];
@@ -22,6 +23,7 @@ type Props={
  onFindForSale:(issueId:number)=>void;onFeature:()=>void;onReconnect:()=>void;
  listedBookIds:Set<string>;featuredIds:string[];
 };
+const pageSize=60;
 type Sort='recent'|'title'|'issue'|'year'|'publisher';
 const sorts:[Sort,string][]=[['recent','Recently added'],['title','Title'],['issue','Issue #'],['year','Year'],['publisher','Publisher']];
 const issueNumber=(value:string)=>{const n=parseFloat(value.replace(/^#/,''));return Number.isFinite(n)?n:Number.MAX_SAFE_INTEGER};
@@ -51,11 +53,15 @@ export default function MyCollection(p:Props){
  const [query,setQuery]=useState(''),[sort,setSort]=useState<Sort>('recent'),[view,setView]=useState<'grid'|'list'>('grid');
  const [publisher,setPublisher]=useState(''),[format,setFormat]=useState<''|'raw'|'graded'>(''),[tradeOnly,setTradeOnly]=useState(false);
  const [sheet,setSheet]=useState(false),[selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
+ const [shown,setShown]=useState(pageSize);
  const [menu,setMenu]=useState<string|null>(null),[detail,setDetail]=useState<string|null>(null),[confirmRemove,setConfirmRemove]=useState<string[]|null>(null),[photoBusy,setPhotoBusy]=useState('');
  const order=useMemo(()=>new Map(vault.books.map((book,index)=>[book.id,index])),[vault.books]);
  const ids=useMemo(()=>[...new Set([...vault.books.map(directoryId),...vault.wants].filter((id):id is number=>id!==null))],[vault.books,vault.wants]);
  const {lookup,loading}=useRecords(ids);
- const trade=new Set(vault.tradeBookIds),featured=new Set(p.featuredIds);
+ const trade=useMemo(()=>new Set(vault.tradeBookIds),[vault.tradeBookIds]),featured=new Set(p.featuredIds);
+ // Big collections render a page at a time; any search, filter or sort change starts from the top again.
+ const listKey=[tab,query,publisher,format,tradeOnly,sort].join('|'),[shownKey,setShownKey]=useState(listKey);
+ if(shownKey!==listKey){setShownKey(listKey);setShown(pageSize)}
  const publishers=useMemo(()=>[...new Set(vault.books.map(book=>lookup(directoryId(book))?.publisher).filter((v):v is string=>!!v))].sort(),[vault.books,lookup]);
  const books=useMemo(()=>{
   const q=query.trim().toLowerCase().replace('#','');
@@ -79,10 +85,11 @@ export default function MyCollection(p:Props){
 
  const setTrade=async(bookIds:string[],on:boolean)=>{const next=on?[...new Set([...vault.tradeBookIds,...bookIds])]:vault.tradeBookIds.filter(id=>!bookIds.includes(id));if(await p.commit({...vault,tradeBookIds:next}))p.notice(on?(bookIds.length>1?bookIds.length+' comics marked for trade.':'Marked for trade.'):'Taken off your trade pile.')};
  const remove=async(bookIds:string[])=>{const blocked=bookIds.filter(id=>p.listedBookIds.has(id));if(blocked.length){p.notice('That comic is listed for sale. Take down the listing first.');return}if(await p.commit({...vault,books:vault.books.filter(book=>!bookIds.includes(book.id)),tradeBookIds:vault.tradeBookIds.filter(id=>!bookIds.includes(id))})){p.notice(bookIds.length>1?bookIds.length+' comics removed.':'Comic removed.');setSelected(new Set());setSelecting(false);setDetail(null)}};
- const sell=(many:boolean)=>window.location.assign('/?'+new URLSearchParams({section:'Marketplace',sell:many?'collection':'single'}));
+ // Hand the exact copies to the listing builder so the seller doesn't search for them again.
+ const sell=(bookIds:string[])=>{const free=bookIds.filter(id=>!p.listedBookIds.has(id));if(!free.length){p.notice(bookIds.length>1?'Those comics are already listed for sale.':'That comic is already listed for sale.');return}handOffBooksForSale(free);window.location.assign('/?'+new URLSearchParams({section:'Marketplace',sell:free.length>1?'collection':'single'}))};
  const exportCollection=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(vault,null,2)],{type:'application/json'}));a.download='comichuddle-collection.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
  const toggleSelect=(id:string)=>setSelected(previous=>{const next=new Set(previous);if(next.has(id))next.delete(id);else next.add(id);return next});
- const tradeCount=vault.tradeBookIds.filter(id=>vault.books.some(book=>book.id===id)).length;
+ const bookIds=new Set(vault.books.map(book=>book.id)),tradeCount=vault.tradeBookIds.filter(id=>bookIds.has(id)).length;
 
  const header=<PageHeader eyebrow="My collection" title="My collection." accent="Every book, one place." lede="Every comic you own, in one place. Only you can see your prices and notes." pose="add-comic" caption="Your longbox" line="Every detail counts."
   actions={<><AddMenu onAdd={p.onAdd} onScan={p.onScan} onBrowse={p.onBrowse}/><button type="button" className="ds-link" onClick={exportCollection}><Download size={16}/> Export</button></>}/>;
@@ -97,7 +104,7 @@ export default function MyCollection(p:Props){
    <button role="menuitem" type="button" onClick={()=>{setMenu(null);p.onEdit(book.id)}}><Pencil size={16}/> Edit details</button>
    <button role="menuitem" type="button" onClick={()=>{setMenu(null);p.onFeature()}}><Sparkles size={16}/> {featured.has(book.id)?'Change showcase':'Feature on showcase'}</button>
    <button role="menuitem" type="button" disabled={saving} onClick={()=>{setMenu(null);void setTrade([book.id],!trade.has(book.id))}}><Repeat2 size={16}/> {trade.has(book.id)?'Remove from trade pile':'Mark for trade'}</button>
-   <button role="menuitem" type="button" onClick={()=>{setMenu(null);sell(false)}}><ShoppingBag size={16}/> Sell this comic</button>
+   <button role="menuitem" type="button" disabled={p.listedBookIds.has(book.id)} onClick={()=>{setMenu(null);sell([book.id])}}><ShoppingBag size={16}/> {p.listedBookIds.has(book.id)?'Already listed':'Sell this comic'}</button>
    <button role="menuitem" type="button" className="danger" disabled={saving} onClick={()=>{setMenu(null);setConfirmRemove([book.id])}}><Trash2 size={16}/> Remove</button>
   </div>}
  </div>;
@@ -169,14 +176,14 @@ export default function MyCollection(p:Props){
    {sheet&&<div className="mc-scrim" onClick={()=>setSheet(false)} aria-hidden="true"/>}
    {selecting&&<div className="mc-bulk" role="region" aria-label="Bulk actions"><strong>{selected.size} selected</strong>
     <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!selected.size||saving} onClick={()=>void setTrade([...selected],true)}><Repeat2 size={16}/> Mark for trade</button>
-    <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={selected.size<2} onClick={()=>sell(true)}><ShoppingBag size={16}/> Sell together</button>
+    <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={selected.size<2} onClick={()=>sell([...selected])}><ShoppingBag size={16}/> Sell together</button>
     <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm mc-danger" disabled={!selected.size||saving} onClick={()=>setConfirmRemove([...selected])}><Trash2 size={16}/> Remove</button>
    </div>}
    {loading&&<p className="mc-quiet" role="status">Loading publisher and year details…</p>}
    {!vault.books.length?<EmptyState title="Your longbox is waiting." message="Add your first comic. Scan it, search for it, or add it by hand." action={{label:'Scan a comic',onClick:p.onScan}} secondary={{label:'Search the directory',onClick:p.onBrowse}}/>
     :tab==='trade'&&!tradeCount?<EmptyState compact title="Nothing in your trade pile yet." message="Open a comic's ⋯ menu and pick “Mark for trade”."/>
     :!books.length?<EmptyState compact title="No comics match." message="Try another search or clear the filters." action={{label:'Clear filters',onClick:()=>{setQuery('');setPublisher('');setFormat('');setTradeOnly(false);setSort('recent')}}}/>
-    :<div className={view==='grid'?'mc-grid':'mc-list'}>{books.map(card)}</div>}
+    :<><div className={view==='grid'?'mc-grid':'mc-list'}>{books.slice(0,shown).map(card)}</div>{books.length>shown&&<div className="mc-more"><span>Showing {shown} of {books.length}</span><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShown(value=>value+pageSize*2)}>Show more</button></div>}</>}
   </>}
 
   {tab==='wants'&&(!wants.length?<EmptyState title="No wants yet." message="Save issues you're hunting for from the directory." action={{label:'Browse the directory',onClick:p.onBrowse}}/>
@@ -206,8 +213,9 @@ export default function MyCollection(p:Props){
     {p.listedBookIds.has(detailBook.id)&&<p className="mc-quiet">This comic is listed for sale. Take down the listing to edit it.</p>}
     <div className="ds-actions">
      <button type="button" className="ds-btn ds-btn-primary" disabled={p.listedBookIds.has(detailBook.id)} onClick={()=>{setDetail(null);p.onEdit(detailBook.id)}}><Pencil size={17}/> Edit</button>
-     <button type="button" className="ds-btn ds-btn-secondary" onClick={()=>sell(false)}><ShoppingBag size={17}/> Sell</button>
+     <button type="button" className="ds-btn ds-btn-secondary" disabled={p.listedBookIds.has(detailBook.id)} onClick={()=>sell([detailBook.id])}><ShoppingBag size={17}/> Sell</button>
      <button type="button" className="ds-btn ds-btn-secondary" disabled={saving} onClick={()=>void setTrade([detailBook.id],!trade.has(detailBook.id))}><Repeat2 size={17}/> {trade.has(detailBook.id)?'Untrade':'Trade'}</button>
+     <button type="button" className="ds-link mc-danger-link" disabled={saving||p.listedBookIds.has(detailBook.id)} onClick={()=>setConfirmRemove([detailBook.id])}><Trash2 size={16}/> Remove</button>
     </div>
    </div>
   </div></Modal>}

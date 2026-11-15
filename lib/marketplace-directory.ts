@@ -4,6 +4,7 @@ import {CHECKOUT_EXPIRY_SECONDS} from './stripe-sandbox';
 import type {CatalogDb} from './catalog-store';
 import type {Listing} from './community';
 import {listingContext,listingDto} from './marketplace';
+import {avatarUrls} from './avatar';
 import {resolveEndedAuctions} from './marketplace-auction';
 import {distanceSql,radiusPredicate,resolveLocation,type LocationFilters} from './location-search';
 import {ApiRequestError} from './api-security';
@@ -45,6 +46,7 @@ export async function marketplaceDirectory(db:CatalogDb,viewer:typeof profiles.$
  const context=await listingContext(db,rows.map(row=>row.listing),viewer?.id),total=Number(counts?.n||0);
  const reserved=new Map<string,string>();
  if(viewer&&rows.some(row=>row.listing.status==='checkout_reserved'))for(const order of await db.select({listingId:commerceOrders.listingId,createdAt:commerceOrders.createdAt}).from(commerceOrders).where(and(eq(commerceOrders.buyerId,viewer.id),eq(commerceOrders.status,'awaiting_payment'),inArray(commerceOrders.listingId,rows.map(row=>row.listing.id)))))reserved.set(order.listingId,new Date(Date.parse(order.createdAt)+CHECKOUT_EXPIRY_SECONDS*1000).toISOString());
- const dtos=rows.map(row=>({...listingDto(row.listing,row.seller,viewer?.id,context),distanceMiles:row.distance===null?null:Math.round(row.distance*10)/10,...(reserved.has(row.listing.id)?{reservedForYouUntil:reserved.get(row.listing.id)}:{})}));
+ const avatars=await avatarUrls(rows.map(row=>row.seller?.id||''));
+ const dtos=rows.map(row=>({...listingDto(row.listing,row.seller?{...row.seller,avatarUrl:avatars.get(row.seller.id)||null}:row.seller,viewer?.id,context),distanceMiles:row.distance===null?null:Math.round(row.distance*10)/10,...(reserved.has(row.listing.id)?{reservedForYouUntil:reserved.get(row.listing.id)}:{})}));
  return {listings:options.guest?dtos.map(publicListing):dtos,total,offset:filters.offset,limit:30,hasMore:filters.offset+30<total,origin:origin?{city:origin.city,state:origin.state}:null,approximateDistances:true,guest:!!options.guest};
 }

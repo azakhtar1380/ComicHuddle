@@ -144,6 +144,17 @@ export async function resolveProfileIssue(db:CatalogDb,id:number,tables:boolean)
  return {requestedId:id,issueId,metronId};
 }
 
+// ---------- verified first appearances ----------
+/** A first-appearance fact is shown as fact only when a source states it: a Wikidata P4584
+ * "first appearance" claim, or a Metron character description that names this exact issue
+ * (match_method metron_desc_confirmed). "metron_issue_list" only means "earliest issue Metron has
+ * indexed for the character" — an inference that is often wrong (e.g. Dick Grayson -> Batman #1,
+ * Lex Luthor -> Superman #4, Darkseid -> Jimmy Olsen #134), so it is never shown as a first
+ * appearance or used to call an issue a key issue. */
+export const VERIFIED_FIRST_APPEARANCE=sql`NOT suppressed AND (source='wikidata' OR match_method='metron_desc_confirmed')`;
+const VERIFIED_FIRST_APPEARANCE_F=sql`NOT f.suppressed AND (f.source='wikidata' OR f.match_method='metron_desc_confirmed')`;
+const VERIFIED_FIRST_ORDER=sql`(match_method='metron_desc_confirmed') DESC,(source='wikidata') DESC`;
+
 // ---------- profile ----------
 export type ProfileCharacter={characterId:number;name:string;portraitUrl:string|null;debut:boolean};
 export type ProfileFirstAppearance={characterId:number;name:string;portraitUrl:string|null;source:'metron'|'wikidata'};
@@ -228,7 +239,7 @@ export async function issueProfile(db:CatalogDb,id:number,options:{enrich?:boole
   }
   const [factRows,listedRows]=issueId?await Promise.all([
    db.execute(sql`SELECT f.character_id,f.source,c.name,c.portrait_key,c.issue_count,c.sitelinks FROM ch_web.character_first_appearances f
-    JOIN ch_web.characters c ON c.character_id=f.character_id WHERE f.issue_id=${issueId} AND NOT f.suppressed AND c.merged_into IS NULL LIMIT 60`),
+    JOIN ch_web.characters c ON c.character_id=f.character_id WHERE f.issue_id=${issueId} AND ${VERIFIED_FIRST_APPEARANCE_F} AND c.merged_into IS NULL LIMIT 60`),
    db.execute(sql`SELECT c.character_id,c.name,c.portrait_key,c.issue_count,c.aliases FROM ch_web.character_issues ci JOIN ch_web.characters c ON c.character_id=ci.character_id
     WHERE ci.issue_id=${issueId} AND c.merged_into IS NULL ORDER BY c.issue_count DESC NULLS LAST,c.character_id LIMIT 120`),
   ]):[{rows:[]},{rows:[]}];
@@ -261,7 +272,7 @@ export async function searchCharacters(db:CatalogDb,q:string,limit:number):Promi
    ORDER BY rank,(c.character_id<0 AND COALESCE(c.sitelinks,0)<=3),c.issue_count DESC NULLS LAST,c.sitelinks DESC NULLS LAST,length(c.name),c.character_id LIMIT ${limit})
   SELECT h.*,f.issue_id,s.name AS series,i.number,CASE WHEN i.key_date ~ '^[0-9]{4}' THEN substring(i.key_date,1,4)::integer END AS year
   FROM hits h
-  LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=h.character_id AND issue_id IS NOT NULL AND NOT suppressed ORDER BY (source='metron') DESC LIMIT 1) f ON true
+  LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=h.character_id AND issue_id IS NOT NULL AND ${VERIFIED_FIRST_APPEARANCE} ORDER BY ${VERIFIED_FIRST_ORDER} LIMIT 1) f ON true
   LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET}
   LEFT JOIN gcd.gcd_series s ON s.id=i.series_id
   ORDER BY h.rank,(h.character_id<0 AND COALESCE(h.sitelinks,0)<=3),h.issue_count DESC NULLS LAST,h.sitelinks DESC NULLS LAST,length(h.name),h.character_id`);
@@ -301,7 +312,7 @@ export async function characterPage(db:CatalogDb,characterId:number):Promise<Cha
    (SELECT count(*) FROM ch_web.character_issues ci WHERE ci.character_id=c.character_id)::integer AS known,
    f.issue_id,s.name AS series,i.number,p.name AS publisher,CASE WHEN i.key_date ~ '^[0-9]{4}' THEN substring(i.key_date,1,4)::integer END AS year
   FROM ch_web.characters c
-  LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=c.character_id AND issue_id IS NOT NULL AND NOT suppressed ORDER BY (source='metron') DESC LIMIT 1) f ON true
+  LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=c.character_id AND issue_id IS NOT NULL AND ${VERIFIED_FIRST_APPEARANCE} ORDER BY ${VERIFIED_FIRST_ORDER} LIMIT 1) f ON true
   LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET}
   LEFT JOIN gcd.gcd_series s ON s.id=i.series_id
   LEFT JOIN gcd.gcd_publisher p ON p.id=s.publisher_id
@@ -335,7 +346,7 @@ export async function browseCharacters(db:CatalogDb,options:{letter:string|null;
   db.execute(sql`SELECT count(*)::integer AS n FROM ch_web.characters c WHERE ${visible}`),
   db.execute(sql`WITH page AS (SELECT c.character_id,c.name,c.portrait_key,c.issue_count FROM ch_web.characters c WHERE ${visible} ORDER BY ${order} LIMIT ${options.limit} OFFSET ${options.offset})
    SELECT p.*,f.issue_id,s.name AS series,i.number,CASE WHEN i.key_date ~ '^[0-9]{4}' THEN substring(i.key_date,1,4)::integer END AS year FROM page p
-   LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=p.character_id AND issue_id IS NOT NULL AND NOT suppressed ORDER BY (source='metron') DESC LIMIT 1) f ON true
+   LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=p.character_id AND issue_id IS NOT NULL AND ${VERIFIED_FIRST_APPEARANCE} ORDER BY ${VERIFIED_FIRST_ORDER} LIMIT 1) f ON true
    LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET} LEFT JOIN gcd.gcd_series s ON s.id=i.series_id`)]);
  const base=metronCoverCdnBase(),position=new Map<number,number>();
  const list=rows.rows.map((r,index)=>{position.set(Number(r.character_id),index);return {characterId:Number(r.character_id),name:String(r.name),portraitUrl:portraitUrl(r.portrait_key,base),issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),

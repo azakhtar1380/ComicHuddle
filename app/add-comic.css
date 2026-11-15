@@ -58,3 +58,10 @@
  .ac-step .comic-entry-mode button{font-size:14px;padding:8px}
  .ac-save-bar{margin-left:-4px;margin-right:-4px;padding:12px 4px calc(12px + env(safe-area-inset-bottom))}
 }
+
+/* Quick grade picks and copy count. */
+.ac-grade-chips{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 4px}
+.ac-grade-chip{min-height:40px;padding:0 14px;border:2px solid var(--ink);border-radius:var(--radius-pill);background:#fff;color:var(--ink);font:700 14px var(--font-body);cursor:pointer}
+.ac-grade-chip:hover{background:var(--yellow-soft)}
+.ac-grade-chip.is-on{background:var(--yellow);box-shadow:2px 2px 0 var(--ink)}
+.ac-copies input{max-width:120px}

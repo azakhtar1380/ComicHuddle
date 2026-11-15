@@ -1,10 +1,11 @@
 'use client';
-// The phone bottom bar: Home · Directory · Scan · Workshop · Market · More.
-// The current tab rises into a round bubble that pushes a bump up out of the bar. "More" opens the
-// Menu (every page plus your account). The bar tucks away while you scroll down and hides behind dialogs.
+// The phone bottom bar: Home · Market · [ SCAN ] · Workshop · More.
+// Scan is the signature action: a raised round button in the exact center. The other tabs get a soft
+// yellow pill behind the icon when active. Directory and search live in the header on phones.
+// "More" opens the navigation hub. The bar tucks away while you scroll down and hides behind dialogs.
 import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {Home, LayoutGrid, ScanLine, Search, ShoppingBag, Wrench, X} from 'lucide-react';
-import AccountMenu from '../components/account-menu';
+import {Home, LayoutGrid, ScanLine, ShoppingBag, Wrench, X} from 'lucide-react';
+import MoreMenu from '../components/more-menu';
 import './mobile-dock.css';
 
 type Props = {
@@ -12,21 +13,20 @@ type Props = {
   scanOpen: boolean;
   onNavigate: (section: string, tab?: string) => void;
   onScan: () => void;
-  /** When the page has its own account panel (the main app), "Me" opens that. */
+  /** When the page has its own More panel (the main app), "More" opens that. */
   onMe?: () => void;
   meOpen?: boolean;
   unread?: number;
 };
 type Item = {id: string; label: string; Icon: ComponentType<{size?: number; strokeWidth?: number}>; match: string[]};
 const homeItem: Item = {id: 'Home', label: 'Home', Icon: Home, match: ['Home']};
-const searchItem: Item = {id: 'Directory', label: 'Directory', Icon: Search, match: ['Directory']};
 const marketItem: Item = {id: 'Marketplace', label: 'Market', Icon: ShoppingBag, match: ['Marketplace']};
 const workshopItem: Item = {id: 'Pressing', label: 'Workshop', Icon: Wrench, match: ['Pressing']};
-const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'SafePurchase', 'About'];
+const moreSections = ['Directory', 'Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'SafePurchase', 'About'];
 
 export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meOpen = false, unread = 0}: Props) {
   const [hidden, setHidden] = useState(false), [sheet, setSheet] = useState(false), [pop, setPop] = useState('');
-  const [session, setSession] = useState({signedIn: false, name: 'Collector'});
+  const [session, setSession] = useState<{signedIn: boolean; name: string; avatarUrl: string | null}>({signedIn: false, name: 'Collector', avatarUrl: null});
   const lastY = useRef(0), dialog = useRef<HTMLDialogElement>(null), opener = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meO
     const abort = new AbortController();
     fetch('/api/account-summary', {credentials: 'same-origin', cache: 'no-store', signal: abort.signal})
       .then(r => r.ok ? r.json() : null)
-      .then(v => { if (v && typeof v.signedIn === 'boolean') setSession({signedIn: v.signedIn, name: typeof v.name === 'string' ? v.name : 'Collector'}); })
+      .then(v => { if (v && typeof v.signedIn === 'boolean') setSession({signedIn: v.signedIn, name: typeof v.name === 'string' ? v.name : 'Collector', avatarUrl: typeof v.avatarUrl === 'string' ? v.avatarUrl : null}); })
       .catch(() => undefined);
     return () => abort.abort();
   }, [onMe, sheet]);
@@ -58,33 +58,35 @@ export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meO
   }, [sheet]);
 
   const tap = (id: string, action: () => void) => { setPop(id); window.setTimeout(() => setPop(''), 260); action(); };
-  const meActive = meOpen || sheet || meSections.includes(tab);
-  const anyOverlay = scanOpen || meOpen || sheet;
+  const moreOpen = meOpen || sheet;
   const tabButton = (item: Item) => {
-    const active = !anyOverlay && item.match.includes(tab);
+    const active = !scanOpen && !moreOpen && item.match.includes(tab);
     return <button type="button" key={item.id} className={'dock3-tab' + (active ? ' active' : '') + (pop === item.id ? ' pop' : '')} aria-current={active ? 'page' : undefined} onClick={() => tap(item.id, () => onNavigate(item.id))}>
       <span className="dock3-icon"><item.Icon size={22} strokeWidth={2.2} /></span><span className="dock3-label">{item.label}</span>
     </button>;
   };
+  const moreActive = !scanOpen && (moreOpen || moreSections.includes(tab));
 
   return <>
     <nav className={'dock3' + (hidden && !sheet ? ' tucked' : '')} aria-label="Main">
       {tabButton(homeItem)}
-      {tabButton(searchItem)}
-      <button type="button" className={'dock3-tab dock3-scan' + (scanOpen ? ' active' : '') + (pop === 'scan' ? ' pop' : '')} aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={() => tap('scan', onScan)}>
-        <span className="dock3-icon"><ScanLine size={22} strokeWidth={2.3} /></span><span className="dock3-label">Scan</span>
+      {tabButton(marketItem)}
+      <button type="button" className={'dock3-scan' + (scanOpen ? ' active' : '') + (pop === 'scan' ? ' pop' : '')} aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={() => tap('scan', onScan)}>
+        <span className="dock3-stamp"><ScanLine size={26} strokeWidth={2.4} /></span><span className="dock3-label">Scan</span>
       </button>
       {tabButton(workshopItem)}
-      {tabButton(marketItem)}
-      <button ref={opener} type="button" className={'dock3-tab' + (meActive && !scanOpen ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-label={'More: every page and your account' + (unread > 0 ? ', ' + unread + ' unread conversations' : '')} aria-haspopup="dialog" aria-expanded={meOpen || sheet} aria-current={meSections.includes(tab) ? 'page' : undefined} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
+      <button ref={opener} type="button" className={'dock3-tab' + (moreActive ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-label={'More: every page' + (unread > 0 ? ', ' + unread + ' unread conversations' : '')} aria-haspopup="dialog" aria-expanded={moreOpen} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
         <span className="dock3-icon"><LayoutGrid size={22} strokeWidth={2.2} />{unread > 0 && <i className="dock3-dot" aria-hidden="true" />}</span><span className="dock3-label">More</span>
       </button>
     </nav>
     {!onMe && <dialog ref={dialog} className="dock3-sheet" aria-label="More" onClose={() => { setSheet(false); opener.current?.focus(); }} onClick={event => { if (event.target === event.currentTarget) setSheet(false); }}>
       <div className="dock3-sheet-body">
-        <span className="dock3-grip" aria-hidden="true" />
-        <button type="button" className="dock3-close" aria-label="Close" onClick={() => setSheet(false)}><X size={22} /></button>
-        <AccountMenu signedIn={session.signedIn} name={session.name} current={tab} onNavigate={(section, sub) => { setSheet(false); onNavigate(section, sub); }} />
+        <div className="dock3-sheet-head"><span className="dock3-grip" aria-hidden="true" /><h2>More</h2><button type="button" className="dock3-close" aria-label="Close" onClick={() => setSheet(false)}><X size={22} /></button></div>
+        <MoreMenu signedIn={session.signedIn} name={session.name} avatarUrl={session.avatarUrl} current={tab} onOpenAccount={() => window.location.assign('/?section=Account')} onNavigate={(section, sub) => {
+          setSheet(false);
+          if (section === 'Pressing' && sub) { window.location.assign('/?section=Comic+Workshop'); return; }
+          onNavigate(section, sub);
+        }} />
       </div>
     </dialog>}
   </>;

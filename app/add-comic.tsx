@@ -8,6 +8,7 @@ import {SelectedComicList} from './comic-multi-picker';
 import {issueIdentity,listingDirectoryId} from '../lib/shared-catalog';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import {collectionGrade,ownershipFromForm,rawConditions,collectionGrades,slabLabels} from '../lib/collection-entry';
+import {quickGrades} from '../lib/listing-grades';
 import HuddlesGuide,{HuddlesArt,HuddlesTip} from '../components/huddles-guide';
 import './add-comic.css';
 
@@ -35,8 +36,9 @@ const gradingArt=<HuddlesArt pose="grading" size="sm" className="ac-step-art" de
 
 type PendingComic={id:string;title:string;issue:string;directory?:Issue};
 export default function AddComicForm({vault,commit,saving,onSaved,allowMultiple=false}:Props){
+ const [copyCount,setCopyCount]=useState(1),gradeInput=useRef<HTMLInputElement>(null),[gradeValue,setGradeValue]=useState('');
  const [entries,setEntries]=useState<PendingComic[]>([]),[multiple,setMultiple]=useState(false),[manual,setManual]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[graded,setGraded]=useState(false);
- const formRef=useRef<HTMLFormElement>(null),submitting=useRef(false),manualId=useRef<string|null>(null);
+ const formRef=useRef<HTMLFormElement>(null),submitting=useRef(false),manualId=useRef<string|null>(null),extraIds=useRef<string[]>([]);
  const limit=Math.max(0,1000-vault.books.length),disabled=saving||busy;
  function addIssue(issue:Issue|null){if(!issue)return;setError('');if(entries.some(entry=>entry.directory?.id===issue.id)){setError('That comic is already on your list.');return}if(!limit||multiple&&entries.length>=limit){setError('Your collection can hold up to 1,000 comics.');return}const next={id:crypto.randomUUID(),title:issue.title,issue:'#'+issue.number,directory:issue};setEntries(previous=>multiple?[...previous,next]:[next])}
  function manualEntry(data:FormData):PendingComic|null{const title=String(data.get('title')||'').trim(),issue=String(data.get('issue')||'').trim();if(!title&&!issue)return null;if(!title||!issue)throw Error('Add both a title and an issue number.');manualId.current ||= crypto.randomUUID();return {id:manualId.current,title,issue}}
@@ -50,7 +52,10 @@ export default function AddComicForm({vault,commit,saving,onSaved,allowMultiple=
   try{if(manual){const pending=manualEntry(data);if(pending)chosen=multiple?[...chosen,pending]:[pending]}if(!chosen.length)throw Error('Pick at least one comic, or add one by hand.');if(chosen.length>limit)throw Error('Your collection can hold up to 1,000 comics.')}catch(problem){setError(problem instanceof Error?problem.message:'Check your comics.');return}
   // Keep copy IDs stable if an acknowledgement is lost and the user retries.
   setEntries(chosen);if(manual){manualId.current=null;for(const name of ['title','issue']){const field=event.currentTarget.elements.namedItem(name);if(field instanceof HTMLInputElement)field.value=''}}
-  const copies=chosen.map(entry=>({id:entry.id,title:entry.title,issue:entry.issue,grade:String(data.get('grade')||'').trim(),price:Number(data.get('price')||0),...(entry.directory?issueIdentity(entry.directory):{})}));
+  // "How many copies" (one comic only) saves that many separate copies; extra copy IDs stay stable across retries.
+  const count=!multiple&&chosen.length===1?Math.min(Math.max(1,Math.floor(copyCount)||1),limit):1;if(extraIds.current.length<count-1)extraIds.current=[...extraIds.current,...Array.from({length:count-1-extraIds.current.length},()=>crypto.randomUUID())];
+  const expanded=count>1?[chosen[0],...extraIds.current.slice(0,count-1).map(id=>({...chosen[0],id}))]:chosen;
+  const copies=expanded.map(entry=>({id:entry.id,title:entry.title,issue:entry.issue,grade:String(data.get('grade')||'').trim(),price:Number(data.get('price')||0),...(entry.directory?issueIdentity(entry.directory):{})}));
   const ids=new Set(copies.map(copy=>copy.id)),books=[...vault.books.filter(copy=>!ids.has(copy.id)),...copies],tradeBookIds=[...vault.tradeBookIds.filter(id=>!ids.has(id)),...(data.get('trade')?copies.map(copy=>copy.id):[])];
   submitting.current=true;setBusy(true);
   try{if(await commit({...vault,books,tradeBookIds}))onSaved();else setError('We’re not sure that saved. Your picks are still here. Try again.')}catch{setError('Couldn’t save your comics. Your picks are still here. Try again.')}finally{submitting.current=false;setBusy(false)}
@@ -59,19 +64,21 @@ export default function AddComicForm({vault,commit,saving,onSaved,allowMultiple=
    <div className="comic-count-mode"><div className="mp-choice-buttons" role="group" aria-label="How many comics?"><button type="button" className={!multiple?'selected':''} aria-pressed={!multiple} onClick={()=>{setMultiple(false);setEntries(previous=>previous.slice(0,1));setError('')}}>One comic</button><button type="button" className={multiple?'selected':''} aria-pressed={multiple} onClick={()=>{setMultiple(true);setError('')}}>Several comics</button></div></div>
    <EntryMode manual={manual} disabled={disabled} setManual={value=>{setManual(value);setError('');manualId.current=null}}/>
    {manual?<><ManualFields required={!entries.length}/><button type="button" className="ds-btn ds-btn-secondary ac-add-manual" onClick={addManual}>Add to my list</button></>:<ComicPicker value={null} disabled={disabled} clearOnChoose onChange={addIssue} label="Search for your comic" helper="Search by title, issue, year, publisher or character. Pick the exact edition."/>}
+   {!multiple&&<label className="ds-field ac-copies"><span>How many copies do you have?</span><input type="number" inputMode="numeric" min="1" max={Math.max(1,Math.min(100,limit))} value={copyCount} onChange={event=>setCopyCount(Math.max(1,Math.min(100,Number(event.target.value)||1)))}/><small>Each copy is saved separately, so you can grade or sell them one at a time.</small></label>}
    <SelectedComicList items={entries.map(entry=>({id:entry.id,title:entry.title,issue:entry.issue,cover:entry.directory?.cover,subtitle:entry.directory?[entry.directory.publisher,entry.directory.year||null,entry.directory.variant].filter(Boolean).join(' · '):'Added by hand'}))} disabled={disabled} onRemove={id=>setEntries(previous=>previous.filter(entry=>entry.id!==id))}/>
   </Step>
   <Step n={2} title="Condition & grade" art={gradingArt}>
-   <label className="ds-field"><span>{multiple?'Condition or grade for these comics':'Condition or grade'}</span><input name="grade" placeholder="e.g. Raw VF or CGC 9.8 Universal" maxLength={80} onInput={event=>setGraded(!!event.currentTarget.value.trim())}/><small>Raw (like VF) or slabbed (like CGC 9.8). Leave it blank if you’re not sure.</small></label>
+   <label className="ds-field"><span>{multiple?'Condition or grade for these comics':'Condition or grade'}</span><input ref={gradeInput} name="grade" value={gradeValue} placeholder="e.g. Raw VF or CGC 9.8 Universal" maxLength={80} onChange={event=>{setGradeValue(event.target.value);setGraded(!!event.target.value.trim())}}/><small>Tap a common grade or type your own. Leave it blank if you’re not sure.</small></label>
+   <div className="ac-grade-chips" role="group" aria-label="Common grades">{quickGrades.map(option=><button type="button" key={option.value} className={'ac-grade-chip'+(gradeValue===option.value?' is-on':'')} aria-pressed={gradeValue===option.value} onClick={()=>{const next=gradeValue===option.value?'':option.value;setGradeValue(next);setGraded(!!next);gradeInput.current?.focus()}}>{option.label}</button>)}</div>
   </Step>
   <Step n={3} title="Private details" optional>
-   <label className="ds-field"><span>What you paid {multiple?'per comic ':''}(USD)<span className="required-mark" aria-hidden="true"> *</span></span><input name="price" type="number" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue="0" required/><small>Only you can see this. Leave it at 0 if you’d rather not say.</small></label>
+   <label className="ds-field"><span>What you paid {multiple||copyCount>1?'per comic ':''}(USD)</span><input name="price" type="number" inputMode="decimal" min="0" max="10000000" step="0.01" placeholder="0.00"/><small>Only you can see this. Leave it blank if you’d rather not say.</small></label>
    <label className="check-label ac-check"><input type="checkbox" name="trade"/> I’m open to trading {multiple?'these comics':'this comic'}</label>
    <p className="ac-help">{multiple?'This condition and price apply to every comic you picked. You can change each one later. ':''}Only add comics you own.</p>
   </Step>
   <div className="ac-save-bar">
    {error&&<p className="ds-error ac-error" role="alert"><X size={16} aria-hidden="true"/> {error}</p>}
-   <button type="submit" className="ds-btn ds-btn-primary ac-save" disabled={disabled||!manual&&!entries.length}>{disabled?'Saving…':allowMultiple?'Save & back to listing':multiple?'Save comics':'Save to my collection'} <Check size={18}/></button>
+   <button type="submit" className="ds-btn ds-btn-primary ac-save" disabled={disabled||!manual&&!entries.length}>{disabled?'Saving…':allowMultiple?'Save & back to listing':multiple?'Save comics':copyCount>1?'Save '+copyCount+' copies':'Save to my collection'} <Check size={18}/></button>
   </div>
  </fieldset></form></div>;
 }

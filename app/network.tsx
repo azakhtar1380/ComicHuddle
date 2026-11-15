@@ -13,11 +13,12 @@ import {listingDirectoryId} from '../lib/shared-catalog';
 import {catalog,type Issue} from '../lib/catalog';
 import {bookIssue} from '../lib/trades';
 import {activateDialog} from '../lib/dialog-focus';
-import {emptyHub,previewRulesVersion,type HubData,type CollectorProfile,type ChatMessage,type ShowcaseBook} from '../lib/community';
+import {emptyHub,previewRulesVersion,type HubData,type CollectorProfile,type ShowcaseBook} from '../lib/community';
 import Marketplace from './marketplace';
-import TradeTerms from './trade-terms';
 import PageHeader from '../components/page-header';
-import HuddlesGuide,{HuddlesArt} from '../components/huddles-guide';
+import HuddlesGuide from '../components/huddles-guide';
+import MessagesInbox,{type PendingRef} from '../components/messages/inbox';
+export {countUnread} from '../components/messages/format';
 import {LoadingState} from '../components/states';
 import type {Vault} from '../lib/vault';
 import './network.css';
@@ -68,12 +69,6 @@ export function ComicArt({issue,book,small=false}:{issue?:Issue;book?:ShowcaseBo
  return <div className={'comic-photo '+(small?'small':'')}><ResolvedComicCover issueId={id} title={book?.title||record?.title||'Comic'} issue={record?.number||book?.issue} publisher={record?.publisher} year={record?.year} src={url} actualPhoto={!!book?.photoId} credit={record?.coverCredit||book?.coverCredit}/></div>;
 }
 
-/** Chat timestamps in the viewer's own time zone: time today, otherwise date + time. */
-const chatStamp=(s:string)=>{const d=new Date(s);if(Number.isNaN(d.getTime()))return '';const today=new Date().toDateString()===d.toDateString();return today?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):d.toLocaleString('en-US',{month:'short',day:'numeric',...(d.getFullYear()!==new Date().getFullYear()?{year:'numeric'}:{}),hour:'numeric',minute:'2-digit'})};
-/** Per-device "last read" markers for conversations. Unread = the newest message is from the other collector and arrived after the marker. */
-const seenKey='comichuddle:chat-seen';
-function readSeen():Record<string,string>{try{const v=JSON.parse(localStorage.getItem(seenKey)||'{}');return v&&typeof v==='object'?v:{}}catch{return {}}}
-function writeSeen(next:Record<string,string>){try{localStorage.setItem(seenKey,JSON.stringify(next))}catch{}}
 export async function uploadPhoto(file:File){
  if(!/^image\/(jpeg|png|webp)$/.test(file.type))throw Error('Pick a JPEG, PNG or WebP photo.');if(file.size>20000000)throw Error('That photo is over 20 MB. Try a smaller one.');
  const bitmap=await createImageBitmap(file),ratio=Math.min(1,1800/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*ratio);canvas.height=Math.round(bitmap.height*ratio);const ctx=canvas.getContext('2d');if(!ctx){bitmap.close();throw Error('Couldn’t prepare this photo. Try another.')};ctx.fillStyle='#f5f1e7';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const blob=await new Promise<Blob|null>(res=>canvas.toBlob(res,'image/jpeg',.88));if(!blob)throw Error('Couldn’t prepare this photo. Try another.');const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'image/jpeg'},body:blob}),d=await r.json() as {error?:string;id:string};if(!r.ok)throw Error(d.error);return d.id as string;
@@ -139,19 +134,15 @@ function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:Collect
 type Props={onAddComic?:()=>void;addComicOpen?:boolean;myProfileRequest:number;tab:string;net:Net;vault:Vault;commit:(v:Vault)=>Promise<boolean>;go:(s:string)=>void;openIssue:(id:number)=>void;openCollection:()=>void;notice:(s:string)=>void;signedIn:boolean;name:string;gate:()=>boolean;profileOpen:boolean;setProfileOpen:(v:boolean)=>void;marketIssue:number|null;clearMarketIssue:()=>void;incomingThread:{id:string;version:number};preferredRole:'collector'|'provider';onProviderProfileCreated:()=>void;onAccountProfileSaved:()=>void};
 export default function CollectorNetwork({onAddComic,addComicOpen,myProfileRequest,tab,net,vault,commit,go,openIssue,openCollection,notice,signedIn,name,gate:parentGate,profileOpen,setProfileOpen,marketIssue,clearMarketIssue,incomingThread,preferredRole,onProviderProfileCreated,onAccountProfileSaved}:Props){
  const {data,busy}=net;function gate(){const okay=parentGate();if(!okay)setNewChat(false);return okay;}const [search,setSearch]=useState('');
- const [threadId,setThreadId]=useState(''),[chat,setChat]=useState<ChatMessage[]>([]),[message,setMessage]=useState(''),[chatBlocked,setChatBlocked]=useState(false),[chatLoading,setChatLoading]=useState(false),[chatError,setChatError]=useState(''),[newChat,setNewChat]=useState(false),[blockedByMe,setBlockedByMe]=useState(false),[sending,setSending]=useState(false),[seen,setSeen]=useState<Record<string,string>>({});
- useEffect(()=>{setSeen(readSeen())},[]);
- function markSeen(id:string,stamp:string){setSeen(current=>{if(current[id]&&current[id]>=stamp)return current;const next={...current,[id]:stamp};writeSeen(next);return next})}
+ const [threadId,setThreadId]=useState(''),[newChat,setNewChat]=useState(false),[pendingRef,setPendingRef]=useState<PendingRef|null>(null);
  const [profile,setProfile]=useState<CollectorProfile|null>(null),[share,setShare]=useState<CollectorProfile|null>(null);
  const [report,setReport]=useState<{type:string;id:string}|null>(null),[featureIds,setFeatureIds]=useState<string[]>([]);
  const [grailRecords,setGrailRecords]=useState<Record<number,Issue>>({});
- const chatRequest=useRef(0),profileRequest=useRef(0),currentChatSelection=useRef(''),currentProfileSelection=useRef('');
+ const profileRequest=useRef(0),currentProfileSelection=useRef('');
  const [profileLoading,setProfileLoading]=useState(false);
  const [signInHref,setSignInHref]=useState('/sign-in?return_to=%2F');
  useEffect(()=>{if(profileOpen)setSignInHref(accountSignInPath(window.location.pathname,window.location.search,preferredRole,tab))},[profileOpen,preferredRole,tab]);
- const thread=data.threads.find(t=>t.id===threadId);const me=data.me;
- const isUnread=(t:typeof data.threads[number])=>t.id!==threadId&&t.latestMine===false&&!!t.latestAt&&(!seen[t.id]||seen[t.id]<t.latestAt),unreadThreads=data.threads.filter(isUnread).length;
- currentChatSelection.current=tab==='Messages'?threadId:'';
+ const me=data.me;
  if(tab!=='Collectors')currentProfileSelection.current='';
  useEffect(()=>{if(tab!=='Collectors'){selectProfile(null);setProfileLoading(false)}},[tab]);
  useEffect(()=>{selectProfile(null)},[myProfileRequest]);
@@ -171,21 +162,23 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
   catch(e){if(current())notice(e instanceof Error&&e.message?e.message:'Couldn’t open that profile. Try again.')}
   finally{if(current())setProfileLoading(false)}
  }
- async function loadChat(showLoading=false){
-  const selection=threadId;if(!selection||currentChatSelection.current!==selection)return;
-  const request=++chatRequest.current;if(showLoading)setChatLoading(true);
-  const current=()=>request===chatRequest.current&&currentChatSelection.current===selection;
-  try{const r=await fetch('/api/social?kind=messages&thread='+encodeURIComponent(threadId)),d=await r.json() as {error?:string;messages:ChatMessage[];blocked:boolean;blockedByMe?:boolean};if(!r.ok)throw Error(d.error||'Couldn’t load this chat. Try again.');if(current()){setChat(d.messages);setChatBlocked(d.blocked);setBlockedByMe(!!d.blockedByMe);setChatError('');const last=d.messages.at(-1);markSeen(selection,last?.createdAt||new Date(0).toISOString())}}
-  catch(e){if(current())setChatError(e instanceof Error&&e.message?e.message:'Couldn’t load this chat. Try again.')}
-  finally{if(current())setChatLoading(false)}
- }
- useEffect(()=>{setChat([]);setChatError('');setChatBlocked(false);setBlockedByMe(false);setChatLoading(false);setMessage('');if(!threadId||tab!=='Messages')return;void loadChat(true);const timer=setInterval(()=>void loadChat(),12000);return()=>{chatRequest.current++;clearInterval(timer)}},[threadId,tab]);
-
- async function startMessage(to:string,context=''){if(!gate())return;const d=await net.act({action:'start_thread',to,context});if(d?.threadId){setThreadId(d.threadId);setNewChat(false);selectProfile(null);go('Messages')}}
+ async function startMessage(to:string,context='',ref:{listingId?:string;providerId?:string}={}){if(!gate())return false;const listing=ref.listingId?undefined:data.listings.find(l=>l.sellerId===to&&l.title===context&&l.status==='active'),listingId=ref.listingId||listing?.id;const d=await net.act({action:'start_thread',to,context,...(listingId?{listingId}:{}),...(ref.providerId?{providerId:ref.providerId}:{})});if(d?.threadId){setPendingRef(listingId?{threadId:d.threadId,kind:'listing',id:listingId}:ref.providerId?{threadId:d.threadId,kind:'provider',id:ref.providerId,title:data.people.find(p=>p.provider?.id===ref.providerId)?.provider?.name}:null);setThreadId(d.threadId);setNewChat(false);selectProfile(null);go('Messages');return true}return false}
+ // Deep link: /?section=Messages&to=<profileId>[&listing=<id>|&provider=<id>] opens (or starts) that conversation once signed in.
+ const deepLink=useRef<{to:string;listing?:string;provider?:string}|null>(null);
+ useEffect(()=>{const q=new URLSearchParams(window.location.search),to=q.get('to');if(q.get('section')==='Messages'&&to)deepLink.current={to:to.slice(0,100),listing:q.get('listing')?.slice(0,100)||undefined,provider:q.get('provider')?.slice(0,100)||undefined}},[]);
+ useEffect(()=>{
+  const link=deepLink.current;if(!link||tab!=='Messages'||!signedIn||!net.ready||busy)return;
+  if(link.to===me?.id){deepLink.current=null;return}
+  if(!gate())return;
+  deepLink.current=null;const url=new URL(window.location.href);for(const key of ['to','listing','provider'])url.searchParams.delete(key);window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);
+  const existing=data.threads.find(t=>t.peer.id===link.to);
+  if(existing&&!link.listing&&!link.provider){setThreadId(existing.id);return}
+  void startMessage(link.to,'',{listingId:link.listing,providerId:link.provider}).then(ok=>{if(!ok&&existing)setThreadId(existing.id)});
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[tab,signedIn,net.ready,busy,me?.id]);
  async function downloadCard(p:CollectorProfile){const svgUrl=URL.createObjectURL(new Blob([storySvg(p)],{type:'image/svg+xml'}));try{const img=new Image();img.src=svgUrl;await img.decode();const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;const ctx=canvas.getContext('2d');if(!ctx)throw Error();ctx.drawImage(img,0,0);const blob=await new Promise<Blob|null>(r=>canvas.toBlob(r,'image/png'));if(!blob)throw Error();const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='comichuddle-'+p.handle+'-story.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);notice('Your story card is downloaded.')}catch{const a=document.createElement('a');a.href=svgUrl;a.download='comichuddle-'+p.handle+'-story.svg';a.click();notice('PNG didn’t work, so we saved it as an SVG.')}finally{setTimeout(()=>URL.revokeObjectURL(svgUrl),2000)}}
  async function shareUrl(p:CollectorProfile){const url=window.location.origin+'/?collector='+encodeURIComponent(p.handle);try{if(navigator.share)await navigator.share({title:p.name+' on ComicHuddle',text:p.tagline,url});else{await navigator.clipboard.writeText(url);notice('Profile link copied.')}}catch{notice('Sharing didn’t go through. Try again.')}}
  const currentProfile=profile||me,own=!!currentProfile&&currentProfile.id===me?.id,viewingOther=!!profile&&profile.id!==me?.id;
- const sendDisabled=!message.trim()||busy||sending;
  const profileHeader=profileLoading?null:currentProfile&&!own?<PageHeader id="nw-profile-title" eyebrow="Collector profile" title={currentProfile.name+'.'} accent={'@'+currentProfile.handle} lede={currentProfile.tagline||undefined} pose="profile" caption="THEIR SHELF" actions={<><button type="button" className="ds-btn ds-btn-primary" disabled={!currentProfile.dmOpen||busy} title={currentProfile.dmOpen?undefined:'This collector isn’t taking messages.'} onClick={()=>void startMessage(currentProfile.id)}><MessageCircle size={18} aria-hidden="true"/> {currentProfile.dmOpen?'Send a message':'Not taking messages'}</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShare(currentProfile)}><Share2 size={18} aria-hidden="true"/> Share</button></>}/>
   :<PageHeader id="nw-profile-title" eyebrow="My profile" title="Your shelf." accent="Your story." lede={currentProfile?'Your collection is private. You choose what to show.':'Pick a name. Show off six favorite books. It’s free.'} pose="profile" caption="YOUR SHELF" line="Pick six favorites to show off." actions={currentProfile?<><button type="button" className="ds-btn ds-btn-primary" onClick={()=>setProfileOpen(true)}><Pencil size={18} aria-hidden="true"/> Edit showcase</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShare(currentProfile)}><Share2 size={18} aria-hidden="true"/> Share</button><button type="button" className="ds-btn ds-btn-secondary" onClick={openCollection}><Layers size={18} aria-hidden="true"/> My collection</button></>:<><button type="button" className="ds-btn ds-btn-primary" onClick={()=>{selectProfile(null);setProfileOpen(true)}}>Create my profile <ArrowRight size={18} aria-hidden="true"/></button><button type="button" className="ds-btn ds-btn-secondary" onClick={openCollection}><Layers size={18} aria-hidden="true"/> My collection</button></>}/>;
  const [wantRecords,setWantRecords]=useState<Record<number,Issue>>({});
@@ -194,7 +187,7 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
  const openBook=(b:ShowcaseBook)=>{const id=b.directoryIssueId??listingDirectoryId(b)??bookIssue(b)?.id;if(id!==undefined&&id!==null)openIssue(id)};
  return <>
  {['Marketplace','Collectors','Messages'].includes(tab)&&net.error&&<div className="network-error nw-error" role="alert"><strong>{net.error}</strong><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={()=>void net.refresh()}><RefreshCw size={16} aria-hidden="true"/> Try again</button></div>}
- {tab==='Marketplace'&&<Marketplace commit={commit} onAddComic={onAddComic} addComicOpen={addComicOpen} net={net} vault={vault} gate={gate} notice={notice} openCollection={openCollection} marketIssue={marketIssue} clearIssue={clearMarketIssue} onSeller={handle=>void loadProfile(handle)} onMessage={(id,title)=>void startMessage(id,title)} onReport={id=>setReport({type:'listing',id})}/> }
+ {tab==='Marketplace'&&<Marketplace onOpenIssue={openIssue} commit={commit} onAddComic={onAddComic} addComicOpen={addComicOpen} net={net} vault={vault} gate={gate} notice={notice} openCollection={openCollection} marketIssue={marketIssue} clearIssue={clearMarketIssue} onSeller={handle=>void loadProfile(handle)} onMessage={(id,title)=>void startMessage(id,title)} onReport={id=>setReport({type:'listing',id})}/> }
  {tab==='Collectors'&&<section className="nw-profile" aria-labelledby="nw-profile-title">
   {viewingOther&&<button type="button" className="ds-link nw-back" onClick={()=>go('My Profile')}><ArrowLeft size={16} aria-hidden="true"/> Back to my profile</button>}
   {profileLoading?<LoadingState message="Loading this shelf…"/>:<>
@@ -208,43 +201,8 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
   </>}
  </section>}
  {tab==='Messages'&&<section className="nw-messages" aria-labelledby="nw-messages-title">
-  <PageHeader id="nw-messages-title" eyebrow="Messages" title="Your messages." actions={data.threads.length?<button type="button" className="ds-btn ds-btn-secondary" onClick={()=>{if(gate())setNewChat(true)}}><Plus size={18} aria-hidden="true"/> New message</button>:undefined}/>
-  {!data.threads.length&&!thread?<div className="nw-inbox-empty">
-   <HuddlesGuide pose="messages" caption="YOUR MESSAGES" line="Say hi to a collector." size="md"/>
-   <div><h2>No messages yet.</h2><p>Message a seller from a listing, or find a collector to say hi.</p><div className="ds-actions"><button type="button" className="ds-btn ds-btn-primary" onClick={()=>{if(gate())setNewChat(true)}}><Search size={18} aria-hidden="true"/> Find a collector</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>go('Marketplace')}>Browse the marketplace</button></div></div>
-  </div>
-  :<div className={'nw-inbox'+(thread?' has-thread':'')}>
-   <aside className="nw-list" aria-label="Conversations">
-    <div className="nw-list-head"><h2>Inbox{unreadThreads>0&&<span className="nw-count" aria-label={unreadThreads+' unread'}>{unreadThreads}</span>}</h2><button type="button" className="nw-icon-btn" aria-label="Refresh inbox" onClick={()=>void net.refresh()}><RefreshCw size={18} aria-hidden="true"/></button></div>
-    <ul>{data.threads.map(t=>{const unread=isUnread(t);return <li key={t.id}><button type="button" className={'nw-thread'+(threadId===t.id?' active':'')+(unread?' unread':'')} aria-current={threadId===t.id?'true':undefined} onClick={()=>setThreadId(t.id)}><span className="nw-avatar" aria-hidden="true">{t.peer.name.slice(0,1).toUpperCase()}</span><span className="nw-thread-copy"><strong>{t.peer.name}{unread&&<span className="nw-dot"><span className="sr-only">Unread</span></span>}</strong><small>{t.latest?(t.latestMine?'You: ':'')+t.latest:t.context||'No messages yet'}</small></span>{t.latestAt&&<time dateTime={t.latestAt}>{chatStamp(t.latestAt)}</time>}</button></li>})}</ul>
-   </aside>
-   <div className="nw-chat">{thread?<>
-    <div className="nw-chat-head">
-     <button type="button" className="nw-icon-btn nw-chat-back" aria-label="All messages" onClick={()=>setThreadId('')}><ArrowLeft size={20} aria-hidden="true"/></button>
-     <span className="nw-avatar" aria-hidden="true">{thread.peer.name.slice(0,1).toUpperCase()}</span>
-     <div className="nw-chat-who"><strong>{thread.peer.name}</strong><small>@{thread.peer.handle}{thread.context?' · '+thread.context:''}</small></div>
-     <div className="nw-chat-tools">
-      <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={()=>void loadProfile(thread.peer.handle)}>Profile</button>
-      {blockedByMe?<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={busy} onClick={async()=>{const r=await net.act({action:'unblock',to:thread.peer.id});if(r){notice(thread.peer.name+' is unblocked.');await loadChat()}}}>Unblock</button>:<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={busy||chatBlocked} onClick={async()=>{if(!window.confirm('Block '+thread.peer.name+'? Neither of you can send messages, and they’ll be hidden from you. You can unblock later.'))return;const r=await net.act({action:'block',to:thread.peer.id});if(r){setChatBlocked(true);setBlockedByMe(true);notice(thread.peer.name+' is blocked.')}}}>Block</button>}
-     </div>
-    </div>
-    <TradeTerms key={threadId} threadId={threadId} act={net.act} notify={notice}/>
-    <div className="nw-chat-body" aria-live="polite">
-     {chatLoading&&<p className="nw-muted" role="status">Loading messages…</p>}
-     {chatError&&<p className="ds-error" role="alert">{chatError}</p>}
-     {!chat.length&&!chatLoading&&!chatError&&<div className="nw-chat-start"><HuddlesArt pose="messages" size="sm" decorative/><div><h3>Say hi.</h3><p>Talk about the book, its condition or a trade. Keep addresses and payment info out of chat.</p></div></div>}
-     {chat.map(m=><div className={'nw-bubble'+(m.mine?' mine':'')} key={m.id}><span className="sr-only">{m.mine?'You':m.authorName}: </span><p>{m.body}</p><div className="nw-bubble-meta"><time dateTime={m.createdAt}>{chatStamp(m.createdAt)}</time>{!m.mine&&<button type="button" className="nw-report-msg" onClick={()=>setReport({type:'message',id:m.id})}><Flag size={14} aria-hidden="true"/> Report</button>}</div></div>)}
-    </div>
-    {chatBlocked?<p className="nw-blocked" role="status">{blockedByMe?'You blocked this collector. Unblock them to message again.':'You can’t send messages in this chat.'}</p>
-    :<form className="nw-composer" onSubmit={async e=>{e.preventDefault();const body=message.trim();if(!body||sending||!gate())return;setSending(true);try{const r=await net.act({action:'message',threadId,body});if(r){setMessage('');await loadChat()}}finally{setSending(false)}}}>
-     <label className="sr-only" htmlFor="nw-composer-input">Message {thread.peer.name}</label>
-     <textarea id="nw-composer-input" value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit()}}} maxLength={2000} aria-describedby="nw-composer-help" placeholder="Write a message…"/>
-     <button type="submit" className="ds-btn ds-btn-primary" disabled={sendDisabled}>{sending?'Sending…':'Send'} <ArrowRight size={18} aria-hidden="true"/></button>
-     <small id="nw-composer-help">Enter to send. Shift+Enter for a new line.{message.length>1800?' '+(2000-message.length)+' characters left.':''}</small>
-    </form>}
-    <p className="nw-chat-note"><Flag size={14} aria-hidden="true"/> Only you two can see this. Report anything that’s not okay.</p>
-   </>:<div className="nw-chat-none"><HuddlesArt pose="messages" size="md" decorative/><p>Pick a conversation to read it.</p></div>}</div>
-  </div>}
+  <h1 id="nw-messages-title" className="sr-only">Messages</h1>
+  <MessagesInbox net={net} threadId={threadId} setThreadId={setThreadId} gate={gate} notice={notice} go={go} onProfile={handle=>void loadProfile(handle)} onReport={(type,id)=>setReport({type,id})} onNewChat={()=>setNewChat(true)} upload={uploadPhoto} pendingRef={pendingRef} clearPendingRef={()=>setPendingRef(null)}/>
  </section>}
  {profileOpen&&<Modal label={signedIn?(me?'Edit your showcase':'Set up your profile'):'Join ComicHuddle'} onClose={()=>setProfileOpen(false)}><div className="form-dialog nw-join">
   {!signedIn?<>

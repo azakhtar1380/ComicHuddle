@@ -17,3 +17,7 @@ export function resizeCopyIds(ids:string[],quantity:number,uuid:()=>string){if(!
 export function availableOwnedCopies(issueId:number|null,books:{id:string;catalogId?:number;externalCatalog?:{provider:string;id:number};condition?:Partial<EstimateCondition>;ownership?:{format:string;certificationNumber?:string|null}}[],selected:string[],reserved:Set<string>){
  if(issueId===null)return [];const used=new Set(selected);return books.filter(book=>listingDirectoryId(book)===issueId&&!used.has(book.id)&&!reserved.has(book.id)&&!book.condition?.certificationNumber&&book.ownership?.format!=='GRADED').map(book=>book.id);
 }
+
+/** sessionStorage key: copies the collection asked the listing builder to list ("Sell this comic" / "Sell together"). Read once, then cleared. */
+export const sellHandoffKey='comichuddle-sell-books';
+export function handOffBooksForSale(ids:string[]){try{sessionStorage.setItem(sellHandoffKey,JSON.stringify({ids:ids.slice(0,1000)}))}catch{}}

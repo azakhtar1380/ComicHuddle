@@ -1,17 +1,22 @@
-// Ordinary outbound research link. No GoCollect API, pricing import or affiliation.
+// Ordinary outbound links. No GoCollect API, pricing import or affiliation; no CGC integration.
+// Destinations verified 2026-11-15:
+//  - https://gocollect.com/comics              GoCollect comic price guide (landing page)
+//  - https://gocollect.com/search?q=<text>     GoCollect search results (exact issue listed first, variants follow)
+//  - https://www.cgccomics.com/submit/how-to-submit/  CGC's official "How to Submit to CGC" page
+//    (links on to account sign-up, tiers & fees and the submission form)
 export const goCollectComicGuideUrl='https://gocollect.com/comics';
-const verifiedGoCollectPages:Record<string,string>={
- 'amazing spider man|300|1988':'amazing-spider-man-300',
- 'uncanny x men|266|1990':'uncanny-x-men-266',
- 'marvel super heroes secret wars|8|1984':'marvel-super-heroes-secret-wars-8',
- 'incredible hulk|181|1974':'incredible-hulk-181',
- 'action comics|1|1938':'action-comics-1-1',
-};
-export function goCollectIssueUrl(issue:{title:string;number:string;year:number;variant:string;metronId?:number}){
- if(issue.metronId!==undefined||issue.variant!=='Original issue · printing to be confirmed')return null;
- if(/newsstand|mexic|facsimile|reprint|later printing|second printing|variant cover/i.test(issue.variant))return null;
- const title=issue.title.replace(/\s*\(\d{4}\)\s*$/,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
- const slug=verifiedGoCollectPages[title+'|'+issue.number+'|'+issue.year];
- return slug?'https://gocollect.com/comic/'+slug:null;
+export const cgcSubmitUrl='https://www.cgccomics.com/submit/how-to-submit/';
+
+/** Search text for one issue: series without a trailing "(1963)" style year, plus the issue number. */
+export function goCollectSearchText(issue:{title:string;number:string}){
+ const title=issue.title.replace(/\s*\(\d{4}(?:\s+series)?\)\s*$/i,'').replace(/^series metadata pending.*$/i,'').trim();
+ const number=issue.number.replace(/^#/,'').trim();
+ return [title,number].filter(Boolean).join(' ').slice(0,120);
 }
+/** The one GoCollect link on the issue detail: a GoCollect search for this series and issue number. */
+export function goCollectIssueUrl(issue:{title:string;number:string}){
+ const text=goCollectSearchText(issue);
+ return text?'https://gocollect.com/search?q='+encodeURIComponent(text):goCollectComicGuideUrl;
+}
+/** Plain-text research reference (kept for older callers and checks). */
 export function goCollectResearchText(issue:{title:string;number:string;year:number;variant:string}){return issue.title+' #'+issue.number+' ('+issue.year+') · '+issue.variant;}

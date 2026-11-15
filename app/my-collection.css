@@ -124,3 +124,7 @@ main section.mc{padding:0 0 var(--s8)}
  .mc-detail .ds-actions .ds-btn{flex:1 1 100%}
 }
 @media(min-width:430px) and (max-width:760px){.mc-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Big collections load a page at a time. */
+.mc-more{display:flex;flex-direction:column;align-items:center;gap:10px;margin:24px 0 8px;font-size:14px;color:var(--muted)}
+.mc-danger-link{color:var(--red-dark,#a02f25)}

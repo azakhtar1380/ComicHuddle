@@ -52,3 +52,8 @@ main.signout-v2{padding-top:var(--s6);padding-bottom:var(--s8);font-family:var(-
  .auth-v2-card{padding:var(--s3) var(--s2);box-shadow:none}
  .signout-v2 .ds-actions .ds-btn{flex:1 1 100%}
 }
+/* v3: optional display name, live password rule, compact phone layout */
+.auth-optional{margin-left:6px;padding:2px 8px;border-radius:var(--radius-pill);background:var(--cream);border:1px solid var(--line);font:600 12px/1.4 var(--font-body);color:var(--muted)}
+.auth-pw-rule{color:var(--muted)}
+.auth-pw-rule.is-met{color:#2f6b3a;font-weight:700}
+@media(max-width:760px){.auth-v2-art{display:none}}

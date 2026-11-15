@@ -170,7 +170,7 @@ test('import, profile with on-demand enrichment, search and the catalog characte
  assert.equal(pending?.status,'pending');
  assert.equal((await engine.query('SELECT 1 FROM ch_web.character_enrichment_queue WHERE metron_issue_id=34068')).rows.length,1);
  assert.equal(await issueProfile(db,4000009999),null,'unknown issue');
- assert.equal((await issueProfile(db,4000005068))?.keyIssue,true,'Batman debuts in Detective Comics #27 (Metron issue list)');
+ assert.equal((await issueProfile(db,4000005068))?.keyIssue,false,'an unconfirmed Metron issue-list inference (earliest indexed issue) is not shown as a first appearance');
 
  const search=await searchCharacters(db,'joker',8);
  assert.deepEqual(search.map(r=>r.name),['Joker','Jokerz']);
