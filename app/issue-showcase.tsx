@@ -36,7 +36,8 @@ type Props={issue:Issue;cover:ReactNode;coverNote?:ReactNode;
  wanted:boolean;onWant:()=>void;ownedGrade:string|null;alreadyOwned:boolean;disabled?:boolean;beforeCollection:()=>boolean;onAddToCollection:(comicId:string,entry:CollectionEntry,requestId:string)=>Promise<void>};
 
 const usd=(value:number)=>value.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:value>=100?0:2});
-const day=(value:string)=>{const t=Date.parse(value);return Number.isFinite(t)?new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):value};
+// Plain dates (YYYY-MM-DD) are calendar days: format them in UTC so they never shift a day in US time zones.
+const day=(value:string)=>{const t=Date.parse(value);return Number.isFinite(t)?new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',...(/^\d{4}-\d{2}-\d{2}$/.test(value)?{timeZone:'UTC'}:{})}):value};
 const gradeText=(grade:string|null,label:string|null)=>grade?(label&&!/raw/i.test(label)?'CGC ':'')+grade:'Raw';
 const norm=(name:string)=>name.toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]+/g,'');
 
