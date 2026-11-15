@@ -1,9 +1,9 @@
 'use client';
-// The phone bottom bar: Home · Search · Scan · Workshop · More.
+// The phone bottom bar: Home · Search · Scan · Workshop · Market · More.
 // The current tab rises into a round bubble that pushes a bump up out of the bar. "More" opens the
 // Menu (every page plus your account). The bar tucks away while you scroll down and hides behind dialogs.
 import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {Home, LayoutGrid, ScanLine, Search, Wrench, X} from 'lucide-react';
+import {Home, LayoutGrid, ScanLine, Search, ShoppingBag, Wrench, X} from 'lucide-react';
 import AccountMenu from '../components/account-menu';
 import './mobile-dock.css';
 
@@ -20,8 +20,9 @@ type Props = {
 type Item = {id: string; label: string; Icon: ComponentType<{size?: number; strokeWidth?: number}>; match: string[]};
 const homeItem: Item = {id: 'Home', label: 'Home', Icon: Home, match: ['Home']};
 const searchItem: Item = {id: 'Directory', label: 'Search', Icon: Search, match: ['Directory']};
+const marketItem: Item = {id: 'Marketplace', label: 'Market', Icon: ShoppingBag, match: ['Marketplace']};
 const workshopItem: Item = {id: 'Pressing', label: 'Workshop', Icon: Wrench, match: ['Pressing']};
-const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'Marketplace', 'SafePurchase', 'About'];
+const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'SafePurchase', 'About'];
 
 export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meOpen = false, unread = 0}: Props) {
   const [hidden, setHidden] = useState(false), [sheet, setSheet] = useState(false), [pop, setPop] = useState('');
@@ -74,6 +75,7 @@ export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meO
         <span className="dock3-icon"><ScanLine size={22} strokeWidth={2.3} /></span><span className="dock3-label">Scan</span>
       </button>
       {tabButton(workshopItem)}
+      {tabButton(marketItem)}
       <button ref={opener} type="button" className={'dock3-tab' + (meActive && !scanOpen ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-label={'More: every page and your account' + (unread > 0 ? ', ' + unread + ' unread conversations' : '')} aria-haspopup="dialog" aria-expanded={meOpen || sheet} aria-current={meSections.includes(tab) ? 'page' : undefined} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
         <span className="dock3-icon"><LayoutGrid size={22} strokeWidth={2.2} />{unread > 0 && <i className="dock3-dot" aria-hidden="true" />}</span><span className="dock3-label">More</span>
       </button>

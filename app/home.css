@@ -123,3 +123,14 @@ main .home section{padding-left:0;padding-right:0}
 }
 .home-hero-copy{min-width:0}
 @media(max-width:860px){.home-hero{grid-template-columns:minmax(0,1fr)}}
+/* hero buttons: full labels on desktop, short and side by side on phones; compact Meet Huddles */
+.home-short{display:none}
+@media(max-width:760px){
+ .home-hero-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+ .home-hero .home-hero-actions .ds-btn{width:100%;min-width:0;padding:0 10px;font-size:15px;gap:6px}
+ .home-long{display:none}.home-short{display:inline}
+ .home-hero{gap:6px}
+ .home-meet{font-size:14px}
+ .home-hero-art{max-width:170px;margin-top:-4px}
+ .home-hero .home-hero-actions .ds-btn svg{display:none}
+}

@@ -15,7 +15,9 @@ const entries=[
  {id:'Marketplace',label:'Marketplace',Icon:ShoppingBag},
  {id:'Pressing',label:'Workshop',Icon:Wrench},
  {id:'SafePurchase',label:'SafePurchase',Icon:ShieldCheck},
+ {id:'About',label:'Meet Huddles',Icon:HuddlesHeadIcon},
 ];
+function HuddlesHeadIcon(){return <img className="nav-huddles-head" src="/mascot/huddles-head.webp" alt="" width={22} height={22}/>}
 const pageLinks:Record<string,string>={Home:'/',Wallet:'/wallet',Characters:'/characters',SafePurchase:'/safepurchase',About:'/about-huddles',Scan:'/?section=Scan'};
 /** URL for a section, for pages outside the main app (and for real links). */
 export function destination(section:string,tab?:string){

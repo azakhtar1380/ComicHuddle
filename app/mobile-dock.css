@@ -4,20 +4,20 @@
 @media(max-width:760px){
  .mobile-bottom,.mobile-scan-dock,.mobile-nav{display:none!important}
  body{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
- .dock3{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:70;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch;height:64px;padding:0 4px;background:var(--cream);border:2px solid var(--ink);border-radius:24px;box-shadow:0 10px 24px #20201f2e,0 2px 0 #20201f14;transition:transform .25s ease,opacity .25s ease}
+ .dock3{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:70;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;height:64px;padding:0 2px;background:var(--cream);border:2px solid var(--ink);border-radius:24px;box-shadow:0 10px 24px #20201f2e,0 2px 0 #20201f14;transition:transform .25s ease,opacity .25s ease}
  .dock3.tucked{transform:translateY(calc(100% + 40px));opacity:0}
  body:has(.overlay) .dock3,body:has(dialog[open]:not(.dock3-sheet)) .dock3,body:has(.checkout-page) .dock3{display:none}
  body:has(.overlay){padding-bottom:0}
- .dock3-tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%;min-height:0;padding:0 0 9px;background:none;border:0;color:var(--muted);font:600 12px/1 var(--font-body);cursor:pointer;-webkit-tap-highlight-color:transparent}
+ .dock3-tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%;min-height:0;padding:0 0 9px;background:none;border:0;color:var(--muted);font:600 12px/1 var(--font-body);letter-spacing:-.1px;cursor:pointer;-webkit-tap-highlight-color:transparent;min-width:0}
  .dock3-label{position:relative;z-index:3;white-space:nowrap}
  .dock3-icon{position:relative;z-index:3;display:grid;place-items:center;width:30px;height:28px;border-radius:50%;border:2px solid transparent;transition:transform .3s cubic-bezier(.3,1.4,.5,1),width .2s,height .2s,background .2s}
  /* the bump: an outlined circle rising out of the bar, plus a cover that erases the bar's top line under it */
  .dock3-tab::before,.dock3-tab::after{content:"";position:absolute;left:50%;pointer-events:none;opacity:0;transition:opacity .18s,transform .3s cubic-bezier(.3,1.4,.5,1)}
- .dock3-tab::before{z-index:1;top:-31px;width:70px;height:70px;margin-left:-35px;border-radius:50%;background:var(--cream);border:2px solid var(--ink);transform:translateY(14px)}
- .dock3-tab::after{z-index:2;top:-2px;width:68px;height:40px;margin-left:-34px;background:var(--cream);border-radius:0 0 12px 12px}
+ .dock3-tab::before{z-index:1;top:-27px;width:64px;height:64px;margin-left:-32px;border-radius:50%;background:var(--cream);border:2px solid var(--ink);transform:translateY(14px)}
+ .dock3-tab::after{z-index:2;top:-2px;width:62px;height:38px;margin-left:-31px;background:var(--cream);border-radius:0 0 12px 12px}
  .dock3-tab.active{color:var(--ink);font-weight:800}
  .dock3-tab.active::before,.dock3-tab.active::after{opacity:1;transform:none}
- .dock3-tab.active .dock3-icon{width:50px;height:50px;margin:-22px -10px 0;transform:translateY(-6px);background:var(--yellow);color:var(--ink);border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+ .dock3-tab.active .dock3-icon{width:46px;height:46px;margin:-18px -8px 0;transform:translateY(-6px);background:var(--yellow);color:var(--ink);border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
  .dock3-scan .dock3-icon{color:var(--red)}
  .dock3-scan.active .dock3-icon{background:var(--red);color:#fff}
  .dock3-tab:active .dock3-icon{transform:scale(.94)}

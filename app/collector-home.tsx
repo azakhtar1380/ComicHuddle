@@ -59,9 +59,9 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
       <Link className="home-chip" href="/?section=Marketplace&sell=single"><Tag size={18} aria-hidden="true"/> Something to sell</Link>
      </div>
     </div>
-    <div className="ds-actions">
-     <button type="button" className="ds-btn ds-btn-primary" onClick={onStartCollection}>{signedIn?'Add your next comic':'Start your collection'} <ArrowRight size={18}/></button>
-     <button type="button" className="ds-link" onClick={()=>go('Marketplace')}>Browse the marketplace <ArrowRight size={16}/></button>
+    <div className="ds-actions home-hero-actions">
+     <button type="button" className="ds-btn ds-btn-primary" onClick={onStartCollection}><span className="home-long">{signedIn?'Add your next comic':'Start your collection'}</span><span className="home-short">{signedIn?'Add a comic':'Start collecting'}</span> <ArrowRight size={18}/></button>
+     <button type="button" className="ds-btn ds-btn-primary" onClick={()=>go('Marketplace')}><span className="home-long">Browse the marketplace</span><span className="home-short">Marketplace</span> <ArrowRight size={18}/></button>
     </div>
     <Link className="home-meet" href="/about-huddles"><Image src="/mascot/huddles-head.webp" width={28} height={28} alt="" unoptimized/> <span className="home-meet-ask">Who&apos;s this guy?</span> <strong>Meet Huddles →</strong></Link>
    </div>
