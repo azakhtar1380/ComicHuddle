@@ -1,0 +1,108 @@
+/* /about-huddles: the one page where Huddles gets to be big and everywhere. Rounded tokens only. */
+.ah-page{background:var(--paper);min-height:100vh;overflow-x:clip}
+.ah-main{max-width:1180px;margin:0 auto;padding:var(--s4) 24px var(--s8);color:var(--ink);font-family:var(--font-body)}
+.ah-main *{box-sizing:border-box}
+.ah-main p{font-size:17px;line-height:1.6;color:var(--ink-2);margin:0 0 var(--s2);max-width:600px}
+.ah-main ul{list-style:none;margin:0;padding:0}
+.ah-main h3{font-family:var(--font-display)}
+
+/* Section rhythm (beats the site-wide `section{padding}` reset) */
+.ah-main section.ah-hero,.ah-main section.ah-origin,.ah-main section.ah-does,.ah-main section.ah-why,.ah-main section.ah-code,.ah-main section.ah-spot{padding:var(--s6) 0}
+.ah-section-head{margin-bottom:var(--s3)}
+
+/* Headings */
+.ah-main .ah-display{font:800 clamp(64px,11vw,148px)/.86 var(--font-display);text-transform:uppercase;letter-spacing:-2px;margin:0 0 var(--s3);color:var(--ink)}
+.ah-main .ah-display span{color:var(--red)}
+.ah-main .ah-h2{font:800 clamp(38px,5.4vw,60px)/.95 var(--font-display);text-transform:uppercase;letter-spacing:-1px;margin:0 0 var(--s2);color:var(--ink)}
+.ah-main .ah-h2 span{color:var(--red)}
+.ah-main .ah-lede{font-size:clamp(18px,2vw,22px);line-height:1.45;color:var(--ink-2);max-width:520px}
+.ah-main .ah-punch{font:800 clamp(22px,2.6vw,28px)/1.15 var(--font-display);text-transform:uppercase;color:var(--ink);letter-spacing:.2px}
+
+/* 1. Hero */
+.ah-main section.ah-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s4);align-items:center;padding-top:var(--s4)}
+.ah-hero-art{justify-self:center;width:100%}
+.ah-hero-art.huddles-xl{max-width:500px}
+.ah-hero-art .huddles-spot{width:100%;opacity:.7}
+
+/* 2 + 4. Two-up story sections */
+.ah-main section.ah-origin,.ah-main section.ah-why{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:var(--s6);align-items:center}
+.ah-main section.ah-why{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
+.ah-origin-art,.ah-why-art,.ah-code-art{justify-self:center;width:100%}
+
+/* Small halftone spot behind card / strip / CTA art */
+.ah-job-art,.ah-strip-art,.ah-cta-art{position:relative;display:flex;justify-content:center;align-items:flex-end;isolation:isolate}
+.ah-job-spot{position:absolute;z-index:-1;left:50%;top:50%;width:92%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,var(--yellow) 1.6px,transparent 2px) 0 0/9px 9px;opacity:.6;-webkit-mask:radial-gradient(circle,#000 36%,transparent 70%);mask:radial-gradient(circle,#000 36%,transparent 70%)}
+.ah-job-art .huddles-art,.ah-strip-art .huddles-art{width:100%;height:auto}
+
+/* 3. What Huddles does */
+.ah-jobs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3)}
+.ah-job{display:flex;flex-direction:column;align-items:flex-start;background:var(--cream);border:1px solid var(--line);border-radius:var(--radius-md);padding:var(--s3);transition:border-color .15s,box-shadow .15s,transform .15s}
+.ah-job:hover{border-color:var(--ink);box-shadow:4px 4px 0 var(--ink);transform:translate(-1px,-1px)}
+.ah-job-art{width:150px;align-self:center;margin-bottom:var(--s2)}
+.ah-main .ah-job h3{font:800 26px/1.02 var(--font-display);text-transform:uppercase;margin:0 0 6px;color:var(--ink)}
+.ah-main .ah-job p{font-size:15px;margin:0 0 var(--s1)}
+.ah-job-link{margin-top:auto}
+@media(prefers-reduced-motion:reduce){.ah-job,.ah-job:hover{transition:none;transform:none}}
+
+/* 5. The Huddles Code */
+.ah-code-body{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:var(--s4);align-items:center}
+.ah-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2)}
+.ah-value{display:flex;gap:14px;align-items:flex-start;background:var(--cream);border:1px solid var(--line);border-radius:var(--radius-md);padding:var(--s3) 20px}
+.ah-value-icon{flex:0 0 auto;display:grid;place-items:center;width:40px;height:40px;border-radius:var(--radius-pill);background:var(--yellow);border:1.5px solid var(--ink);color:var(--ink)}
+.ah-main .ah-value h3{font:800 23px/1.05 var(--font-display);text-transform:uppercase;margin:0 0 4px;color:var(--ink)}
+.ah-main .ah-value p{font-size:15px;margin:0}
+
+/* 6. Spot him around the site */
+.ah-strip{max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding-inline:4px;border-radius:var(--radius-md);padding:4px 4px var(--s2);scrollbar-width:thin;scrollbar-color:var(--ink) transparent}
+.ah-strip:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.ah-strip ul{display:flex;gap:var(--s3);width:max-content}
+.ah-strip li{flex:0 0 auto;width:150px;display:flex;flex-direction:column;align-items:center;gap:10px;scroll-snap-align:start}
+.ah-strip-art{width:132px}
+.ah-strip-caption{display:inline-block;padding:4px 12px;border-radius:var(--radius-pill);background:var(--cream);border:1.5px solid var(--ink);font:700 14px/1.2 var(--font-body);color:var(--ink);white-space:nowrap}
+
+/* 7. Closing band */
+.ah-main section.ah-cta{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--s4);align-items:center;margin-top:var(--s6);padding:var(--s4) var(--s6);background:var(--ink);border-radius:var(--radius-lg);color:var(--cream)}
+.ah-cta-art{width:220px}
+.ah-cta-art .huddles-art{width:100%;height:auto}
+.ah-cta-art .ah-job-spot{opacity:.45}
+.ah-main .ah-cta .ah-h2{color:var(--cream)}
+.ah-main .ah-cta .ah-h2 span{color:var(--yellow)}
+.ah-main .ah-cta p{color:#e6e1d4;font-size:19px;margin:0 0 var(--s3)}
+.ah-cta-actions{display:flex;flex-wrap:wrap;gap:12px}
+.ah-cta-actions .ds-btn{border-color:var(--cream)}
+.ah-cta-actions .ds-btn:hover{box-shadow:3px 3px 0 var(--yellow)}
+
+/* Tablet */
+@media(max-width:980px){
+ .ah-jobs{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ah-code-body{grid-template-columns:1fr}
+ .ah-code-art.huddles-lg{max-width:280px}
+}
+
+/* Mobile: single column, no sideways page scroll */
+@media(max-width:760px){
+ .ah-main{padding:var(--s2) 16px var(--s6)}
+ .ah-main p{font-size:16px}
+ .ah-main section.ah-hero,.ah-main section.ah-origin,.ah-main section.ah-does,.ah-main section.ah-why,.ah-main section.ah-code,.ah-main section.ah-spot{padding:var(--s4) 0}
+ .ah-main section.ah-hero,.ah-main section.ah-origin,.ah-main section.ah-why{grid-template-columns:1fr;gap:var(--s2)}
+ .ah-main section.ah-hero{padding-top:var(--s2)}
+ .ah-hero-art.huddles-xl{max-width:300px}
+ .ah-origin-art.huddles-lg,.ah-why-art.huddles-lg{max-width:240px}
+ .ah-main section.ah-why .ah-why-art{order:-1}
+ .ah-code-art.huddles-lg{max-width:220px}
+ .ah-values{grid-template-columns:1fr}
+ .ah-value{padding:var(--s2)}
+ .ah-strip li{width:124px}.ah-strip-art{width:108px}
+ .ah-main section.ah-cta{grid-template-columns:1fr;justify-items:center;text-align:center;padding:var(--s3) 20px var(--s4);gap:var(--s2)}
+ .ah-cta-art{width:160px}
+ .ah-cta-actions{justify-content:center}
+ .ah-cta-actions .ds-btn{flex:1 1 220px}
+}
+@media(max-width:480px){
+ .ah-jobs{grid-template-columns:1fr;gap:var(--s2)}
+ .ah-job{display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:14px;align-items:center;padding:var(--s2)}
+ .ah-job-art{width:96px;grid-row:1/span 3;margin:0}
+ .ah-job h3,.ah-job p,.ah-job-link{grid-column:2}
+ .ah-main .ah-job h3{font-size:22px}
+ .ah-main .ah-display{letter-spacing:-1px}
+}

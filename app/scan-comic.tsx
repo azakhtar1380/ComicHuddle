@@ -10,7 +10,7 @@ import ComicCover from './comic-cover';
 import {barcodeStripCrop,barcodeStripGeometry,closeBarcodeDecoder,decodeComicBarcode,decodePhotoBarcode,type DecodedComicBarcode} from '../lib/barcode-decoder-client';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import CoverCropEditor from '../components/cover-crop-editor';
-import HuddlesGuide from '../components/huddles-guide';
+import HuddlesGuide,{HuddlesTip} from '../components/huddles-guide';
 import {HowItWorks} from '../components/states';
 import './scan-comic.css';
 
@@ -257,8 +257,8 @@ export default function ComicScan({onOpen,onCollect,onBuy,onClose,startOnOpen=fa
 
  return <div className="form-dialog comic-scan">
   <header className={'scan-head'+(choosing?' with-art':'')}>
-   <div className="scan-head-copy"><p className="ds-eyebrow"><ScanLine size={14} aria-hidden="true"/> Scanner</p><h2>Scan a comic</h2><p>Scan the barcode, snap the cover or upload a photo. Or just search by title.</p></div>
-   {choosing&&<HuddlesGuide pose="scanner" caption="THE SCANNER" line="Line up the barcode. Hold steady!" size="md" className="scan-huddles"/>}
+   <div className="scan-head-copy"><p className="ds-eyebrow"><ScanLine size={14} aria-hidden="true"/> Scanner</p><h2>Scan a comic</h2><p>Scan the barcode, snap the cover or upload a photo. Or just search by title.</p>{choosing&&<HuddlesTip>Line up the barcode. Hold steady!</HuddlesTip>}</div>
+   {choosing&&<HuddlesGuide pose="scanner" size="md" className="scan-huddles"/>}
   </header>
   <input ref={fileInput} type="file" hidden tabIndex={-1} aria-hidden="true" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file)choosePhoto(file)}}/>
   {choosing&&<div className={'scan-choices'+(dragging?' is-dragging':'')} role="group" aria-label="How do you want to find your comic?" onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={event=>{event.preventDefault();setDragging(false);const file=event.dataTransfer.files[0];if(file)choosePhoto(file)}}>

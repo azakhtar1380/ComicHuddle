@@ -118,7 +118,7 @@ export default function PressRoom({tab,signedIn,net,vault,gate:parentGate,notice
      <LocationRadiusFilter location={location} radius={radius} onChange={(value,next)=>{setLocation(value);setRadius(next)}}/>
      <div className="ws-filter-row">
       <label>Service<select value={service} onChange={e=>setService(e.target.value as CareService|'all')}><option value="all">All services</option>{careServices.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <label>Studio name<input type="search" value={query} maxLength={100} onChange={e=>setQuery(e.target.value)} placeholder="Name or specialty"/></label>
+      <label>Studio name<span className="ws-search-field"><Search size={18} aria-hidden="true"/><input type="search" value={query} maxLength={100} onChange={e=>setQuery(e.target.value)} placeholder="Name or specialty"/>{query&&<button type="button" className="ws-search-clear" aria-label="Clear studio name search" onClick={()=>setQuery('')}><X size={16}/></button>}</span></label>
       <label className="ws-check"><input type="checkbox" checked={accepting} onChange={e=>setAccepting(e.target.checked)}/> Taking requests now</label>
      </div>
     </div>

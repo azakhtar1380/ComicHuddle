@@ -3,13 +3,13 @@
 
 /* Choice buttons (also used by Add comic) */
 .mp-choice-buttons{display:flex;gap:8px}
-.mp-choice-buttons button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;padding:10px 14px;border:2px solid var(--ink);border-radius:2px;background:var(--cream);color:var(--ink);font:700 14px/1.2 var(--font-body);cursor:pointer}
+.mp-choice-buttons button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;padding:10px 14px;border:2px solid var(--ink);border-radius:var(--radius-sm);background:var(--cream);color:var(--ink);font:700 14px/1.2 var(--font-body);cursor:pointer}
 .mp-choice-buttons button.selected{background:var(--yellow);box-shadow:3px 3px 0 var(--ink)}
 
 /* Cover stack on result cards */
 .mp-cover-stack{position:relative;width:245px;max-width:100%;height:184px;margin:0 auto}
-.mp-stack-cover{position:absolute;top:0;left:calc(50% - 61px);width:122px;height:174px;box-shadow:4px 4px 0 var(--ink);border:2px solid var(--ink);background:var(--cream);z-index:3;overflow:hidden}
-.mp-stack-cover .comic-photo{width:100%;height:100%;padding:0;margin:0;border:0;border-radius:0;box-shadow:none;min-height:0}
+.mp-stack-cover{position:absolute;top:0;left:calc(50% - 61px);width:122px;height:174px;box-shadow:4px 4px 0 var(--ink);border:2px solid var(--ink);border-radius:12px;background:var(--cream);z-index:3;overflow:hidden}
+.mp-stack-cover .comic-photo{width:100%;height:100%;padding:0;margin:0;border:0;border-radius:10px;box-shadow:none;min-height:0}
 .mp-stack-cover .comic-photo img{display:block;max-width:100%;width:100%;height:100%;object-fit:contain}
 .mp-stack-cover .comic-photo>span{display:none}
 .mp-stack-cover .archive-card{width:100%;height:100%;min-height:0;padding:8px;border:0;box-shadow:none}
@@ -21,7 +21,7 @@
 .mp-multiple-covers .mp-stack-2{transform:translateX(50px) rotate(10deg);z-index:2;top:6px}
 
 /* Checklist of owned comics (trade proposals) */
-.mp-book-checklist{border:1px solid var(--line);border-radius:4px;padding:0 12px;margin:12px 0;max-height:340px;overflow:auto;overscroll-behavior:contain;background:#fff}
+.mp-book-checklist{border:1px solid var(--line);border-radius:var(--radius-md);padding:0 12px;margin:12px 0;max-height:340px;overflow:auto;overscroll-behavior:contain;background:#fff}
 .mp-book-checklist>label{display:flex;flex-direction:row;align-items:center;gap:12px;margin:0!important;padding:10px 0;min-height:52px;border-bottom:1px solid var(--line);cursor:pointer}
 .mp-book-checklist>label:last-child{border-bottom:0}
 .mp-book-checklist input[type=checkbox]{width:20px;height:20px;flex-shrink:0;margin:0;accent-color:var(--red)}
@@ -32,12 +32,12 @@
 
 /* Small numbered pagination (also used by the listing builder and value panels) */
 .mp-pagination{display:flex;gap:12px;align-items:center;justify-content:center;margin:12px 0;font-size:14px;color:var(--ink)}
-.mp-pagination>button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 10px;background:var(--cream);border:2px solid var(--ink);border-radius:2px;color:var(--ink);font:700 14px var(--font-body);cursor:pointer}
+.mp-pagination>button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 10px;background:var(--cream);border:2px solid var(--ink);border-radius:var(--radius-sm);color:var(--ink);font:700 14px var(--font-body);cursor:pointer}
 .mp-pagination>button:disabled{opacity:.4;cursor:not-allowed}
 
 /* Tiny covers in the "what's included" list */
 .mp-item-art{width:42px;height:58px;overflow:hidden;flex-shrink:0}
-.mp-item-art .comic-photo,.mp-item-art .archive-card{width:100%;height:100%;min-height:0;margin:0;border-radius:2px;padding:0}
+.mp-item-art .comic-photo,.mp-item-art .archive-card{width:100%;height:100%;min-height:0;margin:0;border-radius:var(--radius-sm);padding:0}
 .mp-item-art .comic-photo>span,.mp-item-art .archive-top,.mp-item-art .archive-bottom{display:none}
 .mp-item-art .comic-photo img{width:100%;height:100%;object-fit:contain}
 .mp-item-art .archive-card{padding:4px}

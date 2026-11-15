@@ -11,16 +11,16 @@ body .site-header .header-inbox,body .site-header .account-button{flex-shrink:0}
 .orders-page{padding-block:32px;min-width:0}
 .orders-page>.section-head{margin-bottom:24px}
 .orders-page h1{font-size:42px;line-height:1.05;margin:8px 0 0}
-.collection-reconnect{background:#f4cc62;color:#202631;border:0;border-radius:6px;padding:10px 14px;font-size:12px;font-weight:700}
+.collection-reconnect{background:#f4cc62;color:#202631;border:0;border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;font-weight:700}
 .comic-save-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-.comic-entry-success{font-size:12px;color:#24654e;background:#e7f0e7;padding:10px;border-radius:6px}
+.comic-entry-success{font-size:12px;color:#24654e;background:#e7f0e7;padding:10px;border-radius:var(--radius-sm)}
 body footer{padding-top:28px;padding-bottom:30px;margin-top:24px}
 body .footer-top{display:grid;grid-template-columns:230px minmax(0,1fr);align-items:center;gap:28px}
 body .footer-top .brand{width:90px;height:76px;margin:0}
 body .footer-top .brand-artwork{width:90px;max-height:76px;object-fit:contain}
 body .footer-top p{font-size:12px;line-height:1.6;margin-top:8px}
 body .footer-top>div:last-child{display:flex;justify-content:flex-start;flex-wrap:wrap;gap:10px;max-width:none}
-body .footer-top button:not(.brand){font-size:12px;min-height:40px;padding:8px 12px;border-radius:6px;background:#e9e3d4}
+body .footer-top button:not(.brand){font-size:12px;min-height:40px;padding:8px 12px;border-radius:var(--radius-sm);background:#e9e3d4}
 body .footer-bottom{margin-top:24px;padding-top:18px;font-size:12px;color:#746e61}
 body .footer-bottom button{font-size:12px}
 body .operator-line,body .directory-attribution{font-size:12px;line-height:1.7;color:#746e61;max-width:100%;margin-block:10px 0}

@@ -37,7 +37,7 @@
 .fb-stars>div{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
 .fb-stars label{position:relative;display:grid;place-items:center;min-width:36px;min-height:36px;color:#d97706;cursor:pointer}
 .fb-stars input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
-.fb-stars label:has(input:focus-visible){outline:3px solid var(--blue);border-radius:6px}
+.fb-stars label:has(input:focus-visible){outline:3px solid var(--blue);border-radius:var(--radius-sm)}
 .fb-clear{background:none;border:0;font:600 13px var(--font-body);color:var(--muted);cursor:pointer;min-height:32px}
 .fb-comment,.fb-reply-form label{display:flex;flex-direction:column;gap:6px;font:600 14px var(--font-body)}
 .fb-leave textarea{width:100%;min-height:84px;padding:10px 12px;border:1px solid #c9ced6;border-radius:10px;font:400 15px var(--font-body);resize:vertical}

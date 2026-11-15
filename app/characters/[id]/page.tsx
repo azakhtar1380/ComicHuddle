@@ -8,6 +8,7 @@ import {getDb} from '../../../db';
 import {characterPage,type CharacterPage} from '../../../lib/characters';
 import CharacterComics from '../character-comics';
 import {Portrait} from '../../issue-showcase';
+import {HuddlesArt} from '../../../components/huddles-guide';
 import '../characters.css';
 
 export const dynamic='force-dynamic';
@@ -31,7 +32,7 @@ export default async function CharacterRoute({params}:Params){
  const first=character.firstAppearance,count=character.issueCount??(character.knownIssues||null);
  return <div className="character-page">
   <a className="skip-link" href="#main-content">Skip to content</a>
-  <SiteHeader section="Directory" standalone/>
+  <SiteHeader section="Characters" standalone/>
   <main id="main-content" className="cp-main">
    <nav className="cp-crumbs" aria-label="Breadcrumb"><Link href="/?section=Directory">Comic Directory</Link> <span aria-hidden="true">/</span> <span>Characters</span> <span aria-hidden="true">/</span> <span aria-current="page">{character.name}</span></nav>
    <section className="cp-hero">
@@ -42,11 +43,12 @@ export default async function CharacterRoute({params}:Params){
      {character.aliases.length>0&&<p className="cp-aliases">Also known as {character.aliases.slice(0,6).join(', ')}</p>}
      <div className="cp-facts">
       {first&&<Link className="cp-fact cp-first" href={'/?section=Directory&issue='+first.issueId}><Star size={18} fill="currentColor"/><span><small>First appearance</small><strong>{first.title} #{first.number}</strong>{(first.publisher||first.year)&&<em>{[first.publisher,first.year].filter(Boolean).join(' · ')}</em>}</span></Link>}
-      <div className="cp-fact"><span><small>Comic appearances</small><strong>{count?count.toLocaleString('en-US'):'Being gathered'}</strong>{count?<em>across the directory</em>:<em>Appearances are still being collected</em>}</span></div>
+      <div className="cp-fact"><span><small>Comic appearances</small><strong>{count?count.toLocaleString('en-US'):'Being gathered'}</strong>{count?<em>across the directory</em>:<em>Appearances are still being collected</em>}</span>{!count&&<HuddlesArt pose="hero-vs-villain" size="sm" className="cp-fact-huddles"/>}</div>
      </div>
     </div>
    </section>
    <section className="cp-about" aria-labelledby="cp-about-title">
+    <HuddlesArt pose="hero-vs-villain" size="md" className="cp-about-huddles"/>
     <h2 id="cp-about-title">About {character.name}</h2>
     {character.description?paragraphs(character.description).map((text,index)=><p key={index}>{text}</p>):<p className="cp-quiet">A full biography for {character.name} hasn&apos;t been gathered yet. Check back soon.</p>}
     <p className="cp-source">Character data: {character.source}</p>

@@ -1,7 +1,7 @@
 'use client';
 // Searchable list of every directory issue a character appears in (/api/catalog?character=).
 import {useEffect,useState} from 'react';
-import {ChevronLeft,ChevronRight,Search,Star} from 'lucide-react';
+import {ArrowRight,ChevronLeft,ChevronRight,Search,Star} from 'lucide-react';
 import ResolvedComicCover from '../resolved-comic-cover';
 
 type Comic={id:number;title:string;number:string;publisher:string;year:number;cover?:string;coverCredit?:string};
@@ -29,10 +29,11 @@ export default function CharacterComics({characterId,name,firstIssueId}:{charact
    </div>
   </div>
   <p className="cp-count" role="status">{loading?<><span className="is-spinner" aria-hidden="true"/> Loading comics…</>:state.error?state.error:page&&page.total?`Showing ${page.offset+1}–${page.offset+page.issues.length} of ${page.total.toLocaleString('en-US')} comics`:debounced?'No comics match that search.':'No comics are linked to this character yet. Appearances are still being gathered.'}</p>
-  {page&&page.issues.length>0&&<div className="cp-grid">{page.issues.map(issue=><a key={issue.id} className={'cp-card'+(issue.id===firstIssueId?' cp-card-first':'')} href={'/?section=Directory&issue='+issue.id}>
+  {page&&page.issues.length>0&&<div className="cp-grid">{page.issues.map(issue=><a key={issue.id} className={'cp-card'+(issue.id===firstIssueId?' cp-card-first':'')} href={'/?section=Directory&issue='+issue.id} aria-label={'Peek inside '+issue.title+' #'+issue.number.replace(/^#/,'')+': see full details'}>
    <span className="cp-card-cover"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span>
    {issue.id===firstIssueId&&<span className="cp-badge"><Star size={13} fill="currentColor"/> First appearance</span>}
    <strong>{issue.title} <span>#{issue.number.replace(/^#/,'')}</span></strong><small>{issue.publisher}{issue.year?' · '+issue.year:''}</small>
+   <span className="peek-inside cp-peek" style={{alignSelf:'flex-start'}} aria-hidden="true">Peek inside <ArrowRight size={15}/></span>
   </a>)}</div>}
   {page&&page.total>pageSize&&<div className="cp-pager"><button type="button" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-pageSize))}><ChevronLeft size={18}/> Previous</button><span>Page {Math.floor(offset/pageSize)+1} of {Math.ceil(page.total/pageSize)}</span><button type="button" disabled={!page.hasMore} onClick={()=>setOffset(offset+pageSize)}>Next <ChevronRight size={18}/></button></div>}
  </section>;

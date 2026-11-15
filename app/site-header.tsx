@@ -16,7 +16,7 @@ const entries=[
  {id:'Pressing',label:'Workshop',Icon:Wrench},
  {id:'SafePurchase',label:'SafePurchase',Icon:ShieldCheck},
 ];
-const pageLinks:Record<string,string>={Home:'/',Wallet:'/wallet',Characters:'/characters',SafePurchase:'/safepurchase'};
+const pageLinks:Record<string,string>={Home:'/',Wallet:'/wallet',Characters:'/characters',SafePurchase:'/safepurchase',About:'/about-huddles',Scan:'/?section=Scan'};
 /** URL for a section, for pages outside the main app (and for real links). */
 export function destination(section:string,tab?:string){
  if(pageLinks[section])return pageLinks[section];
@@ -25,7 +25,7 @@ export function destination(section:string,tab?:string){
  return '/?'+params;
 }
 /** Sections that are separate pages, not views inside the main app. */
-export const isPageSection=(section:string)=>section in pageLinks&&section!=='Home';
+export const isPageSection=(section:string)=>section in pageLinks&&section!=='Home'&&section!=='Scan';
 
 /** One storefront header shared by every page. */
 export default function SiteHeader({section='Home',name='Collector',signedIn=false,sessionKnown=false,scanOpen=false,drawerOpen=false,messageCount=0,onNavigate,onScan,onMessages,onAccount,standalone=false}:Props){
@@ -37,7 +37,7 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
  },[sessionKnown]);
  const authenticated=sessionKnown?signedIn:session.signedIn,displayName=sessionKnown?name:session.name;
  const navigate=(next:string,tab?:string)=>{if(onNavigate&&!isPageSection(next))onNavigate(next,tab);else window.location.assign(destination(next,tab))};
- const brand=<img className="brand-artwork" src="/brand/comichuddle-hero-logo-compact.svg" width="1254" height="1010" alt="ComicHuddle" decoding="async"/>;
+ const brand=<img className="brand-artwork" src="/brand/comichuddle-logo-cutout.webp" width="297" height="240" alt="ComicHuddle" decoding="async"/>;
  const scan=onScan?<button type="button" className="ch-scan-button" aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={onScan}><ScanLine size={18}/><span>Scan</span></button>:<Link href="/?section=Scan" className="ch-scan-button" aria-label="Scan a comic"><ScanLine size={18}/><span>Scan</span></Link>;
  const avatar=<><span className="avatar">{displayName.slice(0,1).toUpperCase()}</span><span className="ch-account-label"><small>Hi, {displayName.split(' ')[0]}</small>Account</span><ChevronDown size={15}/></>;
  return <>

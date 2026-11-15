@@ -8,7 +8,7 @@ import {SelectedComicList} from './comic-multi-picker';
 import {issueIdentity,listingDirectoryId} from '../lib/shared-catalog';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import {collectionGrade,ownershipFromForm,rawConditions,collectionGrades,slabLabels} from '../lib/collection-entry';
-import HuddlesGuide,{HuddlesArt} from '../components/huddles-guide';
+import HuddlesGuide,{HuddlesArt,HuddlesTip} from '../components/huddles-guide';
 import './add-comic.css';
 
 type Props={vault:Vault;commit:(vault:Vault)=>Promise<boolean>;saving:boolean;onSaved:()=>void;allowMultiple?:boolean};
@@ -28,7 +28,7 @@ function Progress({labels,current}:{labels:string[];current:number}){
  return <ol className="ds-steps ac-progress" aria-label="Steps">{labels.map((label,index)=><li key={label} className={index+1<current?'done':index+1===current?'current':''} aria-current={index+1===current?'step':undefined}><span className="ac-dot" aria-hidden="true">{index+1<current?<Check size={14}/>:index+1}</span>{label}</li>)}</ol>;
 }
 function FormHead({eyebrow,title,lede}:{eyebrow:string;title:string;lede:ReactNode}){
- return <header className="ac-head"><div className="ac-head-copy"><p className="ds-eyebrow">{eyebrow}</p><h2>{title}</h2><p className="ac-lede">{lede}</p></div><HuddlesGuide pose="add-comic" caption="YOUR LONGBOX" line="Every detail counts." size="md" className="ac-huddles"/></header>;
+ return <header className="ac-head"><div className="ac-head-copy"><p className="ds-eyebrow">{eyebrow}</p><h2>{title}</h2><p className="ac-lede">{lede}</p><HuddlesTip>Every detail counts.</HuddlesTip></div><HuddlesGuide pose="add-comic" size="md" className="ac-huddles"/></header>;
 }
 const stepLabels=['Pick issue','Condition & grade','Private details'];
 const gradingArt=<HuddlesArt pose="grading" size="sm" className="ac-step-art" decorative/>;

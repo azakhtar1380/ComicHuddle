@@ -1,10 +1,8 @@
 'use client';
 // Character index: search (/api/characters/search) or browse popular / A–Z (/api/characters/browse).
 import {useEffect,useState} from 'react';
-import {Search,Star} from 'lucide-react';
-import {Portrait} from '../issue-showcase';
-
-type Hit={characterId:number;name:string;portraitUrl:string|null;issueCount:number|null;firstAppearance:{issueId:number;title:string;number:string;year:number|null}|null};
+import {Search} from 'lucide-react';
+import CharacterCard,{type CharacterHit as Hit} from './character-card';
 const letters=['#',...'abcdefghijklmnopqrstuvwxyz'];
 const pageSize=36;
 
@@ -32,11 +30,7 @@ export default function CharacterBrowser(){
   </div>
   {!searching&&<nav className="cp-letters" aria-label="Browse by first letter"><button type="button" className={letter===null?'active':''} aria-pressed={letter===null} onClick={()=>chooseLetter(null)}>All</button>{letters.map(l=><button type="button" key={l} className={letter===l?'active':''} aria-pressed={letter===l} onClick={()=>chooseLetter(l)}>{l.toUpperCase()}</button>)}</nav>}
   <p className="cp-count" role="status">{!fresh?<><span className="is-spinner" aria-hidden="true"/> Loading characters…</>:items.error?items.error:searching?(items.list.length?`${items.list.length} character${items.list.length===1?'':'s'} match “${debounced}”`:`No characters match “${debounced}”.`):`${items.total.toLocaleString('en-US')} characters${letter?' starting with '+letter.toUpperCase():''}`}</p>
-  {fresh&&items.list.length>0&&<div className="cp-people">{items.list.map(hit=><a key={hit.characterId} href={'/characters/'+hit.characterId} className="cp-person">
-   <Portrait name={hit.name} src={hit.portraitUrl} size="lg"/>
-   <strong>{hit.name}</strong>
-   {hit.firstAppearance?<small><Star size={12} fill="currentColor"/> {hit.firstAppearance.title} #{hit.firstAppearance.number}{hit.firstAppearance.year?' ('+hit.firstAppearance.year+')':''}</small>:hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')} comics</small>:<small className="cp-faint">Details on the way</small>}
-  </a>)}</div>}
+  {fresh&&items.list.length>0&&<div className="cp-people">{items.list.map(hit=><CharacterCard key={hit.characterId} hit={hit}/>)}</div>}
   {fresh&&!searching&&items.list.length<items.total&&<div className="cp-pager"><button type="button" disabled={loading} onClick={()=>{setItems(previous=>({...previous,loadingMore:true}));setOffset(items.list.length)}}>{loading?'Loading…':'Show more characters'}</button></div>}
   <p className="cp-source">Character data: Metron (metron.cloud) · Wikidata (CC0). New characters and portraits are added daily.</p>
  </section>;

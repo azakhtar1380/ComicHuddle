@@ -7,6 +7,7 @@ import {BookOpen,Bookmark,ChartNoAxesColumn,Heart,Info,ShieldCheck,ShoppingCart,
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
 import CollectionCopyDialog from '../architecture/postgres/ui/CollectionCopyDialog';
+import {HuddlesPeek} from '../components/huddles-guide';
 import './issue-showcase.css';
 
 export type ProfileCharacter={characterId:number;name:string;portraitUrl:string|null;debut:boolean};
@@ -70,6 +71,7 @@ export default function IssueShowcase({issue,cover,coverNote,details,activeListi
  const tabs:[Tab,string,ReactNode][]=[['overview','Overview',null],['sales','Sales & Value',<ChartNoAxesColumn key="i" size={18}/>],['details','Details',<Info key="i" size={18}/>]];
  const snapshot=v?.headline?usd(v.headline.value)+(v.headline.grade?' · '+gradeText(v.headline.grade,v.headline.label):''):v?.lastSale?'Last sold '+usd(v.lastSale.amount):insights.data||insights.failed?'Sales data not available':'Checking sales…';
  return <article className="issue-showcase">
+  <HuddlesPeek edge="top"/>
   <div className="is-hero">
    <div className="is-cover">{cover}{coverNote&&<div className="is-cover-note">{coverNote}</div>}</div>
    <div className="is-summary">

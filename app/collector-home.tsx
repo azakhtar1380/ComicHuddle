@@ -2,7 +2,11 @@
 // Home: hero with search, what you can do, a glimpse of the directory, fresh listings (real only),
 // SafePurchase (only when live), rewards, and a join band.
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
-import {ArrowRight,Search} from 'lucide-react';
+import {ArrowRight,KeyRound,Layers,Search,Tag,Users,X} from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import CharacterCard,{type CharacterHit} from './characters/character-card';
+import './characters/characters.css';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import type {Issue} from '../lib/catalog';
 import type {Listing} from '../lib/community';
@@ -24,6 +28,8 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
    .catch(()=>{if(!signal?.aborted){setError(true);setIssues([])}});
  },[]);
  useEffect(()=>{const abort=new AbortController();load(abort.signal);return()=>abort.abort()},[load]);
+ const [characters,setCharacters]=useState<CharacterHit[]>([]);
+ useEffect(()=>{const abort=new AbortController();fetch('/api/characters/browse?'+new URLSearchParams({sort:'popular',offset:'0',limit:'8'}),{signal:abort.signal}).then(r=>r.ok?r.json():null).then(body=>{if(Array.isArray(body?.characters))setCharacters((body.characters as CharacterHit[]).filter(hit=>hit.portraitUrl).slice(0,8))}).catch(()=>undefined);return()=>abort.abort()},[]);
  const search=(event:FormEvent)=>{event.preventDefault();const q=query.trim();window.location.assign('/?'+new URLSearchParams(q?{section:'Directory',q}:{section:'Directory'}))};
  const fresh=listings.filter(listing=>listing.status==='active'&&!listing.example).slice(0,4);
  const doors:{pose:HuddlesPose;title:string;body:string;cta:string;action:()=>void}[]=[
@@ -35,20 +41,31 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
  return <div className="home ds-wrap">
   <section className="home-hero" aria-labelledby="home-title">
    <div className="home-hero-copy">
-    <p className="ds-eyebrow">ComicHuddle</p>
-    <h1 id="home-title" className="ds-title home-title">Know the book.<br/><span>Own the story.</span></h1>
-    <p className="ds-lede">Track your comics, find any issue, and buy, sell or trade with real collectors.</p>
+    <p className="ds-eyebrow">ComicHuddle · Issue #1</p>
+    <h1 id="home-title" className="ds-title home-title">Find it. Bag it.<br/><span>Brag about it.</span></h1>
+    <p className="ds-lede">Track every comic you own, hunt down the ones you don&apos;t, and trade with collectors who get it.</p>
     <form className="home-search" role="search" onSubmit={search}>
      <Search size={22} aria-hidden="true"/>
-     <input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search any comic…" aria-label="Search any comic" enterKeyHint="search" maxLength={120}/>
+     <input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search any comic, character or creator…" aria-label="Search any comic, character or creator" enterKeyHint="search" maxLength={120}/>
+     {query&&<button type="button" className="home-search-clear" aria-label="Clear search" onClick={()=>setQuery('')}><X size={18}/></button>}
      <button type="submit" className="ds-btn ds-btn-dark">Search</button>
     </form>
+    <div className="home-hunt" role="group" aria-labelledby="home-hunt-title">
+     <p id="home-hunt-title" className="home-hunt-title">What are you hunting?</p>
+     <div className="home-hunt-chips">
+      <a className="home-chip" href="/?section=Directory&focus=search"><KeyRound size={18} aria-hidden="true"/> A key issue</a>
+      <a className="home-chip" href="/characters"><Users size={18} aria-hidden="true"/> A character</a>
+      <a className="home-chip" href="/?section=Directory&view=series"><Layers size={18} aria-hidden="true"/> A full run</a>
+      <a className="home-chip" href="/?section=Marketplace&sell=single"><Tag size={18} aria-hidden="true"/> Something to sell</a>
+     </div>
+    </div>
     <div className="ds-actions">
      <button type="button" className="ds-btn ds-btn-primary" onClick={onStartCollection}>{signedIn?'Add your next comic':'Start your collection'} <ArrowRight size={18}/></button>
-     <button type="button" className="ds-btn ds-btn-secondary" onClick={()=>go('Marketplace')}>Browse the marketplace</button>
+     <button type="button" className="ds-link" onClick={()=>go('Marketplace')}>Browse the marketplace <ArrowRight size={16}/></button>
     </div>
+    <Link className="home-meet" href="/about-huddles"><Image src="/mascot/huddles-head.webp" width={28} height={28} alt="" unoptimized/> Who&apos;s this guy? <strong>Meet Huddles →</strong></Link>
    </div>
-   <HuddlesGuide pose="home" size="xl" caption="Issue #1 · Welcome" line="Every book has a story. Let's find yours!" className="home-hero-art"/>
+   <HuddlesGuide pose="home" size="xl" className="home-hero-art"/>
   </section>
 
   <section className="ds-section home-doors" aria-labelledby="home-doors-title">
@@ -58,6 +75,14 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
     <h3>{door.title}</h3><p>{door.body}</p><span className="home-door-go">{door.cta} <ArrowRight size={16}/></span>
    </button>)}</div>
   </section>
+
+  {characters.length>0&&<section className="ds-section home-chars" aria-labelledby="home-chars-title">
+   <div className="home-chars-head">
+    <div className="ds-section-head"><div><h2 id="home-chars-title">Every hero.<br/><span>Every villain.</span></h2><p>See where they first appeared and every issue they&apos;re in.</p></div><Link className="ds-link" href="/characters">Browse all characters <ArrowRight size={16}/></Link></div>
+    <HuddlesGuide pose="characters" size="md" tone="blue" className="home-chars-art"/>
+   </div>
+   <div className="home-chars-row cp-people">{characters.map(hit=><CharacterCard key={hit.characterId} hit={hit}/>)}</div>
+  </section>}
 
   <section className="ds-section" aria-labelledby="home-directory-title">
    <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>See the whole directory <ArrowRight size={16}/></button></div>

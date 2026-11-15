@@ -1,14 +1,14 @@
 'use client';
 import {useState} from 'react';
-import {ArrowUpRight,BookOpen,ShieldCheck} from 'lucide-react';
+import {ArrowRight,BookOpen,ShieldCheck} from 'lucide-react';
 import type {ComicCardRecord} from './types';
 import {cgcLinks} from './cgc-links';
 import ResolvedComicCover from '../../../app/resolved-comic-cover';
 export function DirectoryCard({comic,onOpen}:{comic:ComicCardRecord;onOpen:(id:string)=>void;onSave?:(id:string)=>void;onBuy?:(id:string)=>void}){
  const [failed,setFailed]=useState<string|null>(null);
- return <article className="v2-card"><button type="button" className="v2-card-open" onClick={()=>onOpen(comic.id)} aria-haspopup="dialog" aria-label={'More info about '+comic.title+' #'+comic.issueNumber}>
+ return <article className="v2-card"><button type="button" className="v2-card-open" onClick={()=>onOpen(comic.id)} aria-haspopup="dialog" aria-label={'Peek inside '+comic.title+' #'+comic.issueNumber+': see full details'}>
   <span className="v2-card-art"><ResolvedComicCover issueId={Number(comic.id)} title={comic.title} issue={comic.issueNumber} publisher={comic.publisher} year={Number(comic.publicationDate?.slice(0,4))||undefined} src={comic.coverUrl} credit={comic.coverCredit||undefined}/></span>
-  <span className="v2-card-copy"><strong>{comic.title} <span>#{comic.issueNumber}</span></strong><small>{comic.publisher}</small><span className="v2-more-info">More info <ArrowUpRight size={13}/></span></span>
+  <span className="v2-card-copy"><strong>{comic.title} <span>#{comic.issueNumber}</span></strong><small>{comic.publisher}</small><span className="v2-more-info peek-inside" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></span>
  </button></article>;
 }
 export function CGCLinks({comic}:{comic:ComicCardRecord}){

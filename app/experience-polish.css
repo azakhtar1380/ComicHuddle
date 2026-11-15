@@ -1,6 +1,6 @@
 /* Scoped collector flows; never style every link or button as a boxed control. */
 [hidden]{display:none!important}
-.comic-photo-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#e9e4d8;color:#847e70;border:1px solid #d8d1c4;border-radius:6px;aspect-ratio:2/3;text-align:center;padding:16px;overflow:hidden;max-width:100%}.comic-photo-missing>strong{font-size:13px;line-height:1.45;overflow-wrap:anywhere;color:#5c574d}.comic-photo-missing>small{font-size:12px}.comic-photo-missing.small{padding:5px;gap:0}
+.comic-photo-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#e9e4d8;color:#847e70;border:1px solid #d8d1c4;border-radius:var(--radius-sm);aspect-ratio:2/3;text-align:center;padding:16px;overflow:hidden;max-width:100%}.comic-photo-missing>strong{font-size:13px;line-height:1.45;overflow-wrap:anywhere;color:#5c574d}.comic-photo-missing>small{font-size:12px}.comic-photo-missing.small{padding:5px;gap:0}
 .required-mark{color:#b83227;font-weight:800;white-space:nowrap}.field-label{line-height:1.5}.required-check-copy{flex:1;min-width:0;line-height:1.65}
 body .site-header nav>button{display:flex;align-items:center;gap:7px}body .site-header nav>button>svg{flex-shrink:0}
 .header-signin,.header-scan{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;color:#345a6a;background:transparent;border:0;padding:7px 9px;font-size:12px;font-weight:750;text-decoration:none;white-space:nowrap}

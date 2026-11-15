@@ -5,7 +5,7 @@ main.fi-main{padding-bottom:var(--s8);font-family:var(--font-body);min-width:0}
 .fi-main section.fi-section{padding:var(--s4) 0 0}
 .fi-main .ds-section-head h2{font:800 clamp(32px,4vw,36px)/1 var(--font-display);text-transform:uppercase;margin:0}
 .fi-main .ds-section-head h2 span{color:var(--red)}
-.fi-main .fi-status{display:inline-flex;align-items:center;gap:8px;margin:0 0 var(--s2);padding:10px 14px;border:2px solid var(--ink);border-radius:2px;background:var(--yellow-soft);font:700 15px/1.3 var(--font-body);color:var(--ink)}
+.fi-main .fi-status{display:inline-flex;align-items:center;gap:8px;margin:0 0 var(--s2);padding:10px 14px;border:2px solid var(--ink);border-radius:var(--radius-sm);background:var(--yellow-soft);font:700 15px/1.3 var(--font-body);color:var(--ink)}
 .fi-steps{list-style:none;margin:0 0 var(--s3);padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3)}
 .fi-steps li{position:relative;min-width:0;padding:var(--s3);background:var(--cream);border:1px solid var(--line);border-radius:var(--radius)}
 .fi-steps li:not(:last-child)::after{content:'→';position:absolute;right:-20px;top:50%;transform:translateY(-50%);font:800 24px/1 var(--font-display);color:var(--red)}

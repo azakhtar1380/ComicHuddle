@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect, useMemo, useRef, useState} from 'react';
-import {Check, ChevronLeft, ChevronRight, Grid3X3, List, Plus, SlidersHorizontal, X} from 'lucide-react';
+import {ArrowRight, Check, ChevronLeft, ChevronRight, Grid3X3, List, Plus, SlidersHorizontal, X} from 'lucide-react';
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
 import './shared-directory.css';
@@ -33,9 +33,9 @@ type AddState='saving'|'saved'|{error:string};
 function DirectoryIssueCard({issue,onOpen,owned,state,disabled,onAdd}:{issue:Issue;onOpen:(issue:Issue)=>void;owned:boolean;state?:AddState;disabled:boolean;onAdd:(issue:Issue)=>void}) {
  const label=issue.title+' #'+issue.number,year=issue.year>0?issue.year:null,problem=state&&typeof state==='object'?state.error:'';
  return <article className="sd-card">
-  <button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'Open details for '+label+' · '+issue.publisher+(year?' · '+year:'')} onClick={()=>onOpen(issue)}>
+  <button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'Peek inside '+label+': see full details'} onClick={()=>onOpen(issue)}>
    <span className="sd-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year} src={issue.cover} credit={issue.coverCredit}/></span>
-   <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}{year?' · '+year:''}</span></span>
+   <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}{year?' · '+year:''}</span><span className="peek-inside sd-peek" aria-hidden="true">Peek inside <ArrowRight size={16}/></span></span>
   </button>
   <div className="sd-card-actions">
    {state==='saved'?<p className="sd-added" role="status"><Check size={16} aria-hidden="true"/> In your collection</p>
@@ -83,6 +83,13 @@ export default function SharedDirectory({onOpen, onCollect, beforeCollection, ow
   }
   // Mobile: the search sticks under the site header, whatever height it wraps to.
   useEffect(()=>{const header=document.querySelector('.site-header'),target=root.current;if(!header||!target)return;const measure=()=>target.style.setProperty('--sd-header',Math.round(header.getBoundingClientRect().height)+'px');measure();if(typeof ResizeObserver==='undefined')return;const observer=new ResizeObserver(measure);observer.observe(header);return()=>observer.disconnect()},[]);
+  // Home "What are you hunting?" chips: ?focus=search puts focus in the big search; ?view=series opens the longbox
+  // (publisher → series) browser. On phones the longbox is normally hidden, so ?view=series shows it above the results.
+  const [seriesView]=useState(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('view')==='series');
+  useEffect(()=>{const params=new URLSearchParams(window.location.search),target=root.current;if(!target)return;
+    const selector=params.get('focus')==='search'?'.sd-search input[role=combobox]':params.get('view')==='series'?'.sd-tree input':null;if(!selector)return;
+    const frame=requestAnimationFrame(()=>{const field=target.querySelector<HTMLElement>(selector);if(!field)return;field.focus({preventScroll:true});field.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
+    return()=>cancelAnimationFrame(frame)},[]);
   // Mobile filter sheet: Escape closes it, focus moves into it.
   useEffect(()=>{if(!sheet)return;filtersRef.current?.querySelector<HTMLElement>('.sd-sheet-close')?.focus({preventScroll:true});const key=(event:KeyboardEvent)=>{if(event.key==='Escape')setSheet(false)};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key)},[sheet]);
   const [series,setSeries]=useState(''),[matched,setMatched]=useState<Issue|null>(null);
@@ -149,13 +156,19 @@ export default function SharedDirectory({onOpen, onCollect, beforeCollection, ow
   const filtered=filterCount>0||!!character||!!query.trim();
   const updated=data?.lastGcdSyncedAt?syncedDate(data.lastGcdSyncedAt):data?.lastSyncedAt?syncedDate(data.lastSyncedAt):'';
   const retryDirectory=()=>{invalidate();setRetry(value=>value+1)};
-  return <section ref={root} className="shared-directory directory-page">
+  return <section ref={root} className={'shared-directory directory-page'+(seriesView?' sd-series-view':'')}>
     <PageHeader eyebrow="Comic Directory" title="Find any issue." accent="Every era. Every publisher." lede="Search by title, issue, character or creator." pose="directory" caption="THE DIRECTORY" line="Try a character, creator or issue #."/>
     <div className="sd-search" role="search">
       <div className="sd-search-field"><ComicPicker key={publisher+'|'+series} value={matched} label="Search the directory" placeholder="Spider-Man, Claremont, #300…" helper="Pick a suggestion to open it, or browse the results below." initialQuery={query} onQueryChange={changeQuery} onChange={issue=>{setMatched(issue);if(issue)onOpen(issue)}}/></div>
       <button type="button" className="ds-btn ds-btn-secondary sd-filter-toggle" aria-expanded={sheet} aria-controls="sd-filters" onClick={()=>setSheet(true)}><SlidersHorizontal size={18} aria-hidden="true"/> Filters{filterCount>0&&<span className="sd-filter-count" aria-label={filterCount+' active'}>{filterCount}</span>}</button>
     </div>
     {character&&<div className="sd-character-filter" role="status"><span>Showing comics with <strong>{character.name}</strong></span><button type="button" onClick={()=>chooseCharacter(null)} aria-label={'Remove the '+character.name+' filter'}>Clear <X size={16} aria-hidden="true"/></button></div>}
+    {filterCount>0&&<div className="sd-active-filters" aria-label="Active filters">
+      {publisher&&<button type="button" className="sd-active-chip" onClick={()=>{setSeries('');changeFilter(setPublisher,'')}} aria-label={'Remove the publisher filter: '+publisher}>{publisher}<X size={14} aria-hidden="true"/></button>}
+      {series&&<button type="button" className="sd-active-chip" onClick={()=>changeFilter(setSeries,'')} aria-label={'Remove the series filter: '+series}>{series}<X size={14} aria-hidden="true"/></button>}
+      {era&&<button type="button" className="sd-active-chip" onClick={()=>changeFilter(setEra,'')} aria-label={'Remove the era filter: '+era}>{era}<X size={14} aria-hidden="true"/></button>}
+      {kind&&<button type="button" className="sd-active-chip" onClick={()=>changeFilter(setKind,'')} aria-label={'Remove the issue type filter: '+kind}>{kind}<X size={14} aria-hidden="true"/></button>}
+    </div>}
     {shownHits.length>0&&<div className="sd-character-hits" aria-label="Matching characters"><span>Characters</span>{shownHits.map(hit=><button type="button" key={hit.characterId} onClick={()=>chooseCharacter({id:hit.characterId,name:hit.name})}><Portrait name={hit.name} src={hit.portraitUrl} size="sm"/>{hit.name}{hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')}</small>:null}</button>)}</div>}
     <div className="sd-browser"><DirectoryTree key={publisher} publishers={publisherOptions} publisher={publisher} series={series} onPublisher={value=>{invalidate();setPublisher(value);setSeries('');setQuery('');setMatched(null);setOffset(0)}} onSeries={value=>{invalidate();setSeries(value);setQuery('');setMatched(null);setOffset(0)}}/><div className="sd-browser-main">
     {sheet&&<button type="button" className="sd-sheet-backdrop" aria-label="Close filters" tabIndex={-1} onClick={()=>setSheet(false)}/>}

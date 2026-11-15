@@ -102,23 +102,28 @@ export default function MyCollection(p:Props){
   </div>}
  </div>;
 
+ const issueLabel=(book:Book)=>book.title+' '+(/^#/.test(book.issue)||!book.issue?book.issue:'#'+book.issue);
+ const peekLabel=(book:Book)=>'Peek inside '+issueLabel(book)+': see full details';
+ const peek=<span className="peek-inside mc-peek" aria-hidden="true">Peek inside <ArrowRight size={15}/></span>;
  const card=(book:Book)=>{const r=record(book),isSelected=selected.has(book.id);
   const open=()=>selecting?toggleSelect(book.id):setDetail(book.id);
   return view==='grid'?<article key={book.id} className={'mc-card'+(isSelected?' selected':'')}>
-   <button type="button" className="mc-card-open" onClick={open} aria-pressed={selecting?isSelected:undefined} aria-label={(selecting?'Select ':'Open ')+book.title+' '+book.issue}>
+   <button type="button" className="mc-card-open" onClick={open} aria-pressed={selecting?isSelected:undefined} aria-label={selecting?'Select '+issueLabel(book):peekLabel(book)}>
     <span className="mc-cover"><ComicArt book={book}/>{selecting&&<span className="mc-check" aria-hidden="true">{isSelected&&<Check size={18}/>}</span>}</span>
     <strong>{book.title} <span>{book.issue}</span></strong>
+    {!selecting&&peek}
     <small>{[r?.publisher,r?.year].filter(Boolean).join(' · ')||' '}</small>
    </button>
    <div className="mc-card-foot"><span className="mc-chip">{book.grade}</span>{!selecting&&cardMenu(book)}</div>
    <div className="mc-badges">{badges(book)}</div>
   </article>
   :<article key={book.id} className={'mc-row'+(isSelected?' selected':'')}>
-   <button type="button" className="mc-row-open" onClick={open} aria-pressed={selecting?isSelected:undefined}>
+   <button type="button" className="mc-row-open" onClick={open} aria-pressed={selecting?isSelected:undefined} aria-label={selecting?'Select '+issueLabel(book):peekLabel(book)}>
     {selecting&&<span className="mc-check" aria-hidden="true">{isSelected&&<Check size={16}/>}</span>}
     <span className="mc-row-cover"><ComicArt book={book} small/></span>
     <span className="mc-row-text"><strong>{book.title} <span>{book.issue}</span></strong><small>{[r?.publisher,r?.year].filter(Boolean).join(' · ')}</small></span>
     <span className="mc-chip">{book.grade}</span>
+    {!selecting&&peek}
    </button>
    <div className="mc-badges">{badges(book)}</div>
    {!selecting&&cardMenu(book)}
@@ -143,7 +148,7 @@ export default function MyCollection(p:Props){
 
   {tab!=='wants'&&<>
    <div className="mc-toolbar">
-    <label className="mc-search"><Search size={18} aria-hidden="true"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search my comics" aria-label="Search my comics"/></label>
+    <div className="mc-search"><Search size={18} aria-hidden="true"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search my comics" aria-label="Search my comics"/>{query&&<button type="button" className="mc-search-clear" aria-label="Clear search" onClick={()=>setQuery('')}><X size={16}/></button>}</div>
     <div className="mc-filters" data-open={sheet}>
      <div className="mc-sheet-head"><strong>Sort &amp; filter</strong><button type="button" aria-label="Close sort and filter" onClick={()=>setSheet(false)}><X size={22}/></button></div>
      <label className="ds-field"><span>Sort</span><select value={sort} onChange={event=>setSort(event.target.value as Sort)}>{sorts.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
@@ -156,6 +161,11 @@ export default function MyCollection(p:Props){
     <div className="mc-view" role="group" aria-label="Layout"><button type="button" aria-pressed={view==='grid'} aria-label="Grid view" onClick={()=>setView('grid')}><Grid3X3 size={18}/></button><button type="button" aria-pressed={view==='list'} aria-label="List view" onClick={()=>setView('list')}><List size={18}/></button></div>
     {vault.books.length>0&&<button type="button" className={'ds-btn ds-btn-secondary ds-btn-sm'+(selecting?' on':'')} onClick={()=>{setSelecting(!selecting);setSelected(new Set())}}><CheckSquare size={17}/> {selecting?'Done':'Select'}</button>}
    </div>
+   {(publisher||format||tradeOnly)&&<div className="mc-active-filters" aria-label="Active filters">
+    {publisher&&<button type="button" className="mc-active-chip" aria-label={'Remove the publisher filter: '+publisher} onClick={()=>setPublisher('')}>{publisher}<X size={14} aria-hidden="true"/></button>}
+    {format&&<button type="button" className="mc-active-chip" aria-label={'Remove the '+format+' filter'} onClick={()=>setFormat('')}>{format==='raw'?'Raw only':'Graded only'}<X size={14} aria-hidden="true"/></button>}
+    {tradeOnly&&<button type="button" className="mc-active-chip" aria-label="Remove the for trade only filter" onClick={()=>setTradeOnly(false)}>For trade only<X size={14} aria-hidden="true"/></button>}
+   </div>}
    {sheet&&<div className="mc-scrim" onClick={()=>setSheet(false)} aria-hidden="true"/>}
    {selecting&&<div className="mc-bulk" role="region" aria-label="Bulk actions"><strong>{selected.size} selected</strong>
     <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!selected.size||saving} onClick={()=>void setTrade([...selected],true)}><Repeat2 size={16}/> Mark for trade</button>
@@ -171,7 +181,7 @@ export default function MyCollection(p:Props){
 
   {tab==='wants'&&(!wants.length?<EmptyState title="No wants yet." message="Save issues you're hunting for from the directory." action={{label:'Browse the directory',onClick:p.onBrowse}}/>
    :<div className="mc-grid">{wants.map(id=>{const r=lookup(id);return <article key={id} className="mc-card">
-    <button type="button" className="mc-card-open" onClick={()=>p.onOpenIssue(id)}><span className="mc-cover">{r?<ComicArt issue={r}/>:<span className="mc-cover-empty"><Bookmark size={28}/></span>}</span><strong>{r?<>{r.title} <span>#{r.number}</span></>:'Saved issue'}</strong><small>{r?[r.publisher,r.year].filter(Boolean).join(' · '):'Loading…'}</small></button>
+    <button type="button" className="mc-card-open" onClick={()=>p.onOpenIssue(id)} aria-label={'Peek inside '+(r?r.title+' #'+r.number.replace(/^#/,''):'saved issue')+': see full details'}><span className="mc-cover">{r?<ComicArt issue={r}/>:<span className="mc-cover-empty"><Bookmark size={28}/></span>}</span><strong>{r?<>{r.title} <span>#{r.number}</span></>:'Saved issue'}</strong><small>{r?[r.publisher,r.year].filter(Boolean).join(' · '):'Loading…'}</small>{peek}</button>
     <div className="mc-want-actions"><button type="button" className="ds-btn ds-btn-primary ds-btn-sm" onClick={()=>p.onFindForSale(id)}>Find for sale</button><button type="button" className="mc-icon" disabled={saving} aria-label={'Remove '+(r?.title||'issue')+' from wants'} onClick={()=>void p.commit({...vault,wants:vault.wants.filter(n=>n!==id)}).then(ok=>{if(ok)p.notice('Removed from your wants.')})}><X size={18}/></button></div>
    </article>})}</div>)}
   </>}

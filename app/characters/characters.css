@@ -77,3 +77,24 @@
  .cp-letters{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}.cp-letters::-webkit-scrollbar{display:none}.cp-letters button{flex:0 0 auto}
  .cp-people{grid-template-columns:repeat(3,1fr);gap:8px}.cp-person{padding:12px 4px}.cp-person .is-portrait-lg{width:64px;height:64px}.cp-person strong{font-size:13px}.cp-person small{font-size:12px}
 }
+
+/* Huddles on the Characters pages (blended, no boxes) + rounded-corner tokens */
+.cp-main section.cp-browse-hero{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:end;gap:24px;padding-bottom:0;overflow:visible;border-radius:var(--radius-lg)}
+.cp-browse-copy{align-self:center;padding-bottom:36px}
+.cp-browse-huddles{justify-self:end;margin-bottom:-30px;max-width:300px}
+.cp-browse-huddles .huddles-figure{max-height:300px;width:auto}
+.cp-browse-hero .cp-tip{margin:18px 0 0}
+.cp-about{position:relative}
+.cp-about-huddles{float:right;width:150px;margin:-6px 0 8px 16px}
+.cp-fact-huddles{width:56px;margin-left:auto}
+.cp-hero,.cp-about,.cp-comics,.cp-main section.cp-browser{border-radius:var(--radius-lg)}
+.cp-fact,.cp-person,.cp-card{border-radius:var(--radius-md)}
+.cp-search,.cp-letters button{border-radius:var(--radius-pill)}
+.cp-sort select,.cp-pager button{border-radius:var(--radius-sm)}
+@media(max-width:760px){
+ .cp-main section.cp-browse-hero{grid-template-columns:1fr;gap:0}
+ .cp-browse-copy{padding-bottom:8px}
+ .cp-browse-huddles{justify-self:center;margin-bottom:-20px;max-width:200px}
+ .cp-browse-huddles .huddles-figure{max-height:190px}
+ .cp-about-huddles{width:96px}
+}

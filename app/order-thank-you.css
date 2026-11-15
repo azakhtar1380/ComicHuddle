@@ -1,0 +1,24 @@
+/* "Thank you for your purchase" on the Orders view. Huddles stands free on the page (no box, no bubble). */
+.oty{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:var(--s4);align-items:center;margin:0 0 var(--s4)}
+.oty-huddles{justify-self:center;width:100%;max-width:320px}
+.oty-copy{min-width:0}
+.oty-title{font:800 clamp(40px,5.4vw,64px)/.95 var(--font-display);text-transform:uppercase;letter-spacing:-1px;margin:0 0 var(--s2);color:var(--ink)}
+.oty-title span{display:block;color:var(--red)}
+.oty-title:focus{outline:none}
+.oty-title:focus-visible{outline:3px solid var(--blue);outline-offset:4px;border-radius:var(--radius-sm)}
+.oty-lede{font-size:17px;line-height:1.55;color:var(--ink-2);max-width:520px;margin:0 0 var(--s3)}
+.oty-card{display:grid;gap:10px;margin:0 0 var(--s3);padding:var(--s2) 20px;max-width:520px;background:var(--cream);border:2px solid var(--ink);border-radius:var(--radius-md);box-shadow:var(--shadow-pop)}
+.oty-card div{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s2);min-width:0}
+.oty-card dt{font:700 12px/1.2 var(--font-body);letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);flex:none}
+.oty-card dd{margin:0;font-weight:700;color:var(--ink);text-align:right;min-width:0;overflow-wrap:anywhere}
+.oty-order-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px}
+.oty-card .oty-total{border-top:1.5px dashed var(--line);padding-top:10px}
+.oty-card .oty-total dd{font:800 22px/1 var(--font-display)}
+.oty-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.oty-checking{display:block}
+.oty-problem{display:block;padding:var(--s3);background:var(--cream);border:2px solid var(--ink);border-radius:var(--radius-md)}
+.oty-problem-text{margin:0 0 var(--s2);font-size:16px;color:var(--ink)}
+@media(max-width:760px){
+ .oty{grid-template-columns:1fr;gap:var(--s2)}
+ .oty-huddles{max-width:240px}
+}

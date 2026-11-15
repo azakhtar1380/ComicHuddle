@@ -3,7 +3,7 @@
 // Scan is a raised comic "stamp". "Me" opens the account sheet. The bar tucks away while you
 // scroll down, comes back when you scroll up, and hides behind dialogs and checkout.
 import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {BookOpen, Home, ScanLine, ShoppingBag, User, X} from 'lucide-react';
+import {BookOpen, Home, LayoutGrid, ScanLine, ShoppingBag, X} from 'lucide-react';
 import AccountMenu from '../components/account-menu';
 import './mobile-dock.css';
 
@@ -23,7 +23,7 @@ const left: Item[] = [
   {id: 'Directory', label: 'Directory', Icon: BookOpen, match: ['Directory']},
 ];
 const right: Item[] = [{id: 'Marketplace', label: 'Marketplace', Icon: ShoppingBag, match: ['Marketplace']}];
-const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'Pressing'];
+const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'Pressing', 'SafePurchase', 'About'];
 
 export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meOpen = false, unread = 0}: Props) {
   const [hidden, setHidden] = useState(false), [sheet, setSheet] = useState(false), [pop, setPop] = useState('');
@@ -71,18 +71,18 @@ export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meO
     <nav className={'dock3' + (hidden && !sheet ? ' tucked' : '')} aria-label="Main">
       {left.map(button)}
       <button type="button" className={'dock3-scan' + (pop === 'scan' ? ' pop' : '')} aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={() => tap('scan', onScan)}>
-        <span className="dock3-stamp"><ScanLine size={26} strokeWidth={2.4} /></span><span className="dock3-scan-label">Scan</span>
+        <span className="dock3-stamp"><ScanLine size={24} strokeWidth={2.4} /></span><span className="dock3-scan-label">Scan</span>
       </button>
       {right.map(button)}
-      <button ref={opener} type="button" className={'dock3-tab' + (meActive ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-haspopup="dialog" aria-expanded={meOpen || sheet} aria-current={meSections.includes(tab) ? 'page' : undefined} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
-        <span className="dock3-me"><User size={22} strokeWidth={2.2} />{unread > 0 && <i className="dock3-dot" aria-label={unread + ' conversations'} />}</span><span>Me</span>
+      <button ref={opener} type="button" className={'dock3-tab' + (meActive ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-label={'Menu: every page and your account' + (unread > 0 ? ', ' + unread + ' unread conversations' : '')} aria-haspopup="dialog" aria-expanded={meOpen || sheet} aria-current={meSections.includes(tab) ? 'page' : undefined} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
+        <span className="dock3-me"><LayoutGrid size={22} strokeWidth={2.2} />{unread > 0 && <i className="dock3-dot" aria-hidden="true" />}</span><span>Menu</span>
       </button>
     </nav>
-    {!onMe && <dialog ref={dialog} className="dock3-sheet" aria-label="Your account" onClose={() => { setSheet(false); opener.current?.focus(); }} onClick={event => { if (event.target === event.currentTarget) setSheet(false); }}>
+    {!onMe && <dialog ref={dialog} className="dock3-sheet" aria-label="Menu" onClose={() => { setSheet(false); opener.current?.focus(); }} onClick={event => { if (event.target === event.currentTarget) setSheet(false); }}>
       <div className="dock3-sheet-body">
         <span className="dock3-grip" aria-hidden="true" />
         <button type="button" className="dock3-close" aria-label="Close" onClick={() => setSheet(false)}><X size={22} /></button>
-        <AccountMenu signedIn={session.signedIn} name={session.name} onNavigate={(section, sub) => { setSheet(false); onNavigate(section, sub); }} />
+        <AccountMenu signedIn={session.signedIn} name={session.name} current={tab} onNavigate={(section, sub) => { setSheet(false); onNavigate(section, sub); }} />
       </div>
     </dialog>}
   </>;

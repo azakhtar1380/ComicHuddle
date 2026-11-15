@@ -85,7 +85,7 @@ function storySvg(p:CollectorProfile){
 }
 
 function BookGrid({books,onBook,label}:{books:ShowcaseBook[];onBook:(b:ShowcaseBook)=>void;label:string}){
- return <ul className="nw-books" aria-label={label}>{books.map(b=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)}><ComicArt book={b}/><strong>{b.title} {b.issue}</strong>{b.grade&&<small>{b.grade}</small>}</button></li>)}</ul>;
+ return <ul className="nw-books" aria-label={label}>{books.map(b=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)} aria-label={'Peek inside '+b.title+' '+(/^#/.test(b.issue)||!b.issue?b.issue:'#'+b.issue)+': see full details'}><ComicArt book={b}/><strong>{b.title} {b.issue}</strong>{b.grade&&<small>{b.grade}</small>}<span className="peek-inside nw-peek" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></button></li>)}</ul>;
 }
 function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:CollectorProfile;own:boolean;onEdit:()=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;wants:Record<number,Issue>}){
  const favorites=p.showcase.slice(0,6),open=Math.max(0,6-favorites.length),wantList=p.wantIds.slice(0,12);
@@ -111,7 +111,7 @@ function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:Collect
   <section className="nw-block" aria-labelledby="nw-favorites">
    <div className="ds-section-head"><div><p className="ds-eyebrow">The six</p><h2 id="nw-favorites">Favorites<span>.</span></h2></div>{own&&<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={onEdit}><Pencil size={16} aria-hidden="true"/> Pick favorites</button>}</div>
    {favorites.length||own?<ul className="nw-books nw-six" aria-label="Six favorites">
-    {favorites.map((b,i)=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)}><span className="nw-rank" aria-hidden="true">{i+1}</span><ComicArt book={b}/><strong>{b.title} {b.issue}</strong>{b.grade&&<small>{b.grade}</small>}</button></li>)}
+    {favorites.map((b,i)=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)} aria-label={'Peek inside '+b.title+' '+(/^#/.test(b.issue)||!b.issue?b.issue:'#'+b.issue)+': see full details'}><span className="nw-rank" aria-hidden="true">{i+1}</span><ComicArt book={b}/><strong>{b.title} {b.issue}</strong>{b.grade&&<small>{b.grade}</small>}<span className="peek-inside nw-peek" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></button></li>)}
     {own&&Array.from({length:open},(_,i)=><li key={'open-'+i}><button type="button" className="nw-book nw-slot" onClick={onEdit}><span className="nw-slot-art"><Plus size={28} aria-hidden="true"/></span><strong>Add a favorite</strong></button></li>)}
    </ul>:<p className="nw-empty">No favorites picked yet.</p>}
   </section>
@@ -123,7 +123,7 @@ function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:Collect
 
   <section className="nw-block" aria-labelledby="nw-wants">
    <div className="ds-section-head"><div><p className="ds-eyebrow">Looking for</p><h2 id="nw-wants">Wants<span>.</span></h2></div>{p.wantIds.length>wantList.length&&<p>Showing {wantList.length} of {p.wantIds.length}.</p>}</div>
-   {wantList.length?<ul className="nw-wants">{wantList.map(id=>{const record=wants[id]||catalog[id];return <li key={id}><button type="button" className="nw-want" onClick={()=>onIssue(id)}><span className="nw-want-art"><ComicArt issue={record} small/></span><span><strong>{record?record.title+' #'+record.number:'Loading…'}</strong>{record&&<small>{[record.publisher,record.year].filter(Boolean).join(' · ')}</small>}</span></button></li>})}</ul>:<p className="nw-empty">{own?'No wants yet. Add them from any comic page.':'No wants listed.'}</p>}
+   {wantList.length?<ul className="nw-wants">{wantList.map(id=>{const record=wants[id]||catalog[id];return <li key={id}><button type="button" className="nw-want" onClick={()=>onIssue(id)} aria-label={'Peek inside '+(record?record.title+' #'+record.number.replace(/^#/,''):'saved issue')+': see full details'}><span className="nw-want-art"><ComicArt issue={record} small/></span><span><strong>{record?record.title+' #'+record.number:'Loading…'}</strong>{record&&<small>{[record.publisher,record.year].filter(Boolean).join(' · ')}</small>}<span className="peek-inside nw-peek" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></span></button></li>})}</ul>:<p className="nw-empty">{own?'No wants yet. Add them from any comic page.':'No wants listed.'}</p>}
   </section>
 
   {p.stats.publishers.length>0&&<section className="nw-block" aria-labelledby="nw-publishers">
@@ -280,7 +280,7 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
  </div></Modal>}
  {newChat&&<Modal label="New message" onClose={()=>setNewChat(false)}><div className="form-dialog nw-join">
   <p className="ds-eyebrow">New message</p><h2 className="nw-join-title">Find a <span>collector.</span></h2>
-  <label className="ds-field"><span>Name or handle</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search collectors" type="search"/></label>
+  <label className="ds-field"><span>Name or handle</span><span className="nw-search-field"><Search size={18} aria-hidden="true"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search collectors" type="search"/>{search&&<button type="button" className="nw-search-clear" aria-label="Clear collector search" onClick={()=>setSearch('')}><X size={16}/></button>}</span></label>
   <ul className="nw-people">{data.people.filter(p=>p.id!==me?.id&&p.dmOpen&&(p.name+' '+p.handle).toLowerCase().includes(search.toLowerCase())).map(p=><li key={p.id}><button type="button" className="nw-thread" disabled={busy} onClick={()=>void startMessage(p.id)}><span className="nw-avatar" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</span><span className="nw-thread-copy"><strong>{p.name}</strong><small>@{p.handle}</small></span><MessageCircle size={18} aria-hidden="true"/></button></li>)}</ul>
   {!data.people.some(p=>p.id!==me?.id&&p.dmOpen)&&<p className="nw-empty">No collectors are taking messages yet.</p>}
  </div></Modal>}

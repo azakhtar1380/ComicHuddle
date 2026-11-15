@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import SiteHeader from '../site-header';
 import SiteFooter from '../site-footer';
 import CharacterBrowser from './character-browser';
+import HuddlesGuide,{HuddlesTip} from '../../components/huddles-guide';
 import './characters.css';
 
 export const metadata:Metadata={title:'Comic Characters | ComicHuddle',description:'Browse and search comic book characters, their first appearances and every comic they appear in.'};
@@ -12,9 +13,13 @@ export default function CharactersPage(){
   <SiteHeader section="Characters" standalone/>
   <main id="main-content" className="cp-main">
    <section className="cp-browse-hero">
-    <span className="cp-kicker">Characters</span>
-    <h1>Every hero. Every villain.</h1>
-    <p>Search comic characters, see where they first appeared and browse every issue they&apos;re in.</p>
+    <div className="cp-browse-copy">
+     <span className="cp-kicker">Characters</span>
+     <h1>Every hero. Every villain.</h1>
+     <p>Search comic characters, see where they first appeared and browse every issue they&apos;re in.</p>
+     <HuddlesTip className="cp-tip">Pick a hero. Or a villain.</HuddlesTip>
+    </div>
+    <HuddlesGuide pose="characters" size="lg" tone="yellow" className="cp-browse-huddles"/>
    </section>
    <CharacterBrowser/>
   </main>
