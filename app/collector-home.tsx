@@ -41,7 +41,7 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
  return <div className="home ds-wrap">
   <section className="home-hero" aria-labelledby="home-title">
    <div className="home-hero-copy">
-    <p className="ds-eyebrow">ComicHuddle · Issue #1</p>
+    <p className="ds-eyebrow">Get started · It&apos;s free</p>
     <h1 id="home-title" className="ds-title home-title">Find it. Bag it.<br/><span>Brag about it.</span></h1>
     <p className="ds-lede">Track every comic you own, hunt down the ones you don&apos;t, and trade with collectors who get it.</p>
     <form className="home-search" role="search" onSubmit={search}>
@@ -63,7 +63,7 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
      <button type="button" className="ds-btn ds-btn-primary" onClick={onStartCollection}>{signedIn?'Add your next comic':'Start your collection'} <ArrowRight size={18}/></button>
      <button type="button" className="ds-link" onClick={()=>go('Marketplace')}>Browse the marketplace <ArrowRight size={16}/></button>
     </div>
-    <Link className="home-meet" href="/about-huddles"><Image src="/mascot/huddles-head.webp" width={28} height={28} alt="" unoptimized/> Who&apos;s this guy? <strong>Meet Huddles →</strong></Link>
+    <Link className="home-meet" href="/about-huddles"><Image src="/mascot/huddles-head.webp" width={28} height={28} alt="" unoptimized/> <span className="home-meet-ask">Who&apos;s this guy?</span> <strong>Meet Huddles →</strong></Link>
    </div>
    <HuddlesGuide pose="home" size="xl" className="home-hero-art"/>
   </section>

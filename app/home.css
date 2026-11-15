@@ -114,8 +114,11 @@ main .home section{padding-left:0;padding-right:0}
  .home-hunt-chips::-webkit-scrollbar{display:none}
  .home-chip{flex:0 0 auto}
  .home-hero .ds-actions .ds-link{width:auto}
- .home-chars-head{grid-template-columns:1fr;gap:4px}
- .home-chars-art{display:none}
+ .home-chars-head{grid-template-columns:minmax(0,1fr) 104px;align-items:start;gap:8px}
+ .home-chars-art{display:block;width:104px;max-width:104px;margin:0 -6px 0 0;justify-self:end}
+ .home-meet{font-size:14px;gap:6px}
+ .home-meet img{width:22px;height:22px}
+ .home-meet-ask{display:none}
  .home-chars-row{grid-auto-columns:128px;margin:14px -16px 0;padding:0 16px 8px}
 }
 .home-hero-copy{min-width:0}

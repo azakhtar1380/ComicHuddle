@@ -80,3 +80,7 @@
 .am-signout{border-radius:var(--radius-sm)}
 @media(min-width:761px){.am-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .am-row>.am-row-lead{flex:0 0 20px}
+.am-tile-wide{grid-column:1/-1}
+.am-tile-huddles{background:var(--yellow,#f6c945)}
+.am-tile-huddles .am-tile-icon{overflow:hidden;padding:0;background:var(--yellow,#f6c945)}
+.am-tile-huddles .am-tile-icon img{width:100%;height:100%;object-fit:cover}

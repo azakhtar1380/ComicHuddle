@@ -32,7 +32,9 @@ const explore: {id: string; label: string; hint: string; Icon: Icon}[] = [
   {id: 'Pressing', label: 'Workshop', hint: 'Pressing pros', Icon: Wrench},
   {id: 'SafePurchase', label: 'SafePurchase', hint: 'How we check books', Icon: ShieldCheck},
   {id: 'Wallet', label: 'Wallet', hint: 'Points & credit', Icon: Wallet},
+  {id: 'About', label: 'Meet Huddles', hint: 'Who’s the guy in the cape?', Icon: HuddlesHead},
 ];
+function HuddlesHead() { return <Image src="/mascot/huddles-head.webp" width={40} height={40} alt="" unoptimized />; }
 
 function useWalletSummary(signedIn: boolean) {
   const [wallet, setWallet] = useState<{points: number; creditCents: number} | 'error' | null>(null);
@@ -58,12 +60,11 @@ export default function AccountMenu({signedIn, name, handle, stats, unread = 0, 
   const wallet = useWalletSummary(signedIn);
   const exploreGrid = <section className="am-explore" aria-labelledby="am-explore-title">
     <h3 id="am-explore-title" className="am-heading">Explore ComicHuddle</h3>
-    <div className="am-tiles">{explore.map(({id, label, hint, Icon}) => <button key={id} type="button" className={'am-tile' + (current === id ? ' here' : '')} aria-current={current === id ? 'page' : undefined} onClick={() => onNavigate(id)}>
+    <div className="am-tiles">{explore.map(({id, label, hint, Icon}) => <button key={id} type="button" className={'am-tile' + (id === 'About' ? ' am-tile-wide am-tile-huddles' : '') + (current === id ? ' here' : '')} aria-current={current === id ? 'page' : undefined} onClick={() => onNavigate(id)}>
       <span className="am-tile-icon"><Icon size={22} aria-hidden={true} strokeWidth={2.1} /></span><strong>{label}</strong><small>{current === id ? 'You are here' : hint}</small>
     </button>)}</div>
   </section>;
   const help = <nav className="am-menu" aria-label="Help">
-    <MenuRow Icon={Sparkles} label="About Huddles" onClick={() => onNavigate('About')} lead={<Image src="/mascot/huddles-head.webp" width={24} height={24} alt="" unoptimized />} />
     <MenuRow Icon={FileText} label="Collector rules" onClick={() => onNavigate('Rules')} />
   </nav>;
 
