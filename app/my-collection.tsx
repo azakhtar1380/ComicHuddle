@@ -2,7 +2,7 @@
 // My collection: the heart of the app. Collection · Wants · For trade, with search, sort, filters,
 // grid/list views, a ⋯ menu per comic, select mode for bulk actions, and a detail view of your copy.
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,Bookmark,Camera,Check,CheckSquare,ChevronDown,Download,Grid3X3,List,MoreHorizontal,Pencil,Plus,Repeat2,Search,ShoppingBag,SlidersHorizontal,Sparkles,Trash2,Upload,X} from 'lucide-react';
+import {ArrowRight,Bookmark,Camera,Check,CheckSquare,ChevronDown,Download,Grid3X3,List,Lock,MoreHorizontal,Pencil,Plus,Repeat2,Search,ShoppingBag,SlidersHorizontal,Sparkles,Trash2,Upload,X} from 'lucide-react';
 import type {Vault} from '../lib/vault';
 import {catalog,type Issue} from '../lib/catalog';
 import {bookIssue} from '../lib/trades';
@@ -30,6 +30,13 @@ const issueNumber=(value:string)=>{const n=parseFloat(value.replace(/^#/,''));re
 const money=(cents:string|null|undefined)=>cents==null?null:new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(cents)/100);
 const directoryId=(book:Book)=>{const curated=bookIssue(book);return curated?curated.id:listingDirectoryId(book)};
 const graded=(book:Book)=>book.ownership?.format==='GRADED'||/^CGC\b/i.test(book.grade);
+const titleCase=(value:string)=>value.toLowerCase().replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+/** One filterable condition per copy, from what the collector recorded (never guessed). */
+const conditionOf=(book:Book)=>{const o=book.ownership;
+ if(o)return o.format==='GRADED'?(o.grade?'CGC '+o.grade:'CGC graded'):(o.rawCondition?titleCase(o.rawCondition):'Raw · not recorded');
+ const cgc=/^CGC\s*(\d{1,2}(?:\.\d)?)/i.exec(book.grade.trim());if(cgc)return 'CGC '+cgc[1];
+ return book.grade.trim().slice(0,40)||'Not recorded'};
+const conditionRank=(label:string)=>{const cgc=/^CGC (\d+(?:\.\d)?)$/.exec(label);if(cgc)return -Number(cgc[1]);const raw=['Near Mint','Very Fine','Fine','Very Good','Good'].indexOf(label);return raw>=0?100+raw:200};
 
 /** Directory records for saved comics (publisher, year, era, cover) so we can sort and filter. */
 function useRecords(ids:number[]){
@@ -51,7 +58,7 @@ function useRecords(ids:number[]){
 export default function MyCollection(p:Props){
  const {vault,saving,tab}=p;
  const [query,setQuery]=useState(''),[sort,setSort]=useState<Sort>('recent'),[view,setView]=useState<'grid'|'list'>('grid');
- const [publisher,setPublisher]=useState(''),[format,setFormat]=useState<''|'raw'|'graded'>(''),[tradeOnly,setTradeOnly]=useState(false);
+ const [publisher,setPublisher]=useState(''),[format,setFormat]=useState<''|'raw'|'graded'>(''),[condition,setCondition]=useState(''),[tradeOnly,setTradeOnly]=useState(false);
  const [sheet,setSheet]=useState(false),[selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
  const [shown,setShown]=useState(pageSize);
  const [menu,setMenu]=useState<string|null>(null),[detail,setDetail]=useState<string|null>(null),[confirmRemove,setConfirmRemove]=useState<string[]|null>(null),[photoBusy,setPhotoBusy]=useState('');
@@ -60,9 +67,10 @@ export default function MyCollection(p:Props){
  const {lookup,loading}=useRecords(ids);
  const trade=useMemo(()=>new Set(vault.tradeBookIds),[vault.tradeBookIds]),featured=new Set(p.featuredIds);
  // Big collections render a page at a time; any search, filter or sort change starts from the top again.
- const listKey=[tab,query,publisher,format,tradeOnly,sort].join('|'),[shownKey,setShownKey]=useState(listKey);
+ const listKey=[tab,query,publisher,format,condition,tradeOnly,sort].join('|'),[shownKey,setShownKey]=useState(listKey);
  if(shownKey!==listKey){setShownKey(listKey);setShown(pageSize)}
  const publishers=useMemo(()=>[...new Set(vault.books.map(book=>lookup(directoryId(book))?.publisher).filter((v):v is string=>!!v))].sort(),[vault.books,lookup]);
+ const conditions=useMemo(()=>[...new Set(vault.books.filter(book=>!format||(format==='graded')===graded(book)).map(conditionOf))].sort((a,b)=>conditionRank(a)-conditionRank(b)||a.localeCompare(b)),[vault.books,format]);
  const books=useMemo(()=>{
   const q=query.trim().toLowerCase().replace('#','');
   const pool=tab==='trade'?vault.books.filter(book=>trade.has(book.id)):vault.books;
@@ -70,6 +78,7 @@ export default function MyCollection(p:Props){
    if(q&&!(book.title+' '+book.issue+' '+(record?.publisher||'')+' '+(record?.year||'')).toLowerCase().replace('#','').includes(q))return false;
    if(publisher&&record?.publisher!==publisher)return false;
    if(format==='graded'&&!graded(book))return false;if(format==='raw'&&graded(book))return false;
+   if(condition&&conditionOf(book)!==condition)return false;
    if(tradeOnly&&!trade.has(book.id))return false;return true;})
    .sort((a,b)=>{const ra=lookup(directoryId(a)),rb=lookup(directoryId(b));
     if(sort==='title')return a.title.localeCompare(b.title)||issueNumber(a.issue)-issueNumber(b.issue);
@@ -78,8 +87,10 @@ export default function MyCollection(p:Props){
     if(sort==='publisher')return (ra?.publisher||'~').localeCompare(rb?.publisher||'~')||a.title.localeCompare(b.title);
     return (order.get(b.id)||0)-(order.get(a.id)||0);});
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[vault.books,vault.tradeBookIds,tab,query,publisher,format,tradeOnly,sort,lookup,order]);
- const filtersOn=!!(publisher||format||tradeOnly)||sort!=='recent';
+ },[vault.books,vault.tradeBookIds,tab,query,publisher,format,condition,tradeOnly,sort,lookup,order]);
+ const filtersOn=!!(publisher||format||condition||tradeOnly)||sort!=='recent';
+ // A condition that no longer exists (copy edited/removed, or hidden by the raw/graded filter) is dropped.
+ if(condition&&!conditions.includes(condition))setCondition('');
  const menuRef=useRef<HTMLDivElement>(null);
  useEffect(()=>{if(!menu)return;const close=(event:PointerEvent)=>{if(menuRef.current&&!menuRef.current.contains(event.target as Node))setMenu(null)};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close)},[menu]);
 
@@ -150,7 +161,7 @@ export default function MyCollection(p:Props){
   {p.status.startsWith('Save failed')||p.status.includes('unavailable')?<p className="ds-error" role="alert">Couldn’t reach your collection. <button type="button" className="ds-link" onClick={p.onReconnect}>Try again</button></p>:null}
 
   <div className="mc-tabs" role="tablist" aria-label="Collection views">
-   {([['collection','Collection',vault.books.length],['wants','Wants',wants.length],['trade','For trade',tradeCount]] as [CollectionTab,string,number][]).map(([id,label,count])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'active':''} onClick={()=>{setSelected(new Set());setSelecting(false);p.onTab(id)}}>{label} <em>{count}</em></button>)}
+   {([['collection','Collection',vault.books.length],['trade','For trade',tradeCount],['wants','Wants',wants.length]] as [CollectionTab,string,number][]).map(([id,label,count])=><button key={id} type="button" role="tab" aria-selected={tab===id} className={tab===id?'active':''} onClick={()=>{setSelected(new Set());setSelecting(false);p.onTab(id)}}>{label} <em>{count}</em></button>)}
   </div>
 
   {tab!=='wants'&&<>
@@ -161,6 +172,7 @@ export default function MyCollection(p:Props){
      <label className="ds-field"><span>Sort</span><select value={sort} onChange={event=>setSort(event.target.value as Sort)}>{sorts.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
      <label className="ds-field"><span>Publisher</span><select value={publisher} onChange={event=>setPublisher(event.target.value)}><option value="">All publishers</option>{publishers.map(name=><option key={name}>{name}</option>)}</select></label>
      <label className="ds-field"><span>Raw or graded</span><select value={format} onChange={event=>setFormat(event.target.value as ''|'raw'|'graded')}><option value="">Raw and graded</option><option value="raw">Raw only</option><option value="graded">Graded only</option></select></label>
+     <label className="ds-field"><span>Condition</span><select value={condition} onChange={event=>setCondition(event.target.value)} disabled={!conditions.length}><option value="">All conditions</option>{conditions.map(label=><option key={label} value={label}>{label}</option>)}</select></label>
      {tab==='collection'&&<label className="mc-toggle"><input type="checkbox" checked={tradeOnly} onChange={event=>setTradeOnly(event.target.checked)}/> For trade only</label>}
      <button type="button" className="ds-btn ds-btn-primary mc-sheet-done" onClick={()=>setSheet(false)}>Show {books.length} comics</button>
     </div>
@@ -168,21 +180,27 @@ export default function MyCollection(p:Props){
     <div className="mc-view" role="group" aria-label="Layout"><button type="button" aria-pressed={view==='grid'} aria-label="Grid view" onClick={()=>setView('grid')}><Grid3X3 size={18}/></button><button type="button" aria-pressed={view==='list'} aria-label="List view" onClick={()=>setView('list')}><List size={18}/></button></div>
     {vault.books.length>0&&<button type="button" className={'ds-btn ds-btn-secondary ds-btn-sm'+(selecting?' on':'')} onClick={()=>{setSelecting(!selecting);setSelected(new Set())}}><CheckSquare size={17}/> {selecting?'Done':'Select'}</button>}
    </div>
-   {(publisher||format||tradeOnly)&&<div className="mc-active-filters" aria-label="Active filters">
+   {(publisher||format||condition||tradeOnly)&&<div className="mc-active-filters" aria-label="Active filters">
     {publisher&&<button type="button" className="mc-active-chip" aria-label={'Remove the publisher filter: '+publisher} onClick={()=>setPublisher('')}>{publisher}<X size={14} aria-hidden="true"/></button>}
     {format&&<button type="button" className="mc-active-chip" aria-label={'Remove the '+format+' filter'} onClick={()=>setFormat('')}>{format==='raw'?'Raw only':'Graded only'}<X size={14} aria-hidden="true"/></button>}
+    {condition&&<button type="button" className="mc-active-chip" aria-label={'Remove the condition filter: '+condition} onClick={()=>setCondition('')}>{condition}<X size={14} aria-hidden="true"/></button>}
     {tradeOnly&&<button type="button" className="mc-active-chip" aria-label="Remove the for trade only filter" onClick={()=>setTradeOnly(false)}>For trade only<X size={14} aria-hidden="true"/></button>}
    </div>}
    {sheet&&<div className="mc-scrim" onClick={()=>setSheet(false)} aria-hidden="true"/>}
    {selecting&&<div className="mc-bulk" role="region" aria-label="Bulk actions"><strong>{selected.size} selected</strong>
-    <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!selected.size||saving} onClick={()=>void setTrade([...selected],true)}><Repeat2 size={16}/> Mark for trade</button>
-    <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={selected.size<2} onClick={()=>sell([...selected])}><ShoppingBag size={16}/> Sell together</button>
+    {books.length>0&&(books.every(book=>selected.has(book.id))
+     ?<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={()=>setSelected(new Set())}>Clear selection</button>
+     :<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={()=>setSelected(new Set(books.map(book=>book.id)))}><CheckSquare size={16}/> Select all {books.length}</button>)}
+    {tab==='trade'||(selected.size>0&&[...selected].every(id=>trade.has(id)))
+     ?<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!selected.size||saving} onClick={()=>void setTrade([...selected],false).then(()=>setSelected(new Set()))}><Repeat2 size={16}/> Take off trade</button>
+     :<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!selected.size||saving} onClick={()=>void setTrade([...selected],true)}><Repeat2 size={16}/> Mark for trade</button>}
+    <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!selected.size} onClick={()=>sell([...selected])}><ShoppingBag size={16}/> {selected.size>1?'Sell together':'Sell'}</button>
     <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm mc-danger" disabled={!selected.size||saving} onClick={()=>setConfirmRemove([...selected])}><Trash2 size={16}/> Remove</button>
    </div>}
    {loading&&<p className="mc-quiet" role="status">Loading publisher and year details…</p>}
    {!vault.books.length?<EmptyState title="Your longbox is waiting." message="Add your first comic. Scan it, search for it, or add it by hand." action={{label:'Scan a comic',onClick:p.onScan}} secondary={{label:'Search the directory',onClick:p.onBrowse}}/>
     :tab==='trade'&&!tradeCount?<EmptyState compact title="Nothing in your trade pile yet." message="Open a comic's ⋯ menu and pick “Mark for trade”."/>
-    :!books.length?<EmptyState compact title="No comics match." message="Try another search or clear the filters." action={{label:'Clear filters',onClick:()=>{setQuery('');setPublisher('');setFormat('');setTradeOnly(false);setSort('recent')}}}/>
+    :!books.length?<EmptyState compact title="No comics match." message="Try another search or clear the filters." action={{label:'Clear filters',onClick:()=>{setQuery('');setPublisher('');setFormat('');setCondition('');setTradeOnly(false);setSort('recent')}}}/>
     :<><div className={view==='grid'?'mc-grid':'mc-list'}>{books.slice(0,shown).map(card)}</div>{books.length>shown&&<div className="mc-more"><span>Showing {shown} of {books.length}</span><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShown(value=>value+pageSize*2)}>Show more</button></div>}</>}
   </>}
 
@@ -203,10 +221,10 @@ export default function MyCollection(p:Props){
     <div className="mc-badges inline">{badges(detailBook)}</div>
     {record(detailBook)&&<p>{record(detailBook)?.note}</p>}
     {directoryId(detailBook)!==null&&<button type="button" className="ds-link" onClick={()=>{const id=directoryId(detailBook);setDetail(null);if(id!==null)p.onOpenIssue(id)}}>See the full issue page <ArrowRight size={16}/></button>}
-    <div className="mc-private"><p className="ds-eyebrow">Your copy · only you can see this</p><dl>
+    <div className="mc-private" aria-labelledby="mc-private-title"><p className="mc-private-head"><span className="ds-eyebrow" id="mc-private-title">Your copy</span><span className="mc-private-tag"><Lock size={14} aria-hidden="true"/> Only you can see this</span></p><dl>
      <dt>Condition</dt><dd>{detailBook.grade}</dd>
      {detailBook.ownership?.certificationNumber&&<><dt>CGC cert #</dt><dd>{detailBook.ownership.certificationNumber}</dd></>}
-     <dt>You paid</dt><dd>{money(detailBook.ownership?.purchasePriceCents)||'Not recorded'}</dd>
+     <dt>You paid</dt><dd>{money(detailBook.ownership?.purchasePriceCents)||(detailBook.price>0?money(String(Math.round(detailBook.price*100))):null)||'Not recorded'}</dd>
      {detailBook.ownership?.acquiredOn&&<><dt>Got it on</dt><dd>{detailBook.ownership.acquiredOn}</dd></>}
      <dt>Notes</dt><dd>{detailBook.ownership?.notes||'None'}</dd>
     </dl></div>

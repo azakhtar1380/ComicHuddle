@@ -3,10 +3,12 @@
 // then a row of pill links. Phones put search on its own full-width row and scroll the pills sideways.
 import Link from 'next/link';
 import {useEffect,useState,type ComponentType} from 'react';
-import {BookOpen,ChevronDown,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,UserRound,Users,Wrench} from 'lucide-react';
+import {BookOpen,ChevronDown,Home,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,UserRound,Users,Wrench} from 'lucide-react';
 import MobileDock from './mobile-dock';
 import HeaderSearch from './header-search';
 import UserAvatar from '../components/user-avatar';
+import {CartButton} from '../components/cart/cart-button';
+import {NotificationBell} from '../components/notifications/bell';
 import {publicSection} from '../lib/section-navigation';
 import './site-header.css';
 
@@ -14,6 +16,7 @@ type Props={section?:string;name?:string;signedIn?:boolean;sessionKnown?:boolean
 type NavIcon=ComponentType<{size?:number;'aria-hidden'?:boolean}>;
 /** The main destinations, shown as pills under the search bar. Everything personal is in the account panel. */
 const entries:{id:string;label:string;Icon:NavIcon}[]=[
+ {id:'Home',label:'Home',Icon:Home},
  {id:'Directory',label:'Directory',Icon:BookOpen},
  {id:'Characters',label:'Characters',Icon:Users},
  {id:'Marketplace',label:'Marketplace',Icon:ShoppingBag},
@@ -56,6 +59,8 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
     <div className="chx-actions">
      {scan}
      {messages}
+     {authenticated&&<NotificationBell variant="header"/>}
+     <CartButton variant="header"/>
      {authenticated
       ?(onAccount?<button type="button" className="chx-account" aria-label="Open your account" aria-haspopup="dialog" aria-expanded={drawerOpen} onClick={onAccount}>{account}</button>:<Link className="chx-account" href="/?section=Account" aria-label="Open your account">{account}</Link>)
       :<><Link className="chx-signin" href="/sign-in" prefetch><UserRound size={22}/><span>Sign in</span></Link><Link className="chx-join" href="/sign-in?mode=register" prefetch>Join free</Link></>}
@@ -63,7 +68,7 @@ export default function SiteHeader({section='Home',name='Collector',signedIn=fal
    </div>
    <div className="chx-wrap chx-search chx-search-mobile"><HeaderSearch/></div>
    <nav className="chx-pills" aria-label="Main navigation"><div className="chx-wrap chx-pill-row">
-    {entries.map(({id,label,Icon})=>{const active=section===id,className='chx-pill'+(active?' is-on':'');const inner=<><Icon size={16} aria-hidden/><span>{label}</span></>;return onNavigate&&!isPageSection(id)?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}>{inner}</button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}>{inner}</Link>})}
+    {entries.map(({id,label,Icon})=>{const active=section===id,className='chx-pill'+(id==='Home'?' chx-pill-home':'')+(active?' is-on':'');const inner=<><Icon size={16} aria-hidden/><span>{label}</span></>;return onNavigate&&!isPageSection(id)?<button type="button" key={id} className={className} aria-current={active?'page':undefined} onClick={()=>navigate(id)}>{inner}</button>:<Link key={id} href={destination(id)} className={className} aria-current={active?'page':undefined}>{inner}</Link>})}
    </div></nav>
   </header>
   {standalone&&<MobileDock tab={section} scanOpen={false} onNavigate={navigate} onScan={()=>window.location.assign('/?section=Scan')}/>}

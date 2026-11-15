@@ -1,0 +1,6 @@
+.ch-sp-badge{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:3px 9px 3px 7px;border:1.5px solid var(--ink,#20201f);border-radius:var(--radius-pill,999px);background:var(--yellow,#efd369);color:var(--ink,#20201f);font:800 13px/1 var(--font-display,'Barlow Condensed',sans-serif);letter-spacing:.3px;text-transform:uppercase;text-decoration:none;white-space:nowrap;--sp-badge-tick:var(--yellow,#efd369)}
+.ch-sp-badge svg{color:var(--ink,#20201f);flex:0 0 auto}
+.ch-sp-badge.is-soon{background:var(--cream,#f9f6ef);border-style:dashed;--sp-badge-tick:var(--cream,#f9f6ef)}
+.ch-sp-badge.is-compact{padding:3px;min-height:0}
+a.ch-sp-badge:hover{box-shadow:2px 2px 0 var(--ink,#20201f)}
+a.ch-sp-badge:focus-visible{outline:3px solid var(--blue,#345a6a);outline-offset:2px}

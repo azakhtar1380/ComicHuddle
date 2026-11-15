@@ -548,3 +548,12 @@
  .mpx-sell-actions{width:100%}
  .mpx-bid-buttons .ds-btn{flex:1}
 }
+/* Round 4: product card buttons (Buy/Bid · cart · Trade · Make offer · Add to collection) and the cart slot in the listing detail. */
+.mpx-card-buttons{margin:0 24px 20px}
+.mpx-actions>.mpx-cart-slot{display:flex;flex:1 1 180px}
+.mpx-actions>.mpx-cart-slot>*{flex:1 1 auto;min-height:46px}
+@media(max-width:760px){
+ .mpx-card-buttons{margin:0 20px 16px}
+ .mpx-actions>.mpx-cart-slot{flex:1 1 100%}
+}
+.mpx-cart-slot .cart-add,.mpx-cart-slot .cart-add .ds-btn{width:100%}

@@ -120,7 +120,7 @@ export function OwnedComicForm({vault,bookId,commit,saving,listed,onSaved}:Props
     <label className="ds-field"><span>Date you got it</span><input name="acquiredOn" type="date" defaultValue={copy.ownership.acquiredOn||''}/></label>
     <label className="ds-field"><span>Private notes</span><textarea name="notes" maxLength={500} rows={3} defaultValue={copy.ownership.notes}/></label>
    </>}
-   <p className="ac-help">Prices and notes are only visible to you.</p>
+   <p className="ac-help"><b>Only you can see this.</b> Prices and notes never show on your profile or listings.</p>
   </Step>
   <div className="ac-save-bar">
    {error&&<p className="ds-error ac-error" role="alert"><X size={16} aria-hidden="true"/> {error}</p>}

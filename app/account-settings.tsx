@@ -2,6 +2,7 @@
 // Settings: your name and showcase, the app, your data, and (for the owner) the studio tools.
 import {Calculator,Check,Download,Layers,ShieldCheck,Smartphone,Sparkles,Trash2} from 'lucide-react';
 import PageHeader from '../components/page-header';
+import AccountTypeSettings from '../components/profile/account-type-settings';
 import {EmptyState} from '../components/states';
 
 type Props={signedIn:boolean;name:string;saving:boolean;isOwner:boolean;installed:boolean;exporting:boolean;
@@ -13,6 +14,7 @@ export default function AccountSettings(p:Props){
  return <section className="settings-page">
   {header}
   <div className="settings-grid">
+   <section className="ds-card settings-block" aria-label="Account type"><AccountTypeSettings/></section>
    <section className="ds-card settings-block" aria-labelledby="settings-profile">
     <h2 id="settings-profile">Profile</h2>
     <form onSubmit={event=>{event.preventDefault();const value=String(new FormData(event.currentTarget).get('name')||'').trim();if(value)p.onSaveName(value)}}>

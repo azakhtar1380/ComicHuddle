@@ -1,0 +1,42 @@
+/* Offers helper (round 4): delivery details, pickup code panel, scanner. */
+.delivery-info{margin:12px 0;padding:14px 16px;border:2px solid var(--ink,#141821);border-radius:12px;background:var(--cream,#fff)}
+.delivery-info h4{display:flex;align-items:center;gap:8px;margin:0 0 10px;font:800 16px/1.2 var(--font-body,inherit)}
+.delivery-info dl{display:grid;gap:10px;margin:0}
+.delivery-info dl>div{display:grid;grid-template-columns:minmax(110px,150px) 1fr;gap:4px 12px;align-items:start}
+.delivery-info dt{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--ink-2,#3a4150)}
+.delivery-info dd{margin:0;font-size:14px;line-height:1.45}
+.delivery-info dd small{color:var(--muted,#6b7280);font-size:12px}
+.delivery-info address{font-style:normal;line-height:1.45}
+.delivery-info .data-caption{display:flex;align-items:center;gap:6px;margin:10px 0 0}
+.delivery-placeholder{margin:0 0 4px;padding:8px 10px;border:2px dashed var(--red,#e11d2e);border-radius:8px;background:#fff1f1;font-size:13px}
+@media(max-width:560px){.delivery-info dl>div{grid-template-columns:1fr}}
+.pickup-code-panel{align-items:center}
+.pickup-code-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;flex:1 1 240px;min-width:0}
+.pickup-code-panel .pickup-qr{flex:none;border:6px solid #fff;border-radius:8px;box-shadow:0 0 0 2px #202632;background:#fff}
+.pickup-qr-loading{display:inline-block;background:#fff;border-radius:8px}
+.pickup-expired{color:var(--red,#e11d2e);font-weight:700}
+.safe-meetup{display:flex;gap:8px;align-items:flex-start;flex-basis:100%;margin:6px 0 0;padding:8px 10px;border-radius:8px;background:rgba(22,82,240,.08);font-size:13px;line-height:1.45}
+.safe-meetup svg{flex:none;margin-top:2px}
+.pickup-problem{display:inline-flex;align-items:center;gap:6px;flex-basis:100%;justify-content:flex-start;padding:6px 0;font-size:13px}
+.pickup-seller .pickup-code-form{grid-template-columns:1fr auto auto;align-items:end}
+@media(max-width:560px){.pickup-seller .pickup-code-form{grid-template-columns:1fr 1fr}.pickup-seller .pickup-code-form label{grid-column:1/-1}}
+.pickup-scanner{display:grid;gap:8px;justify-items:start;margin-top:10px}
+.pickup-scanner video{width:min(100%,360px);aspect-ratio:1;object-fit:cover;border-radius:12px;background:#0d1117}
+.pickup-scanner p{margin:0;font-size:13px}
+.track-link{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:13px;font-weight:700}
+.offer-checkout{display:grid;gap:12px;margin-top:12px;padding:16px;border:2px solid var(--ink,#141821);border-radius:12px;background:var(--cream,#fff)}
+.offer-checkout h3{display:flex;align-items:center;gap:8px;margin:0;font:800 17px/1.2 var(--font-body,inherit)}
+.offer-checkout fieldset{display:grid;gap:6px;margin:0;padding:0;border:0}
+.offer-checkout legend{margin-bottom:4px;font-weight:700;font-size:14px}
+.offer-checkout label{display:grid;gap:4px;font-size:13px;font-weight:600}
+.offer-checkout fieldset label,.offer-checkout label.offer-checkout-sp{display:flex;align-items:center;gap:8px;font-weight:500;font-size:14px}
+.offer-checkout input:not([type=radio]):not([type=checkbox]),.offer-checkout select{min-height:44px;padding:0 12px;border:1px solid var(--line,#d1d5db);border-radius:10px;background:#fff;font:inherit;font-size:15px;color:var(--ink,#141821)}
+.offer-checkout-address{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.offer-checkout-address .span-2{grid-column:1/-1}
+@media(max-width:560px){.offer-checkout-address{grid-template-columns:1fr 1fr}.offer-checkout-address label:first-of-type{grid-column:1/-1}}
+.offer-checkout-sp{display:flex;align-items:center;gap:8px;margin:0;font-size:14px}
+.offer-checkout-total{display:grid;gap:4px;margin:0;padding:10px 12px;border-radius:10px;background:var(--yellow-soft,#fff6cc)}
+.offer-checkout-total div{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.offer-checkout-total dd{margin:0;font-variant-numeric:tabular-nums}
+.offer-checkout-total .is-total{padding-top:6px;border-top:1px solid rgba(0,0,0,.12);font-weight:800;font-size:16px}
+.offer-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}

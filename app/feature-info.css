@@ -26,3 +26,10 @@ main.fi-main{padding-bottom:var(--s8);font-family:var(--font-body);min-width:0}
  .fi-steps li{padding:var(--s2)}
  .fi-main .fi-callout{font-size:16px;padding:14px 16px;box-shadow:none}
 }
+
+/* SafePurchase: five steps (round 4) */
+.fi-steps.fi-steps-many{grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s3)}
+.fi-steps.fi-steps-many h3{font-size:21px}
+.fi-main .fi-note{margin:0 0 var(--s3);font-size:15px;color:var(--ink-2)}
+@media(max-width:1100px){.fi-steps.fi-steps-many{grid-template-columns:repeat(3,minmax(0,1fr))}.fi-steps.fi-steps-many li:nth-child(3)::after{display:none}}
+@media(max-width:860px){.fi-steps.fi-steps-many{grid-template-columns:1fr}.fi-steps.fi-steps-many li:nth-child(3)::after{display:block}}

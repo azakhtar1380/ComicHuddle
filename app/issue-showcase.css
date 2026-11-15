@@ -126,3 +126,33 @@ a.is-castmember:focus-visible{outline:2px solid var(--is-ink);outline-offset:2px
  .is-actions{grid-template-columns:1fr}
  .is-buy span{font-size:13px}
 }
+
+/* Round 4: Buy row (+ cart), Trade / Make offer as full buttons, and chip tabs (Overview · Sales & Value · Details). */
+.is-buy-row{grid-column:1/-1;display:flex;gap:12px;min-width:0}
+.is-buy-row>.is-buy{flex:1 1 auto;min-width:0}
+.is-cart{display:flex;flex:0 0 auto}
+.is-cart>*{min-height:52px}
+.is-flow{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;border-radius:var(--radius-sm);font:700 16px/1.2 'DM Sans',Arial,sans-serif;text-decoration:none;background:#fff;color:var(--is-ink);border:1px solid var(--line,#d7cbb6)}
+.is-flow:hover{border-color:var(--is-ink)}
+.is-buy:focus-visible,.is-flow:focus-visible,.is-collect:focus-visible{outline:3px solid var(--blue,#1f5f8b);outline-offset:2px}
+/* Add to collection takes the whole row when it would sit alone. */
+.is-actions>.is-collect:nth-child(even){grid-column:1/-1}
+.issue-showcase .is-tabs{display:flex;width:max-content;max-width:100%;gap:4px;margin:32px 0 0;padding:4px;background:var(--is-soft);border:1px solid var(--is-line);border-radius:var(--radius-pill);overflow-x:auto;scrollbar-width:none}
+.issue-showcase .is-tabs::-webkit-scrollbar{display:none}
+.issue-showcase .is-tabs>button{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;min-height:44px;padding:8px 18px;border:0;border-radius:var(--radius-pill);background:none;font:600 16px/1.2 'DM Sans',Arial,sans-serif;color:var(--is-muted);cursor:pointer}
+.issue-showcase .is-tabs>button:hover:not(.active){color:var(--is-ink)}
+.issue-showcase .is-tabs>button.active{background:var(--is-ink);color:#fff;font-weight:700}
+.issue-showcase .is-tabs>button:focus-visible{outline:3px solid var(--blue,#1f5f8b);outline-offset:-3px}
+.issue-showcase .is-panel{padding-top:8px}
+.issue-showcase .is-panel:focus-visible{outline:2px solid var(--is-ink);outline-offset:6px;border-radius:4px}
+.issue-showcase .is-panel>.is-section:first-child{margin-top:16px;padding-top:0;border-top:0}
+@media(max-width:760px){
+ .is-buy-row{flex-wrap:wrap}.is-cart{flex:1 1 100%}.is-cart>*{flex:1 1 auto}
+ .issue-showcase .is-tabs{margin-top:24px}
+ .issue-showcase .is-tabs>button{font-size:15px;padding:8px 12px;gap:6px}
+}
+@media(max-width:400px){
+ .issue-showcase .is-tabs>button{padding:8px 10px}
+ .issue-showcase .is-tabs>button>svg{display:none}
+}
+.is-cart .cart-add .ds-btn{min-height:52px;width:100%}

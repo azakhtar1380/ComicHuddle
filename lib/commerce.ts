@@ -135,7 +135,7 @@ export async function commerceAccountData(db:Db,userId:string){
  return {sandbox:!orders.some(row=>row.sandbox===0),complete:true,orders:orders.map(row=>commerceOrderDto(row,userId)),events:events.map(row=>({orderId:row.orderId,...eventDto(row)}))};
 }
 export async function commerceOwnedOrder(db:Db,userId:string,orderId:string,allowOperator=false){
- const [row]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.id,orderId),allowOperator&&userId===ownerAccountId?sql`true`:or(eq(commerceOrders.buyerUserId,userId),eq(commerceOrders.sellerUserId,userId))));
+ const [row]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.id,orderId),allowOperator&&await commerceOperatorAllowed(userId,orderId)?sql`true`:or(eq(commerceOrders.buyerUserId,userId),eq(commerceOrders.sellerUserId,userId))));
  if(!row)throw new ApiRequestError('Order not found.',404);return row;
 }
 /** Adds participant-only extras: the buyer's pickup code and the inspection address for a SafePurchase seller. */
@@ -160,7 +160,7 @@ async function refreshSellerIfStale(db:Db,seller:typeof commerceSellers.$inferSe
  return (await db.select().from(commerceSellers).where(eq(commerceSellers.profileId,seller.profileId)))[0];
 }
 export async function commerceOverview(db:Db,userId:string,environment:StripeSandboxEnv,orderId?:string,options:{sellerReturn?:boolean}={}){
- if(orderId){const row=await commerceOwnedOrder(db,userId,orderId,true),events=await db.select().from(commerceEvents).where(eq(commerceEvents.orderId,row.id)).orderBy(desc(commerceEvents.createdAt)).limit(101),snapshot=snapshotOf(row),participant=row.buyerUserId===userId||row.sellerUserId===userId;return {...commerceSetup(environment),order:{...await participantDto(row,userId,environment),items:snapshot.items,photoIds:snapshot.photoIds||[],...(participant&&stateOf(row).order.paidAt&&snapshot.shippingAddress?{shippingAddress:snapshot.shippingAddress}:{})},events:events.slice(0,100).reverse().map(eventDto),hasMoreEvents:events.length>100}}
+ if(orderId){const row=await commerceOwnedOrder(db,userId,orderId,true),events=await db.select().from(commerceEvents).where(eq(commerceEvents.orderId,row.id)).orderBy(desc(commerceEvents.createdAt)).limit(101),snapshot=snapshotOf(row),participant=row.buyerUserId===userId||row.sellerUserId===userId;return {...commerceSetup(environment),order:{...await participantDto(row,userId,environment),items:snapshot.items,photoIds:snapshot.photoIds||[],...(participant&&stateOf(row).order.paidAt&&snapshot.shippingAddress&&(row.buyerUserId===userId||stateOf(row).policy.tier!=='safepurchase'&&!stateOf(row).shipment.deliveredAt&&stateOf(row).financial?.kind!=='refund')?{shippingAddress:snapshot.shippingAddress}:{})},events:events.slice(0,100).reverse().map(eventDto),hasMoreEvents:events.length>100}}
  const [stored]=await db.select().from(commerceSellers).where(eq(commerceSellers.userId,userId)),seller=await refreshSellerIfStale(db,stored,environment,options.sellerReturn===true);
  // A seller verified in the other payment mode must onboard again in this mode.
  const ready=!!seller&&!!seller.stripeAccountId&&sellerState(seller).ready===true&&sellerMode(seller)===modeOf(environment);
@@ -419,7 +419,7 @@ async function persistAndMaybeRefund(db:Db,userId:string,row:Row,next:State,type
 }
 /** Inspection Center actions are owner/operator-only (policy source "operator"). */
 export async function commerceInspection(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv,fetcher?:CarrierFetch){
- if(userId!==ownerAccountId)throw new ApiRequestError('Inspection Center access required.',403);
+ if(!await commerceOperatorAllowed(userId,raw.orderId))throw new ApiRequestError('Inspection Center access required.',403);
  const input=commerceInspectionSchema.parse(raw),row=await commerceOwnedOrder(db,userId,input.orderId,true),state=stateOf(row);
  if(state.policy.tier!=='safepurchase')throw new ApiRequestError('This order is not a SafePurchase order.',409);
  const base=(suffix:string)=>eventBase(row,'inspection_'+suffix+'_'+row.id,'operator');
@@ -543,7 +543,7 @@ async function finishRefund(db:Db,row:Row,ledger:Ledger,refund:ObjectRecord,rece
  return (await db.select().from(commerceOrders).where(eq(commerceOrders.id,row.id)))[0];
 }
 export async function commerceOwnerRefund(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
- if(userId!==ownerAccountId)throw new ApiRequestError('Owner access required.',403);
+ if(!await commerceOperatorAllowed(userId,raw.orderId))throw new ApiRequestError('Admin access required.',403);
  const input=commerceOwnerRefundSchema.parse(raw);
  return refundOrder(db,userId,input.orderId,input.requestId,input.approveIssue===true,environment,true);
 }
@@ -568,7 +568,7 @@ export async function createSellerPayout(processor:Processor,input:SellerPayoutI
 export const commerceReleaseSchema=z.object({action:z.literal('owner_release'),orderId:id,requestId:uuid}).strict();
 /** Owner-triggered seller release. Requires COMMERCE_PAYOUTS_ENABLED=true and a release-eligible order. */
 export async function commerceOwnerRelease(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
- if(userId!==ownerAccountId)throw new ApiRequestError('Owner access required.',403);
+ if(!await commerceOperatorAllowed(userId,raw.orderId))throw new ApiRequestError('Admin access required.',403);
  const input=commerceReleaseSchema.parse(raw);needReady(environment);
  if(environment.COMMERCE_PAYOUTS_ENABLED!=='true')throw new ApiRequestError('Seller payouts are disabled until carrier delivery verification and the release review are connected.',503);
  const processor=stripeSandbox(environment);let row=await commerceOwnedOrder(db,userId,input.orderId,true);needMode(row,environment);
@@ -665,7 +665,7 @@ async function refundOrder(db:Db,userId:string,orderId:string,requestId:string,a
  return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),note:refund.status==='succeeded'?'Refund confirmed.':'Refund is pending processor confirmation. The seller transfer remains frozen.'};
 }
 export async function commerceOwnerReconcile(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
- if(userId!==ownerAccountId)throw new ApiRequestError('Owner access required.',403);const input=commerceReconcileSchema.parse(raw);needReady(environment);
+ if(!await commerceOperatorAllowed(userId,raw.orderId))throw new ApiRequestError('Admin access required.',403);const input=commerceReconcileSchema.parse(raw);needReady(environment);
  const row=await commerceOwnedOrder(db,userId,input.orderId,true);needMode(row,environment);const state=stateOf(row),[ledger]=await db.select().from(commerceMoneyRequests).where(and(eq(commerceMoneyRequests.orderId,row.id),eq(commerceMoneyRequests.kind,'refund')));
  exactRefundLedger(row,state,ledger);
  if(ledger.status==='succeeded')return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),duplicate:true};
@@ -733,6 +733,7 @@ async function recordPaid(db:Db,row:Row,event:StripeVerifiedEvent,processor:Proc
  const check=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM commerce_orders o JOIN listings l ON l.id = o.listing_id WHERE o.id = ${row.id} AND o.version = ${row.version} AND o.sandbox = ${row.sandbox} AND o.status NOT IN ('cancelled','checkout_expired') AND (o.checkout_session_id IS NULL OR o.checkout_session_id = ${sessionId}) AND (o.payment_intent_id IS NULL OR o.payment_intent_id = ${intentId})) AND NOT EXISTS (SELECT 1 FROM commerce_events e WHERE e.provider_event_id = ${event.id})`);
  try{await db.batch([check.start,db.update(commerceOrders).set({checkoutSessionId:sessionId,paymentIntentId:intentId,chargeId,state:JSON.stringify(evaluated),status:evaluated.status,version:row.version+1,updatedAt:stamp}).where(eq(commerceOrders.id,row.id)),db.update(listings).set({status:'sold'}).where(and(eq(listings.id,row.listingId),eq(listings.status,'checkout_reserved'))),...(snapshot.auction?[markAuctionPaidStatement(db,row.listingId)]:[]),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId:row.id,providerEventId:event.id,type:'payment_confirmed',body:JSON.stringify({fingerprint,note:'Signed provider event and server-retrieved session, intent and charge confirm this exact order amount.',providerCreatedAt:typeof event.created==='number'?event.created:null}),createdAt:stamp}),...(!state.order.paidAt?[platformLedgerEntry(db,row,snapshot,'application_fee_recorded',chargeId,stamp)]:[]),db.execute(sql`SELECT ch_web.reconcile_order_rewards(${row.id})`),check.finish])}
  catch(error){if(operationGuardFailed(error))throw new ApiRequestError('Order changed while confirming payment. Retry the signed event.',409);throw error}
+ if(!state.order.paidAt)await import('./offers').then(m=>m.notifyOrderEvent(row.id,'paid')).catch(()=>undefined); // offers (round 4): buyer + seller "paid" notifications
  return {received:true,sandbox:row.sandbox===1};
 }
 /** Releases an unpaid reservation and returns the listing to the marketplace (inventory is kept). */
@@ -848,3 +849,129 @@ export function commerceError(error:unknown){
  if(error instanceof StripeSandboxError)return privateJson({error:error.message,code:error.code,pending:error.retryable,note:'Do not create a replacement request. Reconcile or retry the original persisted request.'},error.status);
  return privateJson({error:'This commerce operation was not confirmed. Refresh the order or contact maliktecks@gmail.com before retrying.'},500);
 }
+// --- safepurchase helper (round 4): configured admins act as the operator ---
+// The site owner keeps operator access. A configured admin (lib/admin.ts, by account email) may also run
+// per-order operator actions (inspection, refund, reconcile, release), but never on an order where that
+// admin is the buyer or the seller. Platform-wide revenue and sweep stay owner-only.
+async function commerceOperatorAllowed(userId:string,orderId:unknown):Promise<boolean>{
+ if(userId===ownerAccountId)return true;
+ if(typeof orderId!=='string'||!orderId||orderId.length>100)return false;
+ const {isAdminUserId}=await import('./admin-audit');
+ if(!await isAdminUserId(userId))return false;
+ const [row]=await getDb().select({buyer:commerceOrders.buyerUserId,seller:commerceOrders.sellerUserId}).from(commerceOrders).where(eq(commerceOrders.id,orderId));
+ return !row||row.buyer!==userId&&row.seller!==userId;
+}
+// --- end safepurchase helper (round 4) ---
+// --- offers (round 4) ---------------------------------------------------------------------------
+// Accepted offers pay through their own checkout (never the cart). Same reservation, protection, fee
+// and payment rules as commerceCheckout, priced at the accepted offer amount, and only for that offer's
+// buyer inside its 48-hour payment window. Also: seller delivery details, the 7-day pickup-code expiry
+// (refunded through the owner sweep path) and the pickup-code expiry check.
+export const commerceOfferCheckoutSchema=z.object({action:z.literal('offer_checkout'),offerId:id,requestId:uuid,sandboxAcknowledged:z.literal(true),fulfillment:z.enum(['shipping','pickup']).default('shipping'),shippingAddress:addressSchema.optional(),checkoutUiMode:z.enum(['hosted_page','elements']).default('hosted_page'),safePurchaseOptIn:z.boolean().default(false),waiveSafePurchase:z.boolean().default(false)}).strict().superRefine((value,ctx)=>{if(value.fulfillment==='shipping'&&!value.shippingAddress)ctx.addIssue({code:z.ZodIssueCode.custom,path:['shippingAddress'],message:'Enter a USA shipping address.'})});
+type OfferSnapshot=Snapshot&{offer?:{id:string;amountCents:number}};
+export async function commerceOfferCheckout(db:Db,profile:Profile,email:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
+ const input=commerceOfferCheckoutSchema.parse(raw);if(environment.COMMERCE_NEW_CHECKOUT_PAUSED==='true')throw new ApiRequestError('Online checkout is temporarily paused, and nothing was charged.',503);needReady(environment);if(input.checkoutUiMode==='elements'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid publishable key for the current payment mode. No payment was started.',503);
+ const processor=stripeSandbox(environment),flag=modeFlag(environment),live=flag===0;
+ const {acceptedOfferForCheckout}=await import('./offers'),terms=await acceptedOfferForCheckout(db,input.offerId,profile.id);
+ const same=(row:Row)=>{const s=snapshotOf(row) as OfferSnapshot;return row.listingId===terms.listingId&&s.offer?.id===terms.offerId&&s.itemAmountCents===terms.amountCents&&s.fulfillment===input.fulfillment&&JSON.stringify(s.shippingAddress??null)===JSON.stringify(input.shippingAddress??null)&&(s.checkoutUiMode??'hosted_page')===input.checkoutUiMode};
+ let [previous]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.buyerUserId,profile.userId),eq(commerceOrders.requestId,input.requestId)));
+ if(!previous){const [own]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.buyerUserId,profile.userId),eq(commerceOrders.listingId,terms.listingId),eq(commerceOrders.status,'awaiting_payment')));if(own){if(!same(own))throw new ApiRequestError('You already have a checkout in progress for this comic. Finish it or cancel it from Orders first.',409);previous=own}}
+ if(previous){if(!same(previous))throw new ApiRequestError('This checkout request was already used for a different order.',409);needMode(previous,environment);return continuePayment(db,previous,profile,email,environment,processor)}
+ const [listing]=await db.select().from(listings).where(eq(listings.id,terms.listingId));
+ if(!listing||listing.status!=='active'||listing.saleType!=='fixed')throw new ApiRequestError('This listing is no longer available for checkout.',409);
+ needFulfillment(listing,input.fulfillment);
+ if(listing.sellerId===profile.id)throw new ApiRequestError('You cannot buy your own comic listing.',403);
+ const [seller]=await db.select().from(profiles).where(eq(profiles.id,listing.sellerId));
+ if(!seller?.visible||seller.moderated||seller.deletionStartedAt||seller.rulesVersion!==previewRulesVersion||!seller.rulesAcceptedAt||!listing.usaAttestedAt||await isRestricted(db,seller.userId)||await blocked(db,profile.id,seller.id))throw new ApiRequestError('Listing is unavailable for checkout.',404);
+ await ensureSellerPhotos(seller.userId,JSON.parse(listing.photos));
+ const itemAmount=terms.amountCents,shippingAmount=input.fulfillment==='pickup'?0:listing.shipping;
+ const plan=protectionPlan(protectionConfig(environment),{itemCents:itemAmount,fulfillment:input.fulfillment,sellerOptIn:!!listing.safePurchaseOptIn,buyerOptIn:input.safePurchaseOptIn,waiveSafePurchase:input.waiveSafePurchase});
+ if(input.waiveSafePurchase&&!plan.waived)throw new ApiRequestError('SafePurchase can be waived only for a local pickup it would otherwise cover.',400);
+ const feeConfig=platformFeeConfig(environment);if(!feeConfig.valid)throw new ApiRequestError('The marketplace fee configuration is invalid. No order or payment was started.',503);
+ const sale=saleBreakdown(itemAmount,shippingAmount,feeConfig);
+ const sellerAccountId=await boundSeller(db,seller,processor,environment),items=listingItems(listing),gross=sale.sellerNetCents,total=itemAmount+shippingAmount+plan.feeCents;
+ if(!items.length||items.length!==listing.itemCount||!Number.isSafeInteger(total)||itemAmount<100||total<50||shippingAmount<0||total>99_999_999)throw new ApiRequestError('Listing needs a valid bounded price and complete copy snapshot.',409);
+ const [source]=await db.select().from(collections).where(eq(collections.userId,seller.userId));
+ const selected=JSON.stringify(items.map(copy=>copy.bookId));
+ if(!source)throw new ApiRequestError('The seller’s source collection is unavailable.',409);
+ const orderId=crypto.randomUUID(),stamp=new Date(Math.floor(Date.now()/1000)*1000).toISOString();
+ const state:State=createCommerceState({orderId,buyerId:profile.id,sellerId:seller.id,sellerAccountId,currency:'USD',totalCents:total,sellerTransferCents:gross,storeCreditCents:0,createdAt:stamp,paymentIntentId:null,chargeId:null,paidAt:null,fulfillment:input.fulfillment},plan.policy);
+ if(plan.tier==='safepurchase')state.inspection=emptyInspection(items.length);
+ const photos=z.array(z.string().uuid()).max(6).parse(JSON.parse(listing.photos)),policy=plan.policy;
+ const protection:ProtectionSnapshot={tier:plan.tier,overThreshold:plan.overThreshold,safePurchaseRequested:plan.safePurchaseRequested,comingSoon:plan.comingSoon,waived:plan.waived,signatureRequired:policy.requiresSignature,insured:policy.insured===true,releaseHoldHours:policy.reviewHours,handlingBusinessDays:policy.handlingBusinessDays??null,claimDays:policy.claimDays??30};
+ const snapshot:OfferSnapshot={storeCreditCents:0,checkoutUiMode:input.checkoutUiMode,title:listing.title,kind:listing.kind==='collection'?'collection':'single',fulfillment:input.fulfillment,itemCount:items.length,items,photoIds:[...new Set([...photos,...items.flatMap(copy=>copy.photoId?[copy.photoId]:[])])],itemAmountCents:itemAmount,shippingCents:shippingAmount,taxCents:0,totalCents:total,currency:'USD',sellerTransferCents:gross,platformFeeCents:sale.feeCents,platformFeeBps:sale.feeBps,...(plan.feeCents?{inspectionFeeCents:plan.feeCents}:{}),...(input.fulfillment==='shipping'?{shippingAddress:input.shippingAddress}:{}),policyVersion:state.policy.version,protection,offer:{id:terms.offerId,amountCents:itemAmount}};
+ // The accepted offer itself is re-checked inside the reservation transaction.
+ const listingState=sql`l.status = 'active' AND l.sale_type = 'fixed' AND EXISTS (SELECT 1 FROM offers accepted_offer WHERE accepted_offer.id = ${terms.offerId} AND accepted_offer.listing_id = l.id AND accepted_offer.buyer_id = ${profile.id} AND accepted_offer.status = 'accepted' AND accepted_offer.amount = ${itemAmount})`;
+ const reservation=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM listings l JOIN profiles seller ON seller.id = l.seller_id JOIN profiles buyer ON buyer.id = ${profile.id} JOIN collections c ON c.user_id = seller.user_id WHERE l.id = ${listing.id} AND ${listingState} AND l.fulfillment IN (${sql.join(allowedListingFulfillment[input.fulfillment].map(value=>sql`${value}`),sql`, `)}) AND l.fulfillment = ${listing.fulfillment} AND l.price = ${listing.price} AND l.shipping = ${listing.shipping} AND l.items = ${listing.items} AND l.photos = ${listing.photos} AND l.vault_revision = ${listing.vaultRevision} AND c.revision = ${source.revision} AND l.usa_attested_at != '' AND seller.id != buyer.id AND buyer.user_id = ${profile.userId} AND seller.visible = 1 AND buyer.visible = 1 AND seller.moderated = 0 AND buyer.moderated = 0 AND seller.deletion_started_at IS NULL AND buyer.deletion_started_at IS NULL AND seller.rules_version = ${previewRulesVersion} AND buyer.rules_version = ${previewRulesVersion} AND seller.rules_accepted_at != '' AND buyer.rules_accepted_at != '' AND NOT EXISTS (SELECT 1 FROM account_restrictions r WHERE r.scope = 'account' AND r.user_id IN (seller.user_id,buyer.user_id)) AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.from_id = buyer.id AND b.to_id = seller.id) OR (b.from_id = seller.id AND b.to_id = buyer.id))) AND NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = ${listing.id} AND o.status NOT IN ('cancelled','refunded','checkout_expired')) AND NOT EXISTS (SELECT 1 FROM json_each(${selected}) copy WHERE copy.value NOT IN (SELECT json_extract(owned.value,'$.id') FROM collections c, json_each(c.data,'$.books') owned WHERE c.user_id = ${seller.userId}) OR NOT EXISTS (SELECT 1 FROM listing_inventory reserved WHERE reserved.seller_id = ${seller.id} AND reserved.listing_id = ${listing.id} AND reserved.book_id = copy.value)) AND NOT EXISTS (SELECT 1 FROM json_each(${JSON.stringify(snapshot.photoIds)}) photo WHERE NOT EXISTS (SELECT 1 FROM media m WHERE m.id = photo.value AND m.user_id = ${seller.userId})) AND EXISTS (SELECT 1 FROM commerce_sellers s WHERE s.profile_id = ${seller.id} AND s.user_id = ${seller.userId} AND s.stripe_account_id = ${sellerAccountId})`);
+ try{await db.batch([reservation.start,db.insert(commerceOrders).values({id:orderId,buyerId:profile.id,buyerUserId:profile.userId,sellerId:seller.id,sellerUserId:seller.userId,listingId:listing.id,requestId:input.requestId,status:state.status,version:0,sandbox:flag,snapshot:JSON.stringify(snapshot),state:JSON.stringify(state),checkoutSessionId:null,paymentIntentId:null,chargeId:null,transferId:null,createdAt:stamp,updatedAt:stamp}),db.execute(sql`SELECT ch_web.reserve_store_credit(${orderId},${profile.userId},${walletMode(flag)},${0})`),db.update(listings).set({status:'checkout_reserved'}).where(eq(listings.id,listing.id)),db.update(offers).set({status:'closed'}).where(and(eq(offers.listingId,listing.id),inArray(offers.status,['pending','countered']))),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId,providerEventId:null,type:'checkout_reserved',body:JSON.stringify({note:(live?'Live order.':'Test-mode order.')+' Accepted offer checkout. No payment is confirmed yet. Protection: '+plan.tier+(plan.comingSoon?' (SafePurchase inspection coming soon)':'')+'.'}),createdAt:stamp}),reservation.finish])}
+ catch(error){if(operationGuardFailed(error)||/commerce_(?:order_request|open_listing)_unique|UNIQUE constraint failed: commerce_orders/.test(String((error as Error)?.cause||error)))throw new ApiRequestError('This listing was reserved or the offer changed. Refresh and try again.',409);throw error}
+ const [row]=await db.select().from(commerceOrders).where(eq(commerceOrders.id,orderId));
+ return continuePayment(db,row,profile,email,environment,processor);
+}
+
+/** Days a local-pickup code stays valid after payment (owner default 7; COMMERCE_PICKUP_CODE_DAYS 1-30). */
+export function pickupCodeDays(environment:StripeSandboxEnv){const raw=String((environment as Record<string,unknown>).COMMERCE_PICKUP_CODE_DAYS??'').trim();const value=/^\d+$/.test(raw)?Number(raw):7;return value>=1&&value<=30?value:7}
+function pickupCodeExpiresAt(state:State,environment:StripeSandboxEnv){const paid=Date.parse(state.order.paidAt||'');return Number.isFinite(paid)?new Date(paid+pickupCodeDays(environment)*day).toISOString():null}
+/** Server-side guard for the seller's code entry: a code older than the pickup window is refused. */
+export async function commercePickupCodeOpen(db:Db,userId:string,orderId:unknown,environment:StripeSandboxEnv){
+ const row=await commerceOwnedOrder(db,userId,id.parse(orderId)),state=stateOf(row),expires=pickupCodeExpiresAt(state,environment);
+ if(state.pickup)return;
+ if(expires&&Date.now()>=Date.parse(expires))throw new ApiRequestError('This pickup code expired '+pickupCodeDays(environment)+' days after payment. The buyer is refunded; no hand-off can be confirmed now.',409);
+}
+
+/**
+ * Delivery details for the seller of a paid order. Paid means confirmed by a signed Stripe event
+ * (state.order.paidAt is written only by recordPaid). Buyer address: Standard shipping orders only,
+ * from payment until delivery. SafePurchase: the ComicHuddle receiving address, never the buyer's.
+ */
+export async function commerceDeliveryInfo(db:Db,userId:string,orderId:unknown,environment:StripeSandboxEnv){
+ const row=await commerceOwnedOrder(db,userId,id.parse(orderId)),state=stateOf(row),snapshot=snapshotOf(row),dto=commerceOrderDto(row,userId);
+ const paid=!!state.order.paidAt,refunded=state.financial?.kind==='refund'||['refunded','refund_pending','refund_eligible','cancelled','checkout_expired'].includes(dto.status),delivered=!!state.shipment.deliveredAt||!!state.pickup,safePurchase=state.policy.tier==='safepurchase';
+ const base={orderId:row.id,role:dto.role,fulfillment:snapshot.fulfillment,paymentConfirmed:paid,delivered,safePurchase,
+  shipBy:paid&&!delivered&&!refunded&&snapshot.fulfillment==='shipping'&&dto.paymentTimingVerified?dto.trackingDeadlineAt:null,
+  handlingBusinessDays:snapshot.protection?.handlingBusinessDays??state.policy.handlingBusinessDays??null,
+  method:{fulfillment:snapshot.fulfillment,shippingCents:snapshot.shippingCents,signatureRequired:!!snapshot.protection?.signatureRequired,insured:!!snapshot.protection?.insured},
+  pickupCodeExpiresAt:snapshot.fulfillment==='pickup'&&paid&&!state.pickup?pickupCodeExpiresAt(state,environment):null};
+ const hidden=(reason:string)=>({...base,shipTo:null,hiddenReason:reason});
+ if(dto.role!=='seller')return hidden(dto.role==='buyer'?'buyer_view':'not_participant');
+ if(!paid)return hidden('awaiting_payment');
+ if(refunded)return hidden('refunded');
+ if(snapshot.fulfillment==='pickup')return hidden('pickup');
+ if(delivered)return hidden('delivered');
+ if(safePurchase){
+  if(state.inspection?.receivedAt)return hidden('received_at_inspection');
+  const address=protectionConfig(environment).inspectionAddress;
+  return {...base,shipTo:{kind:'inspection' as const,address,placeholder:!address},hiddenReason:null};
+ }
+ const to=snapshot.shippingAddress;if(!to)return hidden('no_address');
+ const [buyer]=await db.select({name:profiles.name}).from(profiles).where(eq(profiles.id,row.buyerId));
+ return {...base,shipTo:{kind:'buyer' as const,buyerName:buyer?.name||to.name,name:to.name,line1:to.line1,line2:to.line2||'',city:to.city,state:to.state,postalCode:to.postalCode,country:to.country},hiddenReason:null};
+}
+
+export const commercePickupExpirySchema=z.object({action:z.literal('pickup_expiry_sweep'),sandboxAcknowledged:z.literal(true)}).strict();
+/**
+ * Owner sweep: a paid Standard local-pickup order whose code went unused for the pickup window
+ * (default 7 days) is approved for a full refund (operator decision recorded on the order) and
+ * refunded through the same idempotent refund path as the owner sweep. Orders with an open problem
+ * report, a dispute or any money movement are left for support.
+ */
+export async function commercePickupExpirySweep(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
+ if(userId!==ownerAccountId)throw new ApiRequestError('Owner access required.',403);commercePickupExpirySchema.parse(raw);needReady(environment);
+ const cutoff=Date.now()-pickupCodeDays(environment)*day,results:{orderId:string;result:string;reason?:string}[]=[];
+ const rows=await db.select().from(commerceOrders).where(and(eq(commerceOrders.sandbox,modeFlag(environment)),inArray(commerceOrders.status,['awaiting_pickup','refund_eligible','refund_pending']))).orderBy(commerceOrders.updatedAt).limit(50);
+ const {notifyOrderEvent}=await import('./offers');
+ for(let row of rows){
+  const state=stateOf(row),snapshot=snapshotOf(row),paid=Date.parse(state.order.paidAt||'');
+  if(snapshot.fulfillment!=='pickup'||state.policy.tier==='safepurchase'||!Number.isFinite(paid)||paid>cutoff||state.pickup)continue;
+  if(state.issue?.open||state.dispute!=='none'||state.financial&&state.financial.kind!=='refund'){results.push({orderId:row.id,result:'manual_review',reason:'open_issue_or_money_movement'});continue}
+  try{
+   const fresh=!state.refundReason&&!state.financial;
+   if(fresh){const next={...state,refundReason:'operator_refund' as const};row=await persist(db,row,evaluateCommercePolicy(next,now()).state as State,'pickup_code_expired',{note:'The pickup code went unused for '+pickupCodeDays(environment)+' days. Full refund approved for the buyer.'})}
+   const result=await refundOrder(db,userId,row.id,await deterministicRefundId(row.id),false,environment,true);
+   if(fresh)await notifyOrderEvent(row.id,'pickup_expired');
+   results.push({orderId:row.id,result:result.order.status});
+  }catch(error){results.push({orderId:row.id,result:'reconciliation_required',reason:error instanceof ApiRequestError?'order_or_policy_changed':error instanceof StripeSandboxError?'processor_response_unconfirmed':'operation_unconfirmed'})}
+ }
+ return {sandbox:modeOf(environment)==='test',results,scheduled:false,note:'Manual owner sweep: unused pickup codes older than '+pickupCodeDays(environment)+' days are refunded. No background scheduler is installed.'};
+}
+// --- end offers (round 4) ---

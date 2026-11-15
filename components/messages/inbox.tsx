@@ -4,6 +4,7 @@ import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from '
 import {Archive,ArchiveRestore,ArrowLeft,Ban,Check,CheckCheck,Ellipsis,Flag,ImagePlus,MessageCircle,PenSquare,Search,SendHorizontal,Store,UserRound,Wrench,X} from 'lucide-react';
 import type {ChatMessage,HubData} from '../../lib/community';
 import UserAvatar from '../user-avatar';
+import {VerifiedBadge} from '../verified-badge';
 import HuddlesGuide,{HuddlesArt} from '../huddles-guide';
 import TradeTerms from '../../app/trade-terms';
 import {listingLink,messageLinks,previewKey,providerLink,type LinkPreview} from './links';
@@ -216,7 +217,7 @@ export default function MessagesInbox({net,threadId,setThreadId,gate,notice,go,o
      <button type="button" className={'nwm-row'+(threadId===t.id?' active':'')+(unread?' unread':'')} aria-current={threadId===t.id?'true':undefined} onClick={()=>setThreadId(t.id)}>
       <Avatar peer={t.peer} size={48}/>
       <span className="nwm-row-main">
-       <span className="nwm-row-top"><strong>{t.peer.name}</strong><span className="nwm-handle">@{t.peer.handle}</span>{t.latestAt&&<time dateTime={t.latestAt}>{listStamp(t.latestAt)}</time>}</span>
+       <span className="nwm-row-top"><strong>{t.peer.name}{(t.peer as {verified?:boolean}).verified&&<> <VerifiedBadge size={14}/></>}</strong><span className="nwm-handle">@{t.peer.handle}</span>{t.latestAt&&<time dateTime={t.latestAt}>{listStamp(t.latestAt)}</time>}</span>
        <span className="nwm-row-bottom"><span className="nwm-preview">{t.latest?(t.latestMine?'You: ':'')+t.latest.replace(/\s+/g,' '):t.context?'About: '+t.context:'No messages yet'}</span>{unread&&<span className="nwm-badge" aria-label={count>1?count+' unread messages':'Unread'}>{count>99?'99+':count>1?count:''}</span>}</span>
       </span>
      </button>
@@ -230,7 +231,7 @@ export default function MessagesInbox({net,threadId,setThreadId,gate,notice,go,o
     <button type="button" className="nwm-icon nwm-back" aria-label="Back to all messages" onClick={()=>setThreadId('')}><ArrowLeft size={22} aria-hidden="true"/></button>
     <button type="button" className="nwm-who" onClick={()=>onProfile(thread.peer.handle)} aria-label={'View '+thread.peer.name+'’s profile'}>
      <Avatar peer={thread.peer} size={40}/>
-     <span><strong>{thread.peer.name}</strong><small>@{thread.peer.handle}</small></span>
+     <span><strong>{thread.peer.name}{(thread.peer as {verified?:boolean}).verified&&<> <VerifiedBadge size={15}/></>}</strong><small>@{thread.peer.handle}</small></span>
     </button>
     <details className="nwm-menu" ref={menu}>
      <summary className="nwm-icon" aria-label="Conversation options"><Ellipsis size={22} aria-hidden="true"/></summary>

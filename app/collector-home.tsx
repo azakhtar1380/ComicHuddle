@@ -2,7 +2,9 @@
 // Home: hero with search, what you can do, a glimpse of the directory, fresh listings (real only),
 // SafePurchase (only when live), rewards, and a join band.
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
-import {ArrowRight,KeyRound,Layers,Search,Tag,Users,X} from 'lucide-react';
+import {ArrowRight,KeyRound,Layers,Plus,Search,Tag,Users,X} from 'lucide-react';
+import ListingCardActions from '../components/cards/listing-card-actions';
+import {requestCollectOnOpen} from '../components/cards/collect-intent';
 import Link from 'next/link';
 import Image from 'next/image';
 import CharacterCard,{type CharacterHit} from './characters/character-card';
@@ -87,20 +89,25 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
   <section className="ds-section" aria-labelledby="home-directory-title">
    <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>See the whole directory <ArrowRight size={16}/></button></div>
    {error?<ErrorState compact message="Couldn't load the directory. Try again." action={{label:'Try again',onClick:()=>{setError(false);setIssues(null);load()}}}/>
-    :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<button type="button" key={issue.id} className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Open '+issue.title+' #'+issue.number}>
+    :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<div key={issue.id} className="home-cover-card"><button type="button" className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Open '+issue.title+' #'+issue.number}>
      <span className="home-cover-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year||undefined} src={issue.cover||null} credit={issue.coverCredit||undefined}/></span>
      <strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher}{issue.year?' · '+issue.year:''}</small>
-    </button>:<span key={index} className="home-cover home-skeleton" aria-hidden="true"/>)}</div>}
+    </button>
+     {/* Directory card with no listing: Add to collection only (opens the detail card's collection dialog, after the account gate). */}
+     <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm home-cover-collect" aria-label={'Add to collection: '+issue.title+' #'+issue.number} onClick={()=>{requestCollectOnOpen(issue.id);onOpenComic(String(issue.id))}}><Plus size={15} aria-hidden="true"/> Add to collection</button>
+    </div>:<span key={index} className="home-cover home-skeleton" aria-hidden="true"/>)}</div>}
   </section>
 
   {fresh.length>0&&<section className="ds-section" aria-labelledby="home-fresh-title">
    <div className="ds-section-head"><h2 id="home-fresh-title">Fresh in the <span>marketplace</span></h2><button type="button" className="ds-link" onClick={()=>go('Marketplace')}>See every listing <ArrowRight size={16}/></button></div>
-   <div className="ds-grid ds-grid-4">{fresh.map(listing=><a key={listing.id} className="ds-card home-listing" href={'/?'+new URLSearchParams({section:'Marketplace',listing:listing.id})}>
+   <div className="ds-grid ds-grid-4">{fresh.map(listing=><article key={listing.id} className="ds-card home-listing-card"><a className="home-listing" href={'/?'+new URLSearchParams({section:'Marketplace',listing:listing.id})}>
     <span className="home-listing-art">{listing.photos[0]?<img src={'/api/media?id='+encodeURIComponent(listing.photos[0])+'&size=thumbnail'} alt="" loading="lazy"/>:<HuddlesArt pose="marketplace" size="sm" decorative/>}</span>
     <strong>{listing.title}</strong>
     <small>{listing.kind==='collection'?listing.itemCount+' comics':listing.grade}</small>
     <span className="home-listing-price">{listing.saleType==='auction'?'Auction':usd(listing.price)}</span>
-   </a>)}</div>
+   </a>
+    <ListingCardActions listing={listing} issueId={listing.kind==='single'&&listing.itemCount===1&&listing.issueId!==null&&Number.isSafeInteger(listing.issueId)?listing.issueId:null}/>
+   </article>)}</div>
   </section>}
 
   {safePurchaseLive&&<section className="ds-section home-strip home-strip-safe" aria-labelledby="home-safe-title">

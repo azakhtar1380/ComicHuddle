@@ -96,6 +96,8 @@
 .ap-row{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;padding:8px 14px;background:none;border:0;border-top:1px solid var(--line);color:var(--ink);font:600 15px/1.2 var(--font-body);text-align:left;text-decoration:none;cursor:pointer}
 .ap-row>span{flex:1}
 .ap-row:hover{background:#efe9da}
+.ap-admin{border-color:var(--red)}
+.ap-admin .mm-heading{color:var(--red)}
 .ap-signout{border:1px solid var(--line);border-radius:var(--radius-md);color:var(--red);background:var(--cream)}
 .am-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;font-size:14px;color:var(--muted)}
 /* picture editor */

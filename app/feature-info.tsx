@@ -9,7 +9,7 @@ import {HowItWorks} from '../components/states';
 import {protectionConfig,type ProtectionEnv} from '../lib/commerce-protection';
 
 function Steps({label,steps}:{label:string;steps:[string,string][]}){
- return <ol className="fi-steps" aria-label={label}>{steps.map(([title,body],index)=><li key={title}><span className="fi-step-num" aria-hidden="true">{index+1}</span><h3>{title}</h3><p>{body}</p></li>)}</ol>;
+ return <ol className={'fi-steps'+(steps.length>3?' fi-steps-many':'')} aria-label={label}>{steps.map(([title,body],index)=><li key={title}><span className="fi-step-num" aria-hidden="true">{index+1}</span><h3>{title}</h3><p>{body}</p></li>)}</ol>;
 }
 
 export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
@@ -44,10 +44,13 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
     <section className="fi-section" aria-labelledby="fi-steps">
      <div className="ds-section-head"><h2 id="fi-steps">How it <span>works.</span></h2>{live&&<p>Automatic on orders of {threshold} or more.</p>}</div>
      <Steps label="How SafePurchase works" steps={[
-      ['You buy','Pay through ComicHuddle checkout. The seller ships the book to us, not to you.'],
-      ['We check the book','We check it’s the right book, in the condition described. It isn’t official grading.'],
-      ['It ships to you','Books that pass ship to you insured, with a signature. If it fails, you get a full refund.'],
+      ['You pay','Pay through ComicHuddle checkout. We hold the money. The seller isn’t paid yet.'],
+      ['Seller ships to us','The seller ships the comic to ComicHuddle, not to you, with tracking.'],
+      ['We check it','Right issue, right printing, condition as described. It isn’t official grading.'],
+      ['We ship it to you','Insured, with a signature. If the check fails, you get a full refund and the comic goes back to the seller.'],
+      ['Seller gets paid','You have 48 hours after delivery to report a problem. Then the seller is paid.'],
      ]}/>
+     <p className="fi-note">You and the seller see the same step-by-step progress on the order in Orders, with tracking numbers and our notes.</p>
      <p className="fi-callout"><ShieldCheck size={22} aria-hidden="true"/> You have 48 hours after delivery to report a problem.</p>
     </section>
     <section className="fi-section" aria-labelledby="fi-faq">
@@ -70,6 +73,10 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
       <p>After delivery, you have 48 hours to report a problem. Take photos and keep the packaging.</p>
       <p>Report it in Orders. The seller isn’t paid while we look into it.</p>
       <p>If only part of a collection fails, you pick a partial or full refund. Refunds go back to how you paid.</p>
+     </HowItWorks>
+     <HowItWorks title="I’m the seller. Where do I ship?">
+      <p>To ComicHuddle. Our receiving address shows on the order once it’s paid, with the steps to follow.</p>
+      <p>Insure it for the full price and add tracking in Orders within 48 hours.</p>
      </HowItWorks>
      <HowItWorks title="When does the seller get paid?">
       <p>After signed delivery, once the 48 hours pass with no problem reported.</p>

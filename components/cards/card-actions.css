@@ -1,0 +1,19 @@
+/* Product card buttons (components/cards/listing-card-actions.tsx). Buy is the main button; the rest sit in a
+   compact two-column row, folded behind "⋯" on phones. Every control is at least 44px tall. */
+.cc-actions{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cc-main{display:flex;gap:8px;min-width:0}
+.cc-primary{flex:1 1 auto;min-width:0}
+.cc-toggle{display:none;flex:0 0 44px;width:44px;padding:0}
+.cc-more{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.cc-more>span{display:flex;min-width:0}
+.cc-more>span>*{flex:1 1 auto;min-width:0}
+.cc-secondary{width:100%;min-height:44px;padding:4px 10px;font-size:13px;line-height:1.15;white-space:normal;text-align:center;text-decoration:none}
+.cc-secondary>svg{flex-shrink:0}
+.cc-actions a.ds-btn{text-decoration:none}
+.cc-cart>*{width:100%;min-height:44px}
+@media(max-width:760px){
+ .cc-toggle{display:inline-flex}
+ .cc-more{display:none}
+ .cc-more.open{display:grid}
+}
+.cc-cart .cart-add,.cc-cart .cart-add .ds-btn{width:100%}.cc-actions .cc-cart .cart-add .ds-btn{min-height:44px}

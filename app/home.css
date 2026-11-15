@@ -136,3 +136,11 @@ main .home section{padding-left:0;padding-right:0}
 }
 /* phones already have search in the header */
 @media(max-width:860px){.home-hero .home-search{display:none}}
+/* Round 4 product cards: directory glimpse gets "Add to collection"; fresh listings get Buy · Trade · Make offer · Add to collection. */
+.home-cover-card{display:flex;flex-direction:column;gap:8px;min-width:0}
+.home-cover-card>.home-cover{flex:1 1 auto}
+.home-cover-collect{width:100%;margin-top:auto;padding:4px 8px;font-size:13px;line-height:1.15;white-space:normal;text-align:center}
+.home-listing-card{display:flex;flex-direction:column;gap:12px;min-width:0}
+.home-listing-card>.home-listing{flex:1 1 auto}
+.home-listing:focus-visible,.home-cover:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.home-listing-card:hover,.home-listing-card:focus-within{border-color:var(--ink);box-shadow:4px 4px 0 var(--ink)}

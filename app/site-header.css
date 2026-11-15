@@ -54,5 +54,6 @@
  .chx-pill{height:36px;padding:0 14px;font-size:14px}
  .chx-signin span{display:inline}
  .chx-join{display:none}
+ .chx-pill-home{display:none}
 }
 @media(max-width:760px){.feature-page{padding-bottom:105px}}

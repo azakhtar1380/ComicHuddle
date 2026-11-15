@@ -21,7 +21,16 @@ import MessagesInbox,{type PendingRef} from '../components/messages/inbox';
 export {countUnread} from '../components/messages/format';
 import {LoadingState} from '../components/states';
 import type {Vault} from '../lib/vault';
+import BusinessFields from '../components/profile/business-fields';
+import BusinessCard from '../components/profile/business-card';
+import {VerifiedBadge} from '../components/verified-badge';
+import AdminBadge from '../components/admin-badge';
+import {businessDraftProblem,draftFrom,fetchMyBusiness,forgetAccountType,rememberedAccountType,saveMyBusiness,type BusinessDraft,type BusinessSummary,type OwnBusiness} from '../components/profile/business-client';
 import './network.css';
+
+/** Public profile data plus the business fields /api/social appends (isBusiness, verified, shopName, business). */
+type ProfileView=CollectorProfile&Partial<BusinessSummary>;
+const businessOf=(p:ProfileView):BusinessSummary=>({isBusiness:!!p.isBusiness,verified:!!p.verified,shopName:p.shopName??null,business:p.business});
 
 type ActionResult={threadId?:string;groupId?:string;matched?:boolean;note?:string;saved?:boolean;listingId?:string;profile?:CollectorProfile};
 export function useCollectorNetwork(signedIn:boolean,notify:(s:string)=>void){
@@ -84,11 +93,13 @@ function BookGrid({books,onBook,label}:{books:ShowcaseBook[];onBook:(b:ShowcaseB
 }
 function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:CollectorProfile;own:boolean;onEdit:()=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;wants:Record<number,Issue>}){
  const favorites=p.showcase.slice(0,6),open=Math.max(0,6-favorites.length),wantList=p.wantIds.slice(0,12);
+ const biz=businessOf(p);
  return <div className={'nw-showcase nw-tone-'+p.color}>
+  {biz.isBusiness&&<BusinessCard summary={biz} own={own}/>}
   <div className="nw-id ds-card">
    {p.avatarUrl?<span className="nw-monogram nw-monogram-photo" aria-hidden="true"><img src={p.avatarUrl} alt="" width={88} height={88}/></span>:<div className="nw-monogram" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</div>}
    <div className="nw-id-copy">
-    <p className="nw-handle">@{p.handle}{p.location?' · '+p.location:''}</p>
+    <p className="nw-handle">@{p.handle}{biz.verified&&<> <VerifiedBadge size={15}/></>}{p.staff?.admin&&<> <AdminBadge founder={p.staff.founder} showLabel size={15}/></>}{p.location?' · '+p.location:''}{biz.isBusiness&&<span className="nw-pill nw-pill-biz">{biz.business?.kind==='dealer'?'Dealer':'Comic shop'}</span>}</p>
     {own&&!p.visible&&<p className="nw-pill">Hidden. Only you can see this.</p>}
     {p.bio&&<p className="nw-bio">{p.bio}</p>}
     {p.favorite&&<p className="nw-favorite"><b>Into right now:</b> {p.favorite}</p>}
@@ -100,7 +111,7 @@ function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:Collect
     <div><dt>For trade</dt><dd>{p.stats.trades.toLocaleString('en-US')}</dd></div>
     <div><dt>Collecting since</dt><dd>{p.since}</dd></div>
    </dl>
-   <p className="nw-note">Stats come from what this collector entered.</p>
+   <p className="nw-note">Stats come from what this {biz.isBusiness?'business':'collector'} entered.</p>
   </div>
 
   <section className="nw-block" aria-labelledby="nw-favorites">
@@ -140,6 +151,8 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
  const [grailRecords,setGrailRecords]=useState<Record<number,Issue>>({});
  const profileRequest=useRef(0),currentProfileSelection=useRef('');
  const [profileLoading,setProfileLoading]=useState(false);
+ // Collector, workshop provider or Business (round 4). Business details save through /api/business after the profile saves.
+ const [accountRole,setAccountRole]=useState<'collector'|'provider'|'business'>('collector'),[myBusiness,setMyBusiness]=useState<OwnBusiness|null>(null),[bizDraft,setBizDraft]=useState<BusinessDraft>(draftFrom(null)),[bizError,setBizError]=useState(''),[bizSaving,setBizSaving]=useState(false);
  const [signInHref,setSignInHref]=useState('/sign-in?return_to=%2F');
  useEffect(()=>{if(profileOpen)setSignInHref(accountSignInPath(window.location.pathname,window.location.search,preferredRole,tab))},[profileOpen,preferredRole,tab]);
  const me=data.me;
@@ -150,6 +163,16 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
  useEffect(()=>{setSearch('')},[tab,marketIssue]);
  useEffect(()=>{if(incomingThread.id)setThreadId(incomingThread.id)},[incomingThread.version]);
  useEffect(()=>{if(profileOpen){setFeatureIds(me?.featured||[]);net.clearActionError()}},[profileOpen,me?.featured.join(',')]);
+ // Reset the account-type choice each time the form opens (adjusting state during render, not in an effect).
+ const bizOpenKey=profileOpen&&signedIn?'open':'',[bizSeenKey,setBizSeenKey]=useState('');
+ if(bizOpenKey!==bizSeenKey){setBizSeenKey(bizOpenKey);if(bizOpenKey){setBizError('');setAccountRole(me?.provider?'provider':!me&&rememberedAccountType()==='business'?'business':preferredRole);if(!me)setMyBusiness(null);setBizDraft(draftFrom(me?myBusiness:null))}}
+ useEffect(()=>{
+  if(!profileOpen||!signedIn||!me)return;
+  const controller=new AbortController();
+  void fetchMyBusiness(controller.signal).then(({business})=>{if(controller.signal.aborted)return;setMyBusiness(business);if(business){setBizDraft(draftFrom(business));if(business.accountType==='business')setAccountRole('business')}}).catch(()=>undefined);
+  return()=>controller.abort();
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[profileOpen,signedIn,me?.id]);
  useEffect(()=>{if(!profileOpen)return;const ids=[...new Set(featureIds.flatMap(key=>{const id=featuredIssueId(key,vault.books);return id===null||grailRecords[id]||catalog[id]?[]:[id]}))];if(!ids.length)return;const controller=new AbortController();void fetch('/api/catalog?ids='+ids.join(','),{signal:controller.signal}).then(async response=>{if(!response.ok)throw Error();return parseCatalogSearchPage(await response.json())}).then(page=>{if(!controller.signal.aborted)setGrailRecords(previous=>({...previous,...Object.fromEntries(page.issues.map(issue=>[issue.id,issue]))}))}).catch(()=>undefined);return()=>controller.abort()},[profileOpen,featureIds.join(','),vault.books,grailRecords]);
  function chooseGrail(issue:Issue|null){if(!issue)return;if(featureIds.length>=6&&!featureIds.some(key=>featuredIssueId(key,vault.books)===issue.id)){notice('You can show six favorites. Remove one to add another.');return}setGrailRecords(previous=>({...previous,[issue.id]:issue}));setFeatureIds(previous=>{if(previous.some(key=>featuredIssueId(key,vault.books)===issue.id))return previous;if(previous.length>=6)return previous;const owned=vault.books.find(book=>listingDirectoryId(book)===issue.id);return [...previous,owned?.id||directoryGrail(issue.id)]})}
  const grailChoices=featureIds.map(key=>{const copy=vault.books.find(book=>book.id===key),id=featuredIssueId(key,vault.books),record=id===null?undefined:grailRecords[id]||catalog[id];return {id:key,title:record?.title||copy?.title||'Loading…',issue:record?.number||copy?.issue||'',subtitle:record?[record.publisher,record.year||null,record.variant].filter(Boolean).join(' · '):copy?.grade,cover:copy?.photoId?'/api/media?id='+copy.photoId:record?.cover}});
@@ -179,7 +202,7 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
  async function downloadCard(p:CollectorProfile){const svgUrl=URL.createObjectURL(new Blob([storySvg(p)],{type:'image/svg+xml'}));try{const img=new Image();img.src=svgUrl;await img.decode();const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1920;const ctx=canvas.getContext('2d');if(!ctx)throw Error();ctx.drawImage(img,0,0);const blob=await new Promise<Blob|null>(r=>canvas.toBlob(r,'image/png'));if(!blob)throw Error();const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='comichuddle-'+p.handle+'-story.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);notice('Your story card is downloaded.')}catch{const a=document.createElement('a');a.href=svgUrl;a.download='comichuddle-'+p.handle+'-story.svg';a.click();notice('PNG didn’t work, so we saved it as an SVG.')}finally{setTimeout(()=>URL.revokeObjectURL(svgUrl),2000)}}
  async function shareUrl(p:CollectorProfile){const url=window.location.origin+'/?collector='+encodeURIComponent(p.handle);try{if(navigator.share)await navigator.share({title:p.name+' on ComicHuddle',text:p.tagline,url});else{await navigator.clipboard.writeText(url);notice('Profile link copied.')}}catch{notice('Sharing didn’t go through. Try again.')}}
  const currentProfile=profile||me,own=!!currentProfile&&currentProfile.id===me?.id,viewingOther=!!profile&&profile.id!==me?.id;
- const profileHeader=profileLoading?null:currentProfile&&!own?<PageHeader id="nw-profile-title" eyebrow="Collector profile" title={currentProfile.name+'.'} accent={'@'+currentProfile.handle} lede={currentProfile.tagline||undefined} pose="profile" caption="THEIR SHELF" actions={<><button type="button" className="ds-btn ds-btn-primary" disabled={!currentProfile.dmOpen||busy} title={currentProfile.dmOpen?undefined:'This collector isn’t taking messages.'} onClick={()=>void startMessage(currentProfile.id)}><MessageCircle size={18} aria-hidden="true"/> {currentProfile.dmOpen?'Send a message':'Not taking messages'}</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShare(currentProfile)}><Share2 size={18} aria-hidden="true"/> Share</button></>}/>
+ const profileHeader=profileLoading?null:currentProfile&&!own?<PageHeader id="nw-profile-title" eyebrow={(currentProfile as ProfileView).isBusiness?((currentProfile as ProfileView).verified?'Verified business':'Business profile'):'Collector profile'} title={currentProfile.name+'.'} accent={'@'+currentProfile.handle} lede={currentProfile.tagline||undefined} pose="profile" caption="THEIR SHELF" actions={<><button type="button" className="ds-btn ds-btn-primary" disabled={!currentProfile.dmOpen||busy} title={currentProfile.dmOpen?undefined:'This collector isn’t taking messages.'} onClick={()=>void startMessage(currentProfile.id)}><MessageCircle size={18} aria-hidden="true"/> {currentProfile.dmOpen?'Send a message':'Not taking messages'}</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShare(currentProfile)}><Share2 size={18} aria-hidden="true"/> Share</button></>}/>
   :<PageHeader id="nw-profile-title" eyebrow="My profile" title="Your shelf." accent="Your story." lede={currentProfile?'Your collection is private. You choose what to show.':'Pick a name. Show off six favorite books. It’s free.'} pose="profile" caption="YOUR SHELF" line="Pick six favorites to show off." actions={currentProfile?<><button type="button" className="ds-btn ds-btn-primary" onClick={()=>setProfileOpen(true)}><Pencil size={18} aria-hidden="true"/> Edit showcase</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShare(currentProfile)}><Share2 size={18} aria-hidden="true"/> Share</button><button type="button" className="ds-btn ds-btn-secondary" onClick={openCollection}><Layers size={18} aria-hidden="true"/> My collection</button></>:<><button type="button" className="ds-btn ds-btn-primary" onClick={()=>{selectProfile(null);setProfileOpen(true)}}>Create my profile <ArrowRight size={18} aria-hidden="true"/></button><button type="button" className="ds-btn ds-btn-secondary" onClick={openCollection}><Layers size={18} aria-hidden="true"/> My collection</button></>}/>;
  const [wantRecords,setWantRecords]=useState<Record<number,Issue>>({});
  const wantKey=tab==='Collectors'&&currentProfile?currentProfile.wantIds.slice(0,12).filter(id=>!catalog[id]&&!wantRecords[id]).join(','):'';
@@ -214,8 +237,14 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
   </>:<>
    <p className="ds-eyebrow">{me?'Your showcase':'Free profile'}</p><h2 className="nw-join-title">{me?<>Edit your <span>showcase.</span></>:<>Set up your <span>profile.</span></>}</h2>
    <p className="nw-join-lede">Pick a name. Show off six favorite books. It’s free.</p>
-   <form className="nw-join-form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget),r=await net.act({action:'profile',handle:String(f.get('handle')),name:String(f.get('name')),bio:String(f.get('bio')),tagline:String(f.get('tagline')),location:String(f.get('location')),favorite:String(f.get('favorite')),since:Number(f.get('since')),color:String(f.get('color')),featured:featureIds,visible:f.get('visible')==='on',dmOpen:f.get('dmOpen')==='on',accept:f.get('accept')==='on'});if(r){onAccountProfileSaved();setProfileOpen(false);selectProfile(null);if(f.get('accountRole')==='provider'&&(!me?.provider||preferredRole==='provider'))onProviderProfileCreated();notice(me?'Showcase saved.':'Your profile is ready. Welcome to ComicHuddle!')}}}>
-    <label className="ds-field"><span>I’m joining as</span><select name="accountRole" defaultValue={me?.provider?'provider':preferredRole} aria-describedby="nw-role-help"><option value="collector">A collector</option><option value="provider">A collector who also presses or cleans comics</option></select><small id="nw-role-help">Everyone gets a showcase. Pros also get a free studio page.</small></label>
+   <form className="nw-join-form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);setBizError('');
+    const asBusiness=accountRole==='business';if(asBusiness){const problem=businessDraftProblem(bizDraft);if(problem){setBizError(problem);return}}
+    const r=await net.act({action:'profile',handle:String(f.get('handle')),name:String(f.get('name')),bio:String(f.get('bio')),tagline:String(f.get('tagline')),location:String(f.get('location')),favorite:String(f.get('favorite')),since:Number(f.get('since')),color:String(f.get('color')),featured:featureIds,visible:f.get('visible')==='on',dmOpen:f.get('dmOpen')==='on',accept:f.get('accept')==='on'});
+    if(r&&(asBusiness||myBusiness?.accountType==='business')){setBizSaving(true);try{const saved=await saveMyBusiness(asBusiness?'business':'collector',bizDraft);setMyBusiness(saved.business);forgetAccountType();void net.refresh();if(saved.verificationCleared)notice('Your verified tick was removed because your shop details changed. An admin will check again.')}catch(err){setBizError((err instanceof Error&&err.message?err.message:'Couldn’t save your shop details.')+' Your profile itself was saved.');void net.refresh();return}finally{setBizSaving(false)}}
+    if(r){onAccountProfileSaved();setProfileOpen(false);selectProfile(null);if(f.get('accountRole')==='provider'&&(!me?.provider||preferredRole==='provider'))onProviderProfileCreated();notice(me?'Showcase saved.':'Your profile is ready. Welcome to ComicHuddle!')}}}>
+    <label className="ds-field"><span>I’m joining as</span><select name="accountRole" value={accountRole} onChange={e=>{const v=e.target.value;setAccountRole(v==='business'||v==='provider'?v:'collector');setBizError('')}} aria-describedby="nw-role-help"><option value="collector">A collector (personal profile)</option><option value="provider">A collector who also presses or cleans comics</option><option value="business">A business (comic shop or dealer)</option></select><small id="nw-role-help">Everyone gets a showcase. Pros also get a free studio page. Businesses add shop details and can be verified.</small></label>
+    {accountRole==='business'&&<BusinessFields value={bizDraft} onChange={setBizDraft} disabled={busy||bizSaving} current={myBusiness}/>}
+    {accountRole!=='business'&&myBusiness?.accountType==='business'&&<p className="nw-note" role="note">Saving as a collector hides your shop details and removes any verified tick. We keep the details in case you switch back.</p>}
     <label className="ds-field"><span>Handle <span className="required-mark" aria-hidden="true">*</span></span><input name="handle" required minLength={3} maxLength={24} pattern="[a-z][a-z0-9_]{2,23}" defaultValue={me?.handle||''} placeholder="your_name" autoCapitalize="none" spellCheck={false} aria-describedby="nw-handle-help"/><small id="nw-handle-help">Lowercase letters, numbers and underscores.</small></label>
     <label className="ds-field"><span>Display name <span className="required-mark" aria-hidden="true">*</span></span><input name="name" required maxLength={60} defaultValue={me?.name||(name.includes('@')?'Collector':name)} placeholder="The name on your shelf"/></label>
     <label className="ds-field"><span>City and state <span className="required-mark" aria-hidden="true">*</span></span><input name="location" required minLength={2} maxLength={60} defaultValue={me?.location||''} placeholder="Minneapolis, MN" aria-describedby="nw-location-help"/><small id="nw-location-help">City and state only, like Minneapolis, MN. Never a street address.</small></label>
@@ -232,7 +261,8 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
     <label className="nw-check"><input name="accept" type="checkbox" required defaultChecked={me?.consent?.version===previewRulesVersion}/><span>I’m 18+, live in the US, and agree to the <a className="nw-rules-link" href="/?section=Rules" target="_blank" rel="noreferrer">collector rules</a>.<span className="required-mark" aria-hidden="true"> *</span></span></label>
     <p className="nw-note">Your collection is private. You choose what to show. We save the rules version ({previewRulesVersion}) and the date you agreed.</p>
     {net.actionError&&<p className="ds-error" role="alert">{net.actionError}</p>}
-    <button type="submit" className="ds-btn ds-btn-primary nw-join-cta" disabled={busy}>{busy?'Saving…':me?'Save showcase':'Create my profile'}<Check size={18} aria-hidden="true"/></button>
+    {bizError&&<p className="ds-error" role="alert">{bizError}</p>}
+    <button type="submit" className="ds-btn ds-btn-primary nw-join-cta" disabled={busy||bizSaving}>{busy||bizSaving?'Saving…':me?'Save showcase':'Create my profile'}<Check size={18} aria-hidden="true"/></button>
    </form>
   </>}
  </div></Modal>}

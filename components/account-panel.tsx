@@ -2,8 +2,9 @@
 // The signed-in account panel: who you are (picture, name, @handle), your numbers, and every personal
 // tool in one place. Navigation lives in "More" (components/more-menu.tsx).
 import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {Bookmark, Camera, ChevronRight, Gavel, Layers, LogOut, MessageCircle, Receipt, Repeat, Settings, ShoppingBag, Sparkles, Tag, Wallet, Wrench} from 'lucide-react';
+import {ArrowLeftRight, Bookmark, Camera, ChevronRight, Gavel, Layers, LogOut, MessageCircle, Receipt, Repeat, Settings, ShieldCheck, ShoppingBag, Sparkles, Tag, Wallet, Wrench} from 'lucide-react';
 import UserAvatar from './user-avatar';
+import AdminBadge from './admin-badge';
 
 type Icon = ComponentType<{size?: number; 'aria-hidden'?: boolean}>;
 export type AccountPanelProps = {
@@ -20,6 +21,9 @@ export type AccountPanelProps = {
   status?: string | null;
   onReconnect?: (() => void) | null;
   onAvatarChange: (url: string | null) => void;
+  /** Shows the Admin tools entry. The server re-checks admin on every admin route. */
+  isAdmin?: boolean;
+  isFounder?: boolean;
   /** Collection(+collection|wants|trade), Listings(+mine|sold|won), Orders(+buyer|seller), Messages, Wallet, Collectors, Pressing(+requests|provider), Settings. */
   onNavigate: (section: string, sub?: string) => void;
 };
@@ -44,7 +48,7 @@ function useWalletSummary() {
 const usd = (cents: number) => new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(cents / 100);
 
 export default function AccountPanel(props: AccountPanelProps) {
-  const {name, handle, avatarUrl, color, location, since, hasProfile, stats, unread = 0, hasStudio = false, status, onReconnect, onAvatarChange, onNavigate} = props;
+  const {name, handle, avatarUrl, color, location, since, hasProfile, stats, unread = 0, hasStudio = false, status, onReconnect, onAvatarChange, onNavigate, isAdmin = false, isFounder = false} = props;
   const wallet = useWalletSummary();
   const [editing, setEditing] = useState(false);
   const row = (label: string, Icon: Icon, section: string, sub?: string, badge = 0) =>
@@ -62,7 +66,7 @@ export default function AccountPanel(props: AccountPanelProps) {
         {hasProfile && <span className="ap-photo-badge"><Camera size={15} aria-hidden /></span>}
       </button>
       <div className="ap-id">
-        <h2>{name}</h2>
+        <h2>{name}{isAdmin && <> <AdminBadge founder={isFounder} size={18} showLabel /></>}</h2>
         {handle ? <p>@{handle}</p> : <p>No public profile yet</p>}
         <p className="ap-meta">{[location, memberSince && memberSince > 1990 && memberSince <= new Date().getFullYear() ? 'Collector since ' + memberSince : null].filter(Boolean).join(' · ')}</p>
         <button type="button" className="ds-link" onClick={() => onNavigate('Collectors')}>{hasProfile ? 'View my profile' : 'Create my profile'}</button>
@@ -86,6 +90,7 @@ export default function AccountPanel(props: AccountPanelProps) {
       {row('For trade', Repeat, 'Collection', 'trade')}
     </section>
     <section className="ap-group" aria-labelledby="ap-sell"><h3 id="ap-sell" className="mm-heading">Buying & selling</h3>
+      {row('Offers & trades', ArrowLeftRight, 'Offers')}
       {row('My listings', Tag, 'Listings', 'mine')}
       {row('Purchases', ShoppingBag, 'Orders', 'buyer')}
       {row('Sales', Receipt, 'Orders', 'seller')}
@@ -98,6 +103,10 @@ export default function AccountPanel(props: AccountPanelProps) {
       {row(hasStudio ? 'My workshop studio' : 'Workshop requests', Wrench, 'Pressing', hasStudio ? 'provider' : 'requests')}
       {row('Settings', Settings, 'Settings')}
     </section>
+    {isAdmin && <section className="ap-group ap-admin" aria-labelledby="ap-admin"><h3 id="ap-admin" className="mm-heading">Admin</h3>
+      {row('Admin tools', ShieldCheck, 'Admin')}
+      {row('SafePurchase orders', ShieldCheck, 'Admin', 'safepurchase')}
+    </section>}
     <a className="ap-row ap-signout" href="/signout-with-chatgpt?return_to=%2Fsign-out" target="_top"><LogOut size={20} aria-hidden /><span>Sign out</span></a>
     {editing && <AvatarEditor name={name} color={color} current={avatarUrl || null} onClose={() => setEditing(false)} onSaved={url => { onAvatarChange(url); setEditing(false); }} />}
   </div>;

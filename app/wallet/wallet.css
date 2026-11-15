@@ -39,3 +39,11 @@
 .cw2-actions{justify-content:flex-start}
 @media(max-width:860px){.cw2-cards{grid-template-columns:1fr}.cw2-card strong{font-size:44px}}
 @media(max-width:480px){.cw2-form .ds-btn{margin-top:0;width:100%}.cw2-convert{padding:var(--s2)}.cw2-card{padding:var(--s2)}}
+
+/* Bank payouts (Stripe Connect) */
+.cw2-payouts{margin-top:var(--s4,32px)}
+.cw2-payouts .cw2-card h3{display:flex;align-items:center;gap:6px}
+.cw2-bank{display:grid;gap:12px;margin:var(--s2,16px) 0;padding:16px;border-radius:var(--radius,16px);background:var(--cream);border:1px solid var(--line)}
+.cw2-bank .ds-btn{justify-self:start}
+.cw2-payout-now{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.cw2-payout-now .cw2-note{margin:0;flex:1;min-width:220px}

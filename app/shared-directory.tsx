@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect, useMemo, useRef, useState} from 'react';
-import {ArrowRight, Check, ChevronLeft, ChevronRight, Grid3X3, List, Plus, SlidersHorizontal, X} from 'lucide-react';
+import {ArrowRight, Check, ChevronLeft, ChevronRight, Grid3X3, List, Plus, ShoppingBag, SlidersHorizontal, X} from 'lucide-react';
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
 import './shared-directory.css';
@@ -30,7 +30,8 @@ const eras = ['Golden Age', 'Silver Age', 'Bronze Age', 'Copper Age', 'Modern Ag
 const kinds = ['First appearance', 'Key issue', 'Cover spotlight', 'Series debut', 'Run builder', 'Catalog issue'];
 /** Per-card save state for "Add to my collection": saving, saved, or an error line. */
 type AddState='saving'|'saved'|{error:string};
-function DirectoryIssueCard({issue,onOpen,owned,state,disabled,onAdd}:{issue:Issue;onOpen:(issue:Issue)=>void;owned:boolean;state?:AddState;disabled:boolean;onAdd:(issue:Issue)=>void}) {
+/** Directory product card. With copies listed: Buy (to those listings) as the main button; always: Add to collection. */
+function DirectoryIssueCard({issue,onOpen,owned,state,disabled,onAdd,listed,onBuy}:{issue:Issue;onOpen:(issue:Issue)=>void;owned:boolean;state?:AddState;disabled:boolean;onAdd:(issue:Issue)=>void;listed:number;onBuy:(issue:Issue)=>void}) {
  const label=issue.title+' #'+issue.number,year=issue.year>0?issue.year:null,problem=state&&typeof state==='object'?state.error:'';
  return <article className="sd-card">
   <button type="button" className="sd-card-main" aria-haspopup="dialog" aria-label={'Peek inside '+label+': see full details'} onClick={()=>onOpen(issue)}>
@@ -38,8 +39,9 @@ function DirectoryIssueCard({issue,onOpen,owned,state,disabled,onAdd}:{issue:Iss
    <span className="sd-info"><strong className="sd-title">{issue.title} <span>#{issue.number}</span></strong><span className="sd-publisher">{issue.publisher}{year?' · '+year:''}</span><span className="peek-inside sd-peek" aria-hidden="true">Peek inside <ArrowRight size={16}/></span></span>
   </button>
   <div className="sd-card-actions">
+   {listed>0&&<button type="button" className="ds-btn ds-btn-primary ds-btn-sm sd-buy" aria-label={'Buy '+label+': '+listed+(listed===1?' copy':' copies')+' listed'} onClick={()=>onBuy(issue)}><ShoppingBag size={16} aria-hidden="true"/> Buy · {listed} listed</button>}
    {state==='saved'?<p className="sd-added" role="status"><Check size={16} aria-hidden="true"/> In your collection</p>
-    :<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm sd-add" disabled={disabled||state==='saving'} aria-label={(owned?'Add another copy of ':'Add to my collection: ')+label} onClick={()=>onAdd(issue)}>{state==='saving'?'Adding…':<><Plus size={16} aria-hidden="true"/> {owned?'Add another copy':'Add to my collection'}</>}</button>}
+    :<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm sd-add" disabled={disabled||state==='saving'} aria-label={(owned?'Add another copy of ':'Add to collection: ')+label} onClick={()=>onAdd(issue)}>{state==='saving'?'Adding…':<><Plus size={16} aria-hidden="true"/> {owned?'Add another copy':'Add to collection'}</>}</button>}
    {problem&&<p className="ds-error sd-add-error" role="alert"><X size={14} aria-hidden="true"/> {problem}</p>}
   </div>
  </article>;
@@ -69,7 +71,7 @@ function catalogPage(value: unknown): CatalogPage {
   return data as CatalogPage;
 }
 
-export default function SharedDirectory({onOpen, onCollect, beforeCollection, ownedIds, saving}: Props) {
+export default function SharedDirectory({onOpen, onCollect, beforeCollection, ownedIds, saving, activeListingCounts, onFind}: Props) {
   const [sheet,setSheet]=useState(false),[adding,setAdding]=useState<Record<number,AddState>>({});
   const root=useRef<HTMLElement>(null),filtersRef=useRef<HTMLDivElement>(null);
   const owned=useMemo(()=>new Set(ownedIds),[ownedIds]);
@@ -185,7 +187,7 @@ export default function SharedDirectory({onOpen, onCollect, beforeCollection, ow
     {!loading&&!error&&!!data?.issues.length&&<p className="sd-edition-note">Make sure the edition and printing match your copy.</p>}
     <div className="sd-results" aria-busy={loading}>
       {loading ? <LoadingState message="Searching the directory…"/> : error ? <ErrorState message="Couldn’t load the directory. Try again." action={{label:'Try again',onClick:retryDirectory}}/> : data?.issues.length ? <div className={list ? 'sd-list' : 'sd-grid'}>
-        {data.issues.map(issue=><DirectoryIssueCard key={issue.id} issue={issue} onOpen={onOpen} owned={owned.has(issue.id)} state={adding[issue.id]} disabled={saving} onAdd={issue=>void addToCollection(issue)}/>)}
+        {data.issues.map(issue=><DirectoryIssueCard key={issue.id} issue={issue} onOpen={onOpen} owned={owned.has(issue.id)} state={adding[issue.id]} disabled={saving} onAdd={issue=>void addToCollection(issue)} listed={activeListingCounts?.[issue.id]||0} onBuy={onFind}/>)}
       </div> : data?.issueCount === 0 ? <EmptyState title="Still filling up" message="The directory is still filling up. Check back soon."/> : <EmptyState title="No luck." message="Try another search, or add the comic by hand." action={{label:'Clear search and filters',onClick:resetFilters}}/>}
     </div>
     {!loading && !error && data && data.total > data.limit && <nav className="sd-pagination" aria-label="Directory pages"><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={data.offset === 0} onClick={() => {invalidate(); setOffset(Math.max(0, data.offset - data.limit));}}><ChevronLeft size={18}/> Previous</button><span>Page {pageNumber.toLocaleString('en-US')} of {totalPages.toLocaleString('en-US')}</span><form className="sd-page-jump" onSubmit={event=>{event.preventDefault();const value=Number(new FormData(event.currentTarget).get('page'));if(Number.isInteger(value)&&value>=1&&value<=totalPages){invalidate();setOffset((value-1)*data.limit)}}}><label htmlFor="directory-page-jump">Go to page</label><input id="directory-page-jump" name="page" type="number" min="1" max={totalPages} required inputMode="numeric" defaultValue={pageNumber}/><button type="submit" className="ds-btn ds-btn-secondary ds-btn-sm">Go</button></form><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={!data.hasMore} onClick={() => {invalidate(); setOffset(data.offset + data.limit);}}>Next <ChevronRight size={18}/></button></nav>}
