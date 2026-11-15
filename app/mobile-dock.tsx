@@ -1,9 +1,9 @@
 'use client';
-// The one phone bottom bar: Home · Directory · [ SCAN ] · Marketplace · Me.
-// Scan is a raised comic "stamp". "Me" opens the account sheet. The bar tucks away while you
-// scroll down, comes back when you scroll up, and hides behind dialogs and checkout.
+// The phone bottom bar: Home · Search · Scan · Workshop · More.
+// The current tab rises into a round bubble that pushes a bump up out of the bar. "More" opens the
+// Menu (every page plus your account). The bar tucks away while you scroll down and hides behind dialogs.
 import {useEffect, useRef, useState, type ComponentType} from 'react';
-import {BookOpen, Home, LayoutGrid, ScanLine, ShoppingBag, X} from 'lucide-react';
+import {Home, LayoutGrid, ScanLine, Search, Wrench, X} from 'lucide-react';
 import AccountMenu from '../components/account-menu';
 import './mobile-dock.css';
 
@@ -18,12 +18,10 @@ type Props = {
   unread?: number;
 };
 type Item = {id: string; label: string; Icon: ComponentType<{size?: number; strokeWidth?: number}>; match: string[]};
-const left: Item[] = [
-  {id: 'Home', label: 'Home', Icon: Home, match: ['Home']},
-  {id: 'Directory', label: 'Directory', Icon: BookOpen, match: ['Directory']},
-];
-const right: Item[] = [{id: 'Marketplace', label: 'Marketplace', Icon: ShoppingBag, match: ['Marketplace']}];
-const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'Pressing', 'SafePurchase', 'About'];
+const homeItem: Item = {id: 'Home', label: 'Home', Icon: Home, match: ['Home']};
+const searchItem: Item = {id: 'Directory', label: 'Search', Icon: Search, match: ['Directory']};
+const workshopItem: Item = {id: 'Pressing', label: 'Workshop', Icon: Wrench, match: ['Pressing']};
+const meSections = ['Collection', 'Collectors', 'My Profile', 'Messages', 'Orders', 'Wallet', 'Settings', 'Rules', 'Account', 'Characters', 'Marketplace', 'SafePurchase', 'About'];
 
 export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meOpen = false, unread = 0}: Props) {
   const [hidden, setHidden] = useState(false), [sheet, setSheet] = useState(false), [pop, setPop] = useState('');
@@ -59,26 +57,28 @@ export default function MobileDock({tab, scanOpen, onNavigate, onScan, onMe, meO
   }, [sheet]);
 
   const tap = (id: string, action: () => void) => { setPop(id); window.setTimeout(() => setPop(''), 260); action(); };
-  const button = (item: Item) => {
-    const active = item.match.includes(tab);
+  const meActive = meOpen || sheet || meSections.includes(tab);
+  const anyOverlay = scanOpen || meOpen || sheet;
+  const tabButton = (item: Item) => {
+    const active = !anyOverlay && item.match.includes(tab);
     return <button type="button" key={item.id} className={'dock3-tab' + (active ? ' active' : '') + (pop === item.id ? ' pop' : '')} aria-current={active ? 'page' : undefined} onClick={() => tap(item.id, () => onNavigate(item.id))}>
-      <item.Icon size={22} strokeWidth={2.2} /><span>{item.label}</span>
+      <span className="dock3-icon"><item.Icon size={22} strokeWidth={2.2} /></span><span className="dock3-label">{item.label}</span>
     </button>;
   };
-  const meActive = meOpen || sheet || meSections.includes(tab);
 
   return <>
     <nav className={'dock3' + (hidden && !sheet ? ' tucked' : '')} aria-label="Main">
-      {left.map(button)}
-      <button type="button" className={'dock3-scan' + (pop === 'scan' ? ' pop' : '')} aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={() => tap('scan', onScan)}>
-        <span className="dock3-stamp"><ScanLine size={24} strokeWidth={2.4} /></span><span className="dock3-scan-label">Scan</span>
+      {tabButton(homeItem)}
+      {tabButton(searchItem)}
+      <button type="button" className={'dock3-tab dock3-scan' + (scanOpen ? ' active' : '') + (pop === 'scan' ? ' pop' : '')} aria-label="Scan a comic" aria-haspopup="dialog" aria-expanded={scanOpen} onClick={() => tap('scan', onScan)}>
+        <span className="dock3-icon"><ScanLine size={22} strokeWidth={2.3} /></span><span className="dock3-label">Scan</span>
       </button>
-      {right.map(button)}
-      <button ref={opener} type="button" className={'dock3-tab' + (meActive ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-label={'Menu: every page and your account' + (unread > 0 ? ', ' + unread + ' unread conversations' : '')} aria-haspopup="dialog" aria-expanded={meOpen || sheet} aria-current={meSections.includes(tab) ? 'page' : undefined} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
-        <span className="dock3-me"><LayoutGrid size={22} strokeWidth={2.2} />{unread > 0 && <i className="dock3-dot" aria-hidden="true" />}</span><span>Menu</span>
+      {tabButton(workshopItem)}
+      <button ref={opener} type="button" className={'dock3-tab' + (meActive && !scanOpen ? ' active' : '') + (pop === 'me' ? ' pop' : '')} aria-label={'More: every page and your account' + (unread > 0 ? ', ' + unread + ' unread conversations' : '')} aria-haspopup="dialog" aria-expanded={meOpen || sheet} aria-current={meSections.includes(tab) ? 'page' : undefined} onClick={() => tap('me', () => onMe ? onMe() : setSheet(true))}>
+        <span className="dock3-icon"><LayoutGrid size={22} strokeWidth={2.2} />{unread > 0 && <i className="dock3-dot" aria-hidden="true" />}</span><span className="dock3-label">More</span>
       </button>
     </nav>
-    {!onMe && <dialog ref={dialog} className="dock3-sheet" aria-label="Menu" onClose={() => { setSheet(false); opener.current?.focus(); }} onClick={event => { if (event.target === event.currentTarget) setSheet(false); }}>
+    {!onMe && <dialog ref={dialog} className="dock3-sheet" aria-label="More" onClose={() => { setSheet(false); opener.current?.focus(); }} onClick={event => { if (event.target === event.currentTarget) setSheet(false); }}>
       <div className="dock3-sheet-body">
         <span className="dock3-grip" aria-hidden="true" />
         <button type="button" className="dock3-close" aria-label="Close" onClick={() => setSheet(false)}><X size={22} /></button>
