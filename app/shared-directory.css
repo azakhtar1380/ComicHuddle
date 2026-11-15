@@ -93,3 +93,5 @@
 @media(max-width:760px){.shared-directory .sd-publisher-filter{min-width:0}.publisher-input>input{font-size:16px}}
 
 .sd-card-shell{display:flex;flex-direction:column;min-width:0}.sd-card-main{display:block;min-width:0;width:100%;text-align:left;font:inherit;background:transparent;border:0;padding:0;color:inherit}.sd-card-shell .sd-art{width:100%}.sd-card-shell .sd-info{display:flex;flex-direction:column}
+
+.sd-spinner{width:44px;height:44px;border-radius:50%;border:5px solid var(--ink);border-top-color:var(--red);border-right-color:var(--yellow);box-shadow:3px 3px 0 var(--ink);animation:sd-spin .8s linear infinite}@keyframes sd-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sd-spinner{animation:sd-pulse 1.4s ease-in-out infinite}@keyframes sd-pulse{50%{opacity:.4}}}
