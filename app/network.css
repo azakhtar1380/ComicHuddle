@@ -322,3 +322,5 @@
  .nwm-empty .ds-actions{justify-content:center}
 }
 html.nwm-thread-open,html.nwm-thread-open body{overflow:hidden;overscroll-behavior:none}
+.nw-monogram-photo,.nw-avatar-photo{overflow:hidden;padding:0;background:var(--cream)}
+.nw-monogram-photo img,.nw-avatar-photo img{width:100%;height:100%;object-fit:cover;display:block}

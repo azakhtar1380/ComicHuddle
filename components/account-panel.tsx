@@ -53,7 +53,7 @@ export default function AccountPanel(props: AccountPanelProps) {
       {badge > 0 && <em className="mm-badge" aria-label={badge + ' unread'}>{badge > 99 ? '99+' : badge}</em>}
       <ChevronRight size={16} aria-hidden className="mm-chev" />
     </button>;
-  const memberSince = since ? new Date(since > 1e12 ? since : since * 1000).getFullYear() : null;
+  const memberSince = !since ? null : since < 3000 ? since : new Date(since > 1e12 ? since : since * 1000).getFullYear();
 
   return <div className="ap">
     <header className="ap-who">

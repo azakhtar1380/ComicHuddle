@@ -86,7 +86,7 @@ function ProfileShowcase({p,own,onEdit,onBook,onIssue,onReport,wants}:{p:Collect
  const favorites=p.showcase.slice(0,6),open=Math.max(0,6-favorites.length),wantList=p.wantIds.slice(0,12);
  return <div className={'nw-showcase nw-tone-'+p.color}>
   <div className="nw-id ds-card">
-   <div className="nw-monogram" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</div>
+   {p.avatarUrl?<span className="nw-monogram nw-monogram-photo" aria-hidden="true"><img src={p.avatarUrl} alt="" width={88} height={88}/></span>:<div className="nw-monogram" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</div>}
    <div className="nw-id-copy">
     <p className="nw-handle">@{p.handle}{p.location?' · '+p.location:''}</p>
     {own&&!p.visible&&<p className="nw-pill">Hidden. Only you can see this.</p>}
@@ -239,7 +239,7 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
  {newChat&&<Modal label="New message" onClose={()=>setNewChat(false)}><div className="form-dialog nw-join">
   <p className="ds-eyebrow">New message</p><h2 className="nw-join-title">Find a <span>collector.</span></h2>
   <label className="ds-field"><span>Name or handle</span><span className="nw-search-field"><Search size={18} aria-hidden="true"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search collectors" type="search"/>{search&&<button type="button" className="nw-search-clear" aria-label="Clear collector search" onClick={()=>setSearch('')}><X size={16}/></button>}</span></label>
-  <ul className="nw-people">{data.people.filter(p=>p.id!==me?.id&&p.dmOpen&&(p.name+' '+p.handle).toLowerCase().includes(search.toLowerCase())).map(p=><li key={p.id}><button type="button" className="nw-thread" disabled={busy} onClick={()=>void startMessage(p.id)}><span className="nw-avatar" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</span><span className="nw-thread-copy"><strong>{p.name}</strong><small>@{p.handle}</small></span><MessageCircle size={18} aria-hidden="true"/></button></li>)}</ul>
+  <ul className="nw-people">{data.people.filter(p=>p.id!==me?.id&&p.dmOpen&&(p.name+' '+p.handle).toLowerCase().includes(search.toLowerCase())).map(p=><li key={p.id}><button type="button" className="nw-thread" disabled={busy} onClick={()=>void startMessage(p.id)}>{p.avatarUrl?<span className="nw-avatar nw-avatar-photo" aria-hidden="true"><img src={p.avatarUrl} alt="" width={40} height={40}/></span>:<span className="nw-avatar" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</span>}<span className="nw-thread-copy"><strong>{p.name}</strong><small>@{p.handle}</small></span><MessageCircle size={18} aria-hidden="true"/></button></li>)}</ul>
   {!data.people.some(p=>p.id!==me?.id&&p.dmOpen)&&<p className="nw-empty">No collectors are taking messages yet.</p>}
  </div></Modal>}
  {share&&<Modal label="Share your profile" onClose={()=>setShare(null)}><div className="form-dialog nw-join">
