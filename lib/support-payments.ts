@@ -39,13 +39,15 @@ export async function applySupportEvent(event:StripeVerifiedEvent,sandbox:0|1){
  if(!isSupport(object))return null;
  const supportId=(object.metadata as {support_id?:unknown}).support_id;
  if(typeof supportId!=='string'||!/^[0-9a-f-]{36}$/.test(supportId))return {received:true,ignored:true};
- const [row]=(await getPool().query<{amount_cents:number;checkout_session_id:string|null;sandbox:string|number;status:string}>('SELECT amount_cents,checkout_session_id,sandbox,status FROM ch_web.support_payments WHERE id=$1',[supportId])).rows;
+ const [row]=(await getPool().query<{amount_cents:number;checkout_session_id:string|null;sandbox:string|number;status:string;user_id:string|null;supporter_name:string}>('SELECT amount_cents,checkout_session_id,sandbox,status,user_id,supporter_name FROM ch_web.support_payments WHERE id=$1',[supportId])).rows;
  if(!row||Number(row.sandbox)!==sandbox)return {received:true,ignored:true};
  if(event.type==='checkout.session.completed'||event.type==='checkout.session.async_payment_succeeded'){
   // Exact match against what we created: same session, same amount, actually paid.
   if(object.id!==row.checkout_session_id||object.amount_total!==row.amount_cents||object.currency!=='usd'||object.payment_status!=='paid')return {received:true,ignored:true,reason:'support_payment_mismatch'};
   const intent=typeof object.payment_intent==='string'?object.payment_intent:null;
   const r=await getPool().query("UPDATE ch_web.support_payments SET status='paid',paid_at=now(),payment_intent_id=COALESCE(payment_intent_id,$2) WHERE id=$1 AND status='pending' RETURNING id",[supportId,intent]);
+  // Thank-you email, once: to the account, or for a signed-out supporter to the email they gave Stripe.
+  if(r.rows.length)await import('./email').then(async({accountEmail,sendEmail})=>{const {supportThanksEmail}=await import('./email-templates'),{publicOrigin}=await import('./order-emails');const details=(object.customer_details||{}) as {email?:unknown};const to=row.user_id?await accountEmail(row.user_id):typeof details.email==='string'?details.email:null;await sendEmail(to,supportThanksEmail(publicOrigin(),{amountCents:row.amount_cents,name:row.supporter_name||null,test:Number(row.sandbox)===1,disclosure:SUPPORT_DISCLOSURE}))}).catch(()=>undefined);
   return {received:true,support:r.rows.length?'paid':'duplicate'};
  }
  if(event.type==='checkout.session.expired'){await getPool().query("UPDATE ch_web.support_payments SET status='expired' WHERE id=$1 AND status='pending'",[supportId]);return {received:true,support:'expired'}}

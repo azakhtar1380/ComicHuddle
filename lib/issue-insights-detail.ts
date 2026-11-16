@@ -3,6 +3,7 @@
 // (GCD bibliography, curated catalog entry) or the Metron/Wikidata issue profile, and each result
 // carries the source it came from so the card can label it.
 import type {GcdBibliography,Issue} from './catalog';
+import {catalog as curatedCatalog} from './catalog';
 
 export type Provenance='Metron'|'GCD'|'Wikidata'|'Catalog entry';
 export type CreditLine={names:string[];source:Provenance;note?:string};
@@ -118,3 +119,13 @@ export function catalogNote(issue:Pick<Issue,'note'|'gcdId'>):string|null{
 export function catalogCharacters(issue:Pick<Issue,'characters'>):string[]{
  return (issue.characters||[]).filter(name=>name&&!/anthology|multiple|various/i.test(name));
 }
+/** Hand-checked key-issue facts (lib/catalog.ts, reviewed Nov 2026) for the curated issues only, matched by
+ *  series, number and year, so a directory record of the same comic shows them too. Other issues show no key claim. */
+export function curatedKeyFact(issue:Pick<Issue,'title'|'number'|'year'>):{kind:string;note:string}|null{
+ const norm=(value:string)=>value.toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]+/g,' ').trim();
+ const title=norm(issue.title),number=String(issue.number).replace(/^#/,'').trim();
+ const hit=curatedKeyIssues().find(entry=>norm(entry.title)===title&&entry.number===number&&(!issue.year||!entry.year||entry.year===issue.year));
+ return hit?{kind:hit.kind,note:hit.note}:null;
+}
+let keyIssues:Issue[]|null=null;
+function curatedKeyIssues(){return keyIssues??=curatedCatalog.filter(entry=>['Key issue','First appearance'].includes(entry.kind)&&!!entry.note)}

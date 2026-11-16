@@ -146,3 +146,5 @@ button.home-chip{cursor:pointer}
 .home-listing-card>.home-listing{flex:1 1 auto}
 .home-listing:focus-visible,.home-cover:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
 .home-listing-card:hover,.home-listing-card:focus-within{border-color:var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.home-cover>.home-peek{align-self:flex-start;margin-top:6px}
+@media (max-width:620px){.home-cover>.home-peek{min-height:30px;padding:0 10px;font-size:12.5px}}

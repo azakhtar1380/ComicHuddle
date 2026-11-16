@@ -65,3 +65,8 @@ __pycache__/
 
 # Local Metron harvest / cover-copy state (large; never committed).
 /.metron-cache/
+
+# end-to-end tests
+e2e/.auth/
+e2e-results/
+e2e-report/

@@ -3,12 +3,14 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../lib/api-security';
 import {commerceError,commerceParticipant,type StripeSandboxEnv} from '../../../lib/commerce';
-import {CartUnavailableError,addToCart,cartCheckout,cartIds,cartView,mergeGuestCart,removeFromCart,setSavedForLater} from '../../../lib/cart';
+import {CartUnavailableError,guestCartView,addToCart,cartCheckout,cartIds,cartView,mergeGuestCart,removeFromCart,setSavedForLater} from '../../../lib/cart';
 
 const environment=()=>env as unknown as StripeSandboxEnv;
 
 export async function GET(req:Request){try{
  const user=await getChatGPTUser(),kind=new URL(req.url).searchParams.get('kind');
+ // A guest's cart lives in their browser; ?kind=guest&ids=… returns the public details of those listings.
+ if(!user&&kind==='guest'){const ids=(new URL(req.url).searchParams.get('ids')||'').split(',').filter(Boolean);return privateJson(await guestCartView(ids,environment()))}
  if(!user)return privateJson({signedIn:false,count:0,listingIds:[],savedIds:[],holds:0});
  if(kind==='count'){try{return privateJson({signedIn:true,...await cartIds(user.userId)})}catch(error){if(error instanceof CartUnavailableError)return privateJson({signedIn:true,count:0,listingIds:[],savedIds:[],holds:0,unavailable:true});throw error}}
  return privateJson(await cartView(getDb(),user.userId,environment()));

@@ -4,11 +4,11 @@ import Link from 'next/link';
 import {AlertTriangle,ArrowUpRight,Bookmark,Clock,LockKeyhole,ShieldCheck,ShoppingCart,Trash2,Undo2} from 'lucide-react';
 import ResolvedComicCover from '../resolved-comic-cover';
 import {usePaymentConfiguration} from '../marketplace-checkout';
-import {accountLinks} from '../../components/account-prompt';
+import AccountPrompt from '../../components/account-prompt';
 import {notifyCartChanged,readGuestCart,removeFromGuestCart} from '../../components/cart/cart-store';
 import type {CartHold,CartItemView} from '../../lib/cart';
 
-type CartData={signedIn:true;items:CartItemView[];holds:CartHold[];safePurchase:{enabled:boolean;feeCents:number};taxCalculated:boolean;limits:{maxItems:number;maxCheckoutItems:number}};
+type CartData={signedIn:boolean;items:CartItemView[];holds:CartHold[];safePurchase:{enabled:boolean;feeCents:number};taxCalculated:boolean;limits:{maxItems:number;maxCheckoutItems:number}};
 const usd=(cents:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100);
 const statusLabel:Record<CartItemView['status'],string>={available:'',held_by_you:'Held for you',reserved:'Someone is checking out',sold:'Sold',unavailable:'No longer available'};
 
@@ -23,19 +23,7 @@ async function post(path:string,body:Record<string,unknown>){
  return result;
 }
 
-function GuestCart(){
- // Rendered only on the client, after the cart request says the visitor is a guest.
- const [count]=useState(()=>readGuestCart().length);
- const links=accountLinks();
- return <section className="cart-empty ds-card">
-  <ShoppingCart size={34} aria-hidden/>
-  <h2>Sign in to see your cart</h2>
-  <p>{count?`You have ${count} ${count===1?'comic':'comics'} saved on this device. Sign in and they move into your account cart.`:'Your cart lives in your free ComicHuddle account, so it follows you to any device.'}</p>
-  <div className="cart-actions"><a className="ds-btn ds-btn-primary" href={links.signIn}>Sign in</a><a className="ds-btn ds-btn-secondary" href={links.join}>Create a free account</a></div>
- </section>;
-}
-
-function ItemRow({item,busy,onAction}:{item:CartItemView;busy:boolean;onAction:(action:string,item:CartItemView)=>void}){
+function ItemRow({item,busy,onAction,guest=false}:{item:CartItemView;busy:boolean;onAction:(action:string,item:CartItemView)=>void;guest?:boolean}){
  const flag=item.status!=='available'?statusLabel[item.status]:item.pickupOnly?'Local pickup only':'';
  return <li className={'cart-item'+(item.checkoutReady?'':' is-flagged')}>
   <a className="cart-cover" href={item.href} aria-label={'Open listing: '+item.title}><ResolvedComicCover src={item.photo} title={item.title} actualPhoto/></a>
@@ -45,7 +33,7 @@ function ItemRow({item,busy,onAction}:{item:CartItemView;busy:boolean;onAction:(
    {flag&&<p className="cart-flag" role="status"><AlertTriangle size={14} aria-hidden/> <strong>{flag}.</strong> {item.problem}</p>}
    {item.priceChanged&&item.status==='available'&&<p className="cart-flag is-info" role="status">Price changed from {usd(item.addedPriceCents)} to {usd(item.priceCents)}.</p>}
    <div className="cart-item-actions">
-    {item.savedForLater
+    {guest?null:item.savedForLater
      ?<button type="button" className="ds-link" disabled={busy} onClick={()=>onAction('move_to_cart',item)}><Undo2 size={14} aria-hidden/> Move to cart</button>
      :<button type="button" className="ds-link" disabled={busy} onClick={()=>onAction('save_for_later',item)}><Bookmark size={14} aria-hidden/> Save for later</button>}
     <button type="button" className="ds-link cart-remove" disabled={busy} onClick={()=>onAction('remove',item)}><Trash2 size={14} aria-hidden/> Remove</button>
@@ -85,14 +73,18 @@ function Holds({holds,live,onChanged}:{holds:CartHold[];live:boolean;onChanged:(
 }
 
 export default function CartView(){
- const [data,setData]=useState<CartData|null>(null),[guest,setGuest]=useState(false),[loadError,setLoadError]=useState(''),[busy,setBusy]=useState(''),[notice,setNotice]=useState(''),[actionError,setActionError]=useState('');
+ const [data,setData]=useState<CartData|null>(null),[guest,setGuest]=useState(false),[loadError,setLoadError]=useState(''),[busy,setBusy]=useState(''),[notice,setNotice]=useState(''),[actionError,setActionError]=useState(''),[signInPrompt,setSignInPrompt]=useState(false);
  const [checkingOut,setCheckingOut]=useState(false),[submitting,setSubmitting]=useState(false),[checkoutError,setCheckoutError]=useState(''),[safePurchaseOptIn,setSafePurchaseOptIn]=useState(false);
  const intent=useRef<{key:string;id:string}|null>(null),inFlight=useRef(false);
  const payments=usePaymentConfiguration(),live=payments.data?.sandbox===false,checkoutEnabled=!!payments.data?.setup.checkoutEnabled&&!payments.error;
  const load=useCallback(async()=>{
   try{const response=await fetch('/api/cart',{credentials:'same-origin',cache:'no-store'}),body=await response.json().catch(()=>({})) as Record<string,unknown>;
    if(!response.ok)throw Error(typeof body.error==='string'?body.error:'Your cart couldn’t load.');
-   if(body.signedIn===false){setGuest(true);return}
+   if(body.signedIn===false){
+    // Guests: the cart is kept in this browser; fetch the public details of those listings.
+    const ids=readGuestCart(),guestResponse=await fetch('/api/cart?kind=guest&ids='+encodeURIComponent(ids.join(',')),{cache:'no-store'}),guestBody=await guestResponse.json().catch(()=>({})) as Record<string,unknown>;
+    if(!guestResponse.ok)throw Error(typeof guestBody.error==='string'?guestBody.error:'Your cart couldn’t load.');
+    setGuest(true);setData(guestBody as unknown as CartData);setLoadError('');return}
    setGuest(false);setData(body as unknown as CartData);setLoadError('');
   }catch(problem){setLoadError(problem instanceof Error?problem.message:'Your cart couldn’t load.')}
  },[]);
@@ -110,6 +102,7 @@ export default function CartView(){
 
  async function act(action:string,item:CartItemView){
   setBusy(item.listingId);setActionError('');setNotice('');
+  if(guest){removeFromGuestCart(item.listingId);setNotice('Removed “'+item.title+'”.');await load();setBusy('');return}
   try{await post('/api/cart',{action,listingId:item.listingId});removeFromGuestCart(item.listingId);notifyCartChanged();setNotice(action==='remove'?'Removed “'+item.title+'”.':action==='save_for_later'?'Saved “'+item.title+'” for later.':'Moved “'+item.title+'” to your cart.');await load()}
   catch(problem){setActionError(problem instanceof Error?problem.message:'That didn’t work.')}
   finally{setBusy('')}
@@ -137,7 +130,6 @@ export default function CartView(){
   finally{clearTimeout(timeout);inFlight.current=false;setSubmitting(false)}
  }
 
- if(guest)return <GuestCart/>;
  if(loadError&&!data)return <section className="cart-empty ds-card" role="alert"><h2>Your cart couldn’t load</h2><p>{loadError}</p><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>void load()}>Try again</button></section>;
  if(!data)return <p className="cart-loading" role="status">Loading your cart…</p>;
 
@@ -149,7 +141,7 @@ export default function CartView(){
    {!active.length?<section className="cart-empty ds-card"><ShoppingCart size={34} aria-hidden/><h2>Your cart is empty</h2><p>Find a comic in the Marketplace and tap Add to cart.</p><Link className="ds-btn ds-btn-primary" href="/?section=Marketplace">Browse the Marketplace</Link></section>
    :groups.map(group=>{const shippable=group.items.filter(item=>item.checkoutReady),shipping=shippable.reduce((sum,item)=>sum+item.shippingCents,0),subtotal=shippable.reduce((sum,item)=>sum+item.priceCents,0);return <section key={group.seller.id||'removed'} className="cart-seller ds-card" aria-label={group.seller.name?'From '+group.seller.name:'Removed listings'}>
     <header className="cart-seller-head"><h2>{group.seller.name?<>From {group.seller.name}{group.seller.handle&&<small> @{group.seller.handle}</small>}</>:'Removed listings'}</h2>{group.seller.name&&<span>{group.items.length} {group.items.length===1?'comic':'comics'}</span>}</header>
-    <ul className="cart-items">{group.items.map(item=><ItemRow key={item.listingId} item={item} busy={busy===item.listingId} onAction={(action,row)=>void act(action,row)}/>)}</ul>
+    <ul className="cart-items">{group.items.map(item=><ItemRow key={item.listingId} item={item} busy={busy===item.listingId} onAction={(action,row)=>void act(action,row)} guest={guest}/>)}</ul>
     {shippable.length>0&&<dl className="cart-seller-foot"><div><dt>Items</dt><dd>{usd(subtotal)}</dd></div><div><dt>Shipping from this seller</dt><dd>{shipping?usd(shipping):'Free'}</dd></div></dl>}
    </section>})}
    {saved.length>0&&<section className="cart-saved ds-card" aria-labelledby="cart-saved-title"><h2 id="cart-saved-title"><Bookmark size={18} aria-hidden/> Saved for later</h2><ul className="cart-items">{saved.map(item=><ItemRow key={item.listingId} item={item} busy={busy===item.listingId} onAction={(action,row)=>void act(action,row)}/>)}</ul></section>}
@@ -168,7 +160,8 @@ export default function CartView(){
    <p className="cart-fine">Shipping is set by each seller per listing. Every comic is its own order and payment.</p>
    {active.length>ready.length&&<p className="cart-fine">Comics marked above aren’t included in this total.</p>}
    {tooMany&&<p className="ds-error" role="status">Check out up to {data.limits.maxCheckoutItems} comics at a time. Save the rest for later.</p>}
-   {!checkingOut?<button type="button" className="ds-btn ds-btn-primary cart-checkout" disabled={!ready.length||tooMany||!checkoutEnabled} onClick={()=>setCheckingOut(true)}>Checkout</button>
+   {guest?<><button type="button" className="ds-btn ds-btn-primary cart-checkout" disabled={!ready.length} onClick={()=>setSignInPrompt(true)}>Sign in to check out</button><p className="cart-fine">Your cart is saved on this device. When you sign in or create an account, it comes with you and you land back here.</p></>
+   :!checkingOut?<button type="button" className="ds-btn ds-btn-primary cart-checkout" disabled={!ready.length||tooMany||!checkoutEnabled} onClick={()=>setCheckingOut(true)}>Checkout</button>
    :<form className="cart-checkout-form" onSubmit={event=>void checkout(event)}>
     <h3>Ship to</h3>
     <label className="ds-field"><span>Recipient name *</span><input name="name" autoComplete="shipping name" required maxLength={100}/></label>
@@ -181,7 +174,8 @@ export default function CartView(){
     <button className="ds-btn ds-btn-primary cart-checkout" disabled={submitting||!ready.length||tooMany||!checkoutEnabled}>{submitting?'Holding your comics…':'Hold my comics and pay'}</button>
     <button type="button" className="ds-link" disabled={submitting} onClick={()=>setCheckingOut(false)}>Back</button>
    </form>}
-   {!checkoutEnabled&&!payments.loading&&<p className="cart-fine" role="status">Online checkout is unavailable right now. Nothing will be charged.</p>}
+   {signInPrompt&&<AccountPrompt reason="Sign in or create a free account to check out. Your cart comes with you." onClose={()=>setSignInPrompt(false)}/>}
+   {!guest&&!checkoutEnabled&&!payments.loading&&<p className="cart-fine" role="status">Online checkout is unavailable right now. Nothing will be charged.</p>}
    <p className="cart-fine"><LockKeyhole size={14} aria-hidden/> Checkout holds every comic for you first, so nobody else can buy them while you pay. Holds end after an hour if unpaid.</p>
   </aside>}
  </div>;

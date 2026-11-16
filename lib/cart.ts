@@ -185,3 +185,22 @@ export async function cartCheckout(db:Db,profile:Profile,email:string,raw:Record
  const reservedUntil=held.length?(await db.select({createdAt:commerceOrders.createdAt}).from(commerceOrders).where(inArray(commerceOrders.id,held.map(item=>item.orderId)))).map(row=>new Date(Date.parse(row.createdAt)+CHECKOUT_EXPIRY_SECONDS*1000).toISOString()).sort()[0]??null:null;
  return {held,reservedUntil,note:'Every comic is held for you. Pay for each one below before the hold ends.'};
 }
+
+// --- guest cart ------------------------------------------------------------------------------------
+/** A signed-out visitor's cart (listing ids kept in their browser): public listing details only, no holds.
+ *  Checkout still needs an account; after sign-in these ids merge into the account cart (mergeGuestCart). */
+export async function guestCartView(rawIds:unknown,environment:StripeSandboxEnv){
+ const ids=z.array(listingId).max(CART_MAX_ITEMS).parse(rawIds);
+ const rows=ids.length?await query<ListingRow>(`SELECT ${listingColumns} FROM ch_web.listings l LEFT JOIN ch_web.profiles s ON s.id=l.seller_id WHERE l.id = ANY($2::text[])`,['',ids]):[];
+ const byId=new Map(rows.map(row=>[row.id,row])),protection=protectionConfig(environment);
+ const items:CartItemView[]=ids.flatMap(id=>{
+  const row=byId.get(id);if(!row)return [];
+  const problem=addProblem(row,''),pickupOnly=row.fulfillment==='pickup';
+  const status:CartItemStatus=!problem?'available':row.status==='checkout_reserved'?'reserved':row.status==='sold'?'sold':'unavailable';
+  const plan=protectionPlan(protection,{itemCents:Number(row.price),fulfillment:'shipping',sellerOptIn:!!row.safe_purchase_opt_in,buyerOptIn:false,waiveSafePurchase:false});
+  const {issue,condition}=describe(row);
+  return [{listingId:row.id,href:'/?'+new URLSearchParams({section:'Marketplace',listing:row.id}),title:row.title,issue,condition,kind:row.kind==='collection'?'collection':'single',itemCount:Number(row.item_count)||1,priceCents:Number(row.price),shippingCents:pickupOnly?0:Number(row.shipping),addedPriceCents:Number(row.price),priceChanged:false,photo:firstPhoto(row),seller:{id:row.seller_id,name:row.seller_name||'Collector',handle:row.seller_handle||''},status,
+   problem:problem||(pickupOnly?'Local pickup only. Buy it from the listing page.':null),pickupOnly,checkoutReady:status==='available'&&!pickupOnly,savedForLater:false,safePurchaseAutomatic:plan.tier==='safepurchase',safePurchaseOptional:protection.safePurchaseEnabled&&plan.tier!=='safepurchase'}];
+ });
+ return {signedIn:false as const,items,holds:[] as CartHold[],safePurchase:{enabled:protection.safePurchaseEnabled,feeCents:protection.safePurchaseEnabled?protection.feeCents:0},taxCalculated:false,limits:{maxItems:CART_MAX_ITEMS,maxCheckoutItems:CART_CHECKOUT_MAX_ITEMS}};
+}

@@ -13,6 +13,7 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 | 045 | `045_listing_package.sql` | Optional package `weight_oz`, `length_in`, `width_in`, `height_in`. |
 | 046 | `046_seller_payouts.sql` | `seller_payouts`: bank payouts and `payout.*` events. |
 | 047 | `047_support_payments.sql` | `support_payments`: Support ComicHuddle payments. |
+| 049 | `049_listing_drafts.sql` | `listing_drafts`: several saved listing drafts per seller (Your drafts). |
 | 048 | `048_saved_cards.sql` | `buyer_saved_cards` (Stripe customer and card IDs, brand, last 4 digits, expiry, shipping address) and `auction_auto_charges` (one row per won auction). |
 
 ## Settings (Vercel environment variables)
@@ -24,6 +25,7 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 | `COMMERCE_LISTING_REQUIRES_PAYOUTS` | **new**, not set | Set to `true` to block publishing until the seller's Stripe payouts are verified. Turn it on once sellers can finish onboarding. |
 | `COMMERCE_PAYOUTS_ENABLED` | not set (off) | When `true`, the daily job releases transfers after the review window and makes the manual payouts for new sellers. |
 | `AUCTION_SAVED_CARD_REQUIRED` | not set (on) | Binding bids need a saved card and address while online payments are on. Set to `false` to let people bid without one; winners then pay in the 48-hour window. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | **new**, not set (emails off) | Order receipts, "sold" notices and Support thank-you emails (with Huddles). Sign up at resend.com (free up to 3,000 emails a month), verify a domain you own, then set `EMAIL_FROM` to an address on it, e.g. `ComicHuddle <orders@your-domain>`. Optional `EMAIL_REPLY_TO`. Preview every email on /admin/emails. |
 | `COMICHUDDLE_ADMIN_EMAILS` | preview ✓ | Your account. Production needs it too. |
 | `METRON_COVER_CDN_BASE` | preview, **remove it** | Leftover from the paused cover import, so the enrichment job stops trying. Claude's attempt to remove it was blocked by a permission prompt. Run `vercel env rm METRON_COVER_CDN_BASE preview`. |
 

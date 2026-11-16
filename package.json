@@ -20,7 +20,13 @@
     "test:catalog-seed": "node --import tsx --test checks/gcd-postgres-seed.test.ts",
     "test:postgres": "node --import tsx --test checks/postgres-migration.test.ts",
     "typecheck": "tsc --noEmit",
-    "test:business": "node --import tsx --test checks/marketplace-business.test.ts"
+    "test:business": "node --import tsx --test checks/marketplace-business.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:desktop": "playwright test --project=desktop",
+    "test:e2e:phone": "playwright test --project=phone",
+    "test:e2e:approve-screenshots": "playwright test e2e/5-visual.spec.ts --update-snapshots",
+    "test:unit": "node --import tsx --test checks/*.test.ts",
+    "test:all": "npm run typecheck && npm run test:unit && npm run test:e2e"
   },
   "dependencies": {
     "@aws-sdk/client-cloudfront": "^3.1152.0",
@@ -62,6 +68,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260515.1",
     "@electric-sql/pglite": "0.3.14",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/pg": "8.15.6",

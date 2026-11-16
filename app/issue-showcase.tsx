@@ -14,7 +14,7 @@ import {listingActionHref} from '../components/cards/listing-card-actions';
 import {takeCollectIntent} from '../components/cards/collect-intent';
 import type {Issue} from '../lib/catalog';
 import type {CollectionEntry} from '../lib/collection-entry';
-import {catalogCharacters,catalogNote,detailCredits,editionInfo,gcdCharacterNames,gcdFirstAppearances,releaseInfo,type CreditLine,type Provenance} from '../lib/issue-insights-detail';
+import {catalogCharacters,catalogNote,curatedKeyFact,detailCredits,editionInfo,gcdCharacterNames,gcdFirstAppearances,releaseInfo,type CreditLine,type Provenance} from '../lib/issue-insights-detail';
 import {cgcSubmitUrl,goCollectIssueUrl} from '../lib/value-links';
 import CollectionCopyDialog from '../architecture/postgres/ui/CollectionCopyDialog';
 import {HuddlesPeek} from '../components/huddles-guide';
@@ -98,6 +98,7 @@ export default function IssueShowcase({viewerProfileId=null,issue,cover,coverNot
  const publisher=issue.publisher&&!/not recorded/i.test(issue.publisher)?issue.publisher:null;
  const title=/^series metadata pending/i.test(issue.title)?null:issue.title;
  const gcdStory=(issue.bibliography?.stories||[]).find(s=>!/cover/i.test(s.type)&&s.synopsis);
+ const keyFact=curatedKeyFact(issue);
  const summary:{text:string;source:Provenance}|null=p?.description?{text:p.description,source:'Metron'}:gcdStory?{text:gcdStory.synopsis,source:'GCD'}:catalogNote(issue)?{text:catalogNote(issue)!,source:'Catalog entry'}:null;
 
  // ---- Characters: Metron/Wikidata profile, else GCD character list, else curated entry ----
@@ -144,6 +145,7 @@ export default function IssueShowcase({viewerProfileId=null,issue,cover,coverNot
 
   <div className="is-tabs" role="tablist" aria-label="Issue information">{tabs.map(t=><button key={t.id} ref={node=>{tabRefs.current[t.id]=node}} type="button" role="tab" id={'is-tab-'+t.id} aria-selected={tab===t.id} aria-controls={'is-panel-'+t.id} tabIndex={tab===t.id?0:-1} className={tab===t.id?'active':''} onClick={()=>setTab(t.id)} onKeyDown={onTabKey}>{t.icon}{t.label}</button>)}</div>
   <div className="is-panel" role="tabpanel" id="is-panel-overview" aria-labelledby="is-tab-overview" tabIndex={0} hidden={tab!=='overview'}>
+  {keyFact&&<section className="is-section is-key" aria-labelledby="is-key-title"><h3 id="is-key-title"><Star size={16} aria-hidden="true"/> {keyFact.kind}</h3><p>{keyFact.note}</p><small>Checked by ComicHuddle</small></section>}
   <section className="is-section" aria-labelledby="is-chars-title">
    <h3 id="is-chars-title">Characters{profileCharacters.length?<small>{profileCharacters.length}</small>:null}</h3>
    {profileCharacters.length>0?<>

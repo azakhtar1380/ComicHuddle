@@ -156,3 +156,7 @@ a.is-castmember:focus-visible{outline:2px solid var(--is-ink);outline-offset:2px
  .issue-showcase .is-tabs>button>svg{display:none}
 }
 .is-cart .cart-add .ds-btn{min-height:52px;width:100%}
+.is-key{border:2px solid var(--ink);border-radius:12px;background:var(--yellow,#efd369);padding:12px 14px}
+.is-key h3{display:flex;align-items:center;gap:6px;margin:0 0 4px}
+.is-key p{margin:0;font-weight:600;line-height:1.45}
+.is-key small{display:block;margin-top:4px;opacity:.75}

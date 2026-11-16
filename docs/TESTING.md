@@ -1,0 +1,52 @@
+# Testing ComicHuddle
+
+There are two layers. Run both before anything goes live.
+
+| Command | What it checks | Time |
+|---|---|---|
+| `npm run test:unit` | Server logic: payments, orders, payouts, drafts, cart, emails (about 250 tests) | ~10 min |
+| `npm run test:e2e` | A real browser clicks through the site as a **guest**, a **buyer**, a **seller** and an **admin**, at **desktop** and **phone** size, and compares screenshots | ~20 min |
+| `npm run test:all` | Type check, then both of the above | ~30 min |
+
+## How the browser tests work
+
+- `scripts/e2e-server.mjs` starts the whole site on port 3100 with a **throwaway in-memory database** (sample catalog and every US ZIP).
+  It never touches the QA or production database, Stripe, EasyPost, Metron or AWS, and emails are kept in memory instead of being sent.
+- `e2e/global-setup.ts` creates the test accounts on that database every run:
+  - buyer (`e2e-buyer@comichuddle.test`)
+  - seller (`e2e-seller@comichuddle.test`)
+  - admin (`e2e-admin@comichuddle.test`)
+
+  Their passwords come from a random secret kept in `e2e/.auth/` (git-ignored) and are never printed. None of them is a real person's login.
+- Every test also fails on any JavaScript error, console error or server error on the page, not only on missing text.
+
+## Journeys covered
+
+1. **Guest** (`e2e/1-guest.spec.ts`)
+   - home, directory search, characters, about and contact
+   - marketplace browsing
+   - sign-in prompts, private and admin pages closed
+   - sign-up form checks, joining for real
+   - 404 page, phone bottom bar
+2. **Seller** (`e2e/2-seller.spec.ts`)
+   - empty Sell form
+   - ZIP lookup and wrong-ZIP message inside the form
+   - Save draft and close, Your drafts (continue, delete)
+   - publishing with a photo, and the photo on the marketplace card
+3. **Buyer** (`e2e/3-buyer.spec.ts`)
+   - guest cart with sign-in only at checkout (returns to the cart)
+   - Buy now returns to the same listing
+   - Messages for guests, browser Back button
+   - Peek inside on the home page, Hulk #181 key fact
+   - signed-in cart; Orders, Wallet and Messages open; admin pages closed to buyers
+4. **Admin** (`e2e/4-admin.spec.ts`): admin sections, cover review, email previews, audit log.
+5. **Screenshots** (`e2e/5-visual.spec.ts`): home, marketplace, about, contact, sign-in, cart, directory, wallet, sell form.
+
+## When a test fails
+
+- `npx playwright show-report e2e-report` opens a report with the screenshot, the steps and a trace of what the browser did.
+- **A screenshot test failed after an intended design change:** run `npm run test:e2e:approve-screenshots`, look at the new images in `e2e/__screenshots__`, and commit them.
+
+## Rule for every bug fix
+
+Add a test that would have caught it, in `checks/` (logic) or `e2e/` (anything you can see or click), so it can't come back.

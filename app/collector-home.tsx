@@ -85,9 +85,10 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
   <section className="ds-section" aria-labelledby="home-directory-title">
    <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>Explore all 2 million+ issues <ArrowRight size={16}/></button></div>
    {error?<ErrorState compact message="Couldn't load the directory. Try again." action={{label:'Try again',onClick:()=>{setError(false);setIssues(null);load()}}}/>
-    :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<div key={issue.id} className="home-cover-card"><button type="button" className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Open '+issue.title+' #'+issue.number}>
+    :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<div key={issue.id} className="home-cover-card"><button type="button" className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Peek inside '+issue.title+' #'+issue.number+': see full details'}>
      <span className="home-cover-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year||undefined} src={issue.cover||null} credit={issue.coverCredit||undefined}/></span>
      <strong>{issue.title} <span>#{issue.number}</span></strong><small>{issue.publisher}{issue.year?' · '+issue.year:''}</small>
+     <span className="peek-inside home-peek" aria-hidden="true">Peek inside <ArrowRight size={15}/></span>
     </button>
      {/* Directory card with no listing: Add to collection only (opens the detail card's collection dialog, after the account gate). */}
      <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm home-cover-collect" aria-label={'Add to collection: '+issue.title+' #'+issue.number} onClick={()=>{requestCollectOnOpen(issue.id);onOpenComic(String(issue.id))}}><Plus size={15} aria-hidden="true"/> Add to collection</button>

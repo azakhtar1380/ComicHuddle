@@ -1,4 +1,5 @@
 'use client';
+import {EmptyState} from '../components/states';
 import {SellerFeedback} from './community-feedback';
 import CollectorWallet from './collector-wallet';
 import ResolvedComicCover from './resolved-comic-cover';
@@ -223,7 +224,8 @@ export default function CollectorNetwork({onAddComic,addComicOpen,myProfileReque
     </ul></div>}
   </>}
  </section>}
- {tab==='Messages'&&<section className="nw-messages" aria-labelledby="nw-messages-title">
+ {tab==='Messages'&&!signedIn&&<section className="nw-messages nw-messages-guest" aria-labelledby="nw-messages-title"><h1 id="nw-messages-title" className="sr-only">Messages</h1><EmptyState title="Sign in to view your messages." message="Your conversations with collectors, sellers and workshops stay private to your account." action={{label:'Sign in',href:'/sign-in?return_to=%2F%3Fsection%3DMessages'}}/></section>}
+ {tab==='Messages'&&signedIn&&<section className="nw-messages" aria-labelledby="nw-messages-title">
   <h1 id="nw-messages-title" className="sr-only">Messages</h1>
   <MessagesInbox net={net} threadId={threadId} setThreadId={setThreadId} gate={gate} notice={notice} go={go} onProfile={handle=>void loadProfile(handle)} onReport={(type,id)=>setReport({type,id})} onNewChat={()=>setNewChat(true)} upload={uploadPhoto} pendingRef={pendingRef} clearPendingRef={()=>setPendingRef(null)}/>
  </section>}
