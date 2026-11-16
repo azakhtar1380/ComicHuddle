@@ -1,12 +1,13 @@
 'use client';
 // The My Profile page (Overview · Collection · Wishlist · Reviews). Used for your own profile and anyone else's.
 // Data: CollectorProfile from /api/social plus `extras` (lib/profile-extras.ts). Text always sits on cream cards.
-import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {useEffect,useId,useRef,useState,type CSSProperties,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,Camera,Flag,Link2,MessageCircle,MoreHorizontal,Palette,Pencil,Plus,Share2,Star,Wrench} from 'lucide-react';
 import type {CollectorProfile,ShowcaseBook} from '../../lib/community';
 import type {Issue} from '../../lib/catalog';
 import {catalog} from '../../lib/catalog';
 import {emptyExtras,profilePath,type ProfileExtras} from '../../lib/profile-page-types';
+import {DEFAULT_LOOK,lookStyle} from '../../lib/profile-worlds';
 import {VerifiedBadge} from '../verified-badge';
 import AdminBadge from '../admin-badge';
 import HScroll from '../h-scroll';
@@ -47,17 +48,17 @@ const issueLabel=(ref:{title:string;number:string;year:number|null})=>`${ref.tit
 type Props={p:ProfileView;own:boolean;busy:boolean;wants:Record<number,Issue>;uploading:''|'photo'|'cover';
  onBack:()=>void;onEdit:()=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;onMessage:(context?:string)=>void;onShare:()=>void;onTheme:()=>void;onCollection:()=>void;
  onPhoto:(file:File)=>void;onCover:(file:File)=>void;onCopyLink:()=>void;
- art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode;theme?:{world?:string;frame?:string;sfx?:string;ink?:string}};
+ art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode};
 
-export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,theme}:Props){
- const x=p.extras||emptyExtras,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
+export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview}:Props){
+ const x=p.extras||emptyExtras,look=x.look||DEFAULT_LOOK,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
  const biz:BusinessSummary={isBusiness:!!p.isBusiness,verified:!!p.verified,shopName:p.shopName??null,business:p.business};
  const tabs:{id:ProfileTab;label:string}[]=[{id:'overview',label:'Overview'},{id:'collection',label:'Collection'},{id:'wishlist',label:'Wishlist'},...(own||x.share.reviews?[{id:'reviews' as const,label:'Reviews'}]:[])];
  useEffect(()=>{if(!menu)return;const close=(event:MouseEvent|KeyboardEvent)=>{if(event instanceof KeyboardEvent?event.key==='Escape':!menuRef.current?.contains(event.target as Node))setMenu(false)};document.addEventListener('mousedown',close);document.addEventListener('keydown',close);return()=>{document.removeEventListener('mousedown',close);document.removeEventListener('keydown',close)}},[menu]);
  const favorites=p.showcase.slice(0,6),open=Math.max(0,6-favorites.length),wantList=p.wantIds.slice(0,24);
  const verifiedLabel=biz.verified?(biz.isBusiness?'Verified business':'Verified collector'):null;
  const select=(next:ProfileTab)=>{setTab(next);requestAnimationFrame(()=>document.getElementById(ids+'-tab-'+next)?.focus())};
- return <article className={'pp pp-world-'+(theme?.world||'classic')+' pp-ink-'+(theme?.ink||'golden')} aria-labelledby={ids+'-name'}>
+ return <article className={'pp pp-world-'+look.world+' pp-ink-'+look.ink} style={lookStyle(look) as CSSProperties} data-world={look.world} aria-labelledby={ids+'-name'}>
   <div className="pp-topbar">
    <button type="button" className="pp-icon-btn" onClick={onBack} aria-label="Back"><ArrowLeft size={22} aria-hidden="true"/></button>
    <p className="pp-topbar-title">{own?'MY PROFILE':'PROFILE'}</p>
@@ -75,15 +76,16 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
 
   <div className="pp-cover" style={x.coverUrl?{backgroundImage:`url(${x.coverUrl})`}:undefined}>
    {!x.coverUrl&&<span className="pp-cover-empty" aria-hidden="true"/>}
+   <span className="pp-sfx" aria-hidden="true">{look.sfx}</span>
    {own&&fileButton(x.coverUrl?'Change cover photo':'Add a cover photo',onCover,'pp-cover-change',<><Camera size={16} aria-hidden="true"/> {uploading==='cover'?'Uploading…':'Change'}</>,busy||!!uploading)}
   </div>
 
   <div className="pp-avatar-row">
    <button type="button" className="pp-round pp-round-share" onClick={onShare}><Share2 size={22} aria-hidden="true"/><span>Share</span></button>
-   <ProfilePhoto url={p.avatarUrl} name={p.name} frame={theme?.frame}>
+   <ProfilePhoto url={p.avatarUrl} name={p.name} frame={look.frame}>
     {own&&fileButton(p.avatarUrl?'Replace profile photo':'Upload a profile photo',onPhoto,'pp-photo-camera',<Camera size={18} aria-hidden="true"/>,busy||!!uploading)}
    </ProfilePhoto>
-   <button type="button" className="pp-round pp-round-theme" onClick={onTheme}><Palette size={22} aria-hidden="true"/><span>Theme</span></button>
+   {own?<button type="button" className="pp-round pp-round-theme" onClick={onTheme}><Palette size={22} aria-hidden="true"/><span>Theme</span></button>:<span className="pp-round pp-round-spacer" aria-hidden="true"/>}
   </div>
   {p.staff?.founder&&<p className="pp-staff"><AdminBadge founder showLabel size={18}/></p>}
   {uploading==='photo'&&<p className="pp-uploading" role="status">Uploading your photo…</p>}

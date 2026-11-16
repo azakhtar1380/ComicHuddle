@@ -18,6 +18,6 @@ export async function publicProfileSummary(rawHandle:string):Promise<PublicProfi
   const [row]=await db.select().from(collections).where(eq(collections.userId,p.userId));
   const vault=row?vaultSchema.parse(JSON.parse(row.data)):emptyVault('Collector');
   const [biz,extras,avatarUrl]=await Promise.all([businessSummary(p.id),profileExtras(db as never,p,vault,false).catch(()=>null),avatarUrlForProfile(p.id)]);
-  return {id:p.id,handle:p.handle,name:p.name,since:p.since,comics:vault.books.length,keys:extras?.keys||0,verified:biz.verified?(biz.isBusiness?'business':'person'):null,rating:extras?.rating||null,avatarUrl,tagline:p.tagline,world:'classic'};
+  return {id:p.id,handle:p.handle,name:p.name,since:p.since,comics:vault.books.length,keys:extras?.keys||0,verified:biz.verified?(biz.isBusiness?'business':'person'):null,rating:extras?.rating||null,avatarUrl,tagline:p.tagline,world:extras?.look.world||'classic'};
  }catch{return null}
 }

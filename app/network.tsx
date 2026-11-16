@@ -25,6 +25,8 @@ import type {Vault} from '../lib/vault';
 import BusinessFields from '../components/profile/business-fields';
 import ProfilePage from '../components/profile/profile-page';
 import ProfileShare from '../components/profile/profile-share';
+import ThemeScreen from '../components/profile/theme-screen';
+import {DEFAULT_LOOK} from '../lib/profile-worlds';
 import PublicCollectionTab from '../components/collection/public-collection';
 import type {CollectionRun} from '../lib/collection-runs';
 import ProfileDetailsFields,{draftFromExtras,saveDetails,type DetailsDraft} from '../components/profile/profile-details-fields';
@@ -148,7 +150,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
  },[tab,signedIn,net.ready,busy,me?.id]);
  const currentProfile=profile||me,own=!!currentProfile&&currentProfile.id===me?.id,viewingOther=!!profile&&profile.id!==me?.id;
  const profileHeader=profileLoading||currentProfile?null:<PageHeader id="nw-profile-title" eyebrow="My profile" title="Your shelf." accent="Your story." lede='Pick a name. Show off six favorite books. It’s free.' pose="profile" caption="YOUR SHELF" line="Pick six favorites to show off." actions={<><button type="button" className="ds-btn ds-btn-primary" onClick={()=>{selectProfile(null);setProfileOpen(true)}}>Create my profile <ArrowRight size={18} aria-hidden="true"/></button><button type="button" className="ds-btn ds-btn-secondary" onClick={openCollection}><Layers size={18} aria-hidden="true"/> My collection</button></>}/>;
- const [uploading,setUploading]=useState<''|'photo'|'cover'>('');
+ const [uploading,setUploading]=useState<''|'photo'|'cover'>(''),[themeOpen,setThemeOpen]=useState(false);
  async function upload(kind:'photo'|'cover',file:File){
   if(uploading)return;if(!/^image\/(jpeg|png|webp)$/.test(file.type)){notice('Pick a JPEG, PNG or WebP photo.');return}if(file.size>4194304){notice('That photo is over 4 MB. Try a smaller one.');return}
   setUploading(kind);try{const r=await fetch(kind==='photo'?'/api/avatar':'/api/profile-cover',{method:'POST',credentials:'same-origin',headers:{'Content-Type':file.type},body:file});const d=await r.json().catch(()=>({})) as {error?:string};if(!r.ok)throw Error(d.error||'That photo didn’t upload.');await refreshOwn();notice(kind==='photo'?'Profile photo saved.':'Cover photo saved.')}
@@ -171,7 +173,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
    {currentProfile?<ProfilePage p={currentProfile as ProfileView} own={own} busy={busy} wants={wantRecords} uploading={uploading}
      onBack={()=>{if(viewingOther)go('My Profile');else if(window.history.length>1)window.history.back();else go('Home')}}
      onEdit={()=>setProfileOpen(true)} onBook={openBook} onIssue={openIssue} onReport={()=>{if(gate())setReport({type:'profile',id:currentProfile.id})}}
-     onMessage={context=>void startMessage(currentProfile.id,context||'')} onShare={()=>setShare(currentProfile)} onTheme={()=>notice('Profile themes are coming next.')} onCollection={openCollection}
+     onMessage={context=>void startMessage(currentProfile.id,context||'')} onShare={()=>setShare(currentProfile)} onTheme={()=>setThemeOpen(true)} onCollection={openCollection}
      onPhoto={file=>void upload('photo',file)} onCover={file=>void upload('cover',file)} onCopyLink={()=>void copyProfileLink(currentProfile)} art={b=><ComicArt book={b}/>}
      collectionTab={<PublicCollectionTab key={currentProfile.handle} handle={currentProfile.handle} own={own} dmOpen={currentProfile.dmOpen} signedIn={signedIn} onIssue={openIssue} onMessage={context=>void startMessage(currentProfile.id,context)} onAddToWishlist={run=>void addRunToWishlist(run)} favorites={currentProfile.showcase.length?<><h3>Favorites</h3><BookGrid books={currentProfile.showcase.slice(0,6)} onBook={openBook} label="Favorites"/></>:null}/>}
      reviewsTab={<section className="pp-card pp-block" aria-label="Seller feedback"><SellerFeedback profileId={currentProfile.id}/></section>}
@@ -236,6 +238,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
   {!data.people.some(p=>p.id!==me?.id&&p.dmOpen)&&<p className="nw-empty">No collectors are taking messages yet.</p>}
  </div></Modal>}
  {share&&<Modal label="Share your profile" wide onClose={()=>setShare(null)}><div className="form-dialog nw-join"><ProfileShare p={share as ProfileView} own={share.id===me?.id} notice={notice} onSettingsSaved={()=>void refreshOwn()}/></div></Modal>}
+ {themeOpen&&me&&<Modal label="Pick your world" wide onClose={()=>setThemeOpen(false)}><div className="form-dialog nw-join"><ThemeScreen name={me.name} avatarUrl={me.avatarUrl||null} initial={(me as ProfileView).extras?.look||DEFAULT_LOOK} notice={notice} onCancel={()=>setThemeOpen(false)} onSaved={()=>{setThemeOpen(false);void refreshOwn()}}/></div></Modal>}
  {report&&<Modal label="Report this" onClose={()=>setReport(null)}><div className="form-dialog nw-join">
   <p className="ds-eyebrow">Report</p><h2 className="nw-join-title">Something <span>not okay?</span></h2>
   <form className="nw-join-form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget),r=await net.act({action:'report',targetType:report.type,targetId:report.id,reason:String(f.get('reason'))});if(r){setReport(null);notice('Thanks. We’ll take a look.')}}}>

@@ -92,3 +92,13 @@
 @media (max-width:480px){.pp{border-left:0;border-right:0;box-shadow:none}.pp-round{width:60px}.pp-round svg{padding:10px}.pp-stats dd{font-size:24px}.pp-huddles{right:-34px}}
 @media (prefers-reduced-motion:no-preference){.pp-round svg{transition:transform .12s,box-shadow .12s}}
 .pp .pp-name>span{color:var(--ink)}.pp h2>span{color:inherit}
+
+/* Worlds (lib/profile-worlds.ts): ink colors for the name banner, badges and buttons; the sound-effect stamp. */
+.pp .pp-name>span{display:inline-block;padding:2px 12px;background:var(--pp-ink-a,var(--red));color:var(--pp-ink-text,#fff);box-shadow:3px 3px 0 var(--pp-ink-b,var(--yellow));border:3px solid var(--ink)}
+.pp .pp-round-share svg{background:var(--pp-ink-a,var(--red));color:var(--pp-ink-text,#fff)}
+.pp .pp-round-theme svg{background:var(--pp-ink-b,var(--yellow))}
+.pp .pp-tags li{background:var(--pp-ink-b,var(--yellow))}
+.pp .pp-tabs button[aria-selected="true"]{box-shadow:3px 3px 0 var(--pp-ink-a,var(--red))}
+.pp-round-spacer{visibility:hidden}
+.pp-sfx{position:absolute;left:12px;top:12px;z-index:2;padding:4px 10px;background:var(--pp-ink-b,var(--yellow));color:var(--ink);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font:900 22px/1 'Barlow Condensed',Impact,sans-serif;transform:rotate(-6deg)}
+.pp-ink-modern .pp-name>span{color:#7fe0d6}.pp-ink-noir .pp-name>span{color:#f9f6ef}
