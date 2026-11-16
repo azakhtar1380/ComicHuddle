@@ -20,7 +20,7 @@ import {marketplaceDirectory,publicListingFields,publicSellerFields,publicItemFi
 import {bidHistory,markAuctionUnpaid,resolveEndedAuctions,auctionTerms} from '../lib/marketplace-auction';
 import {applyProxyBid,bidIncrement,maskHandle,minimumBid,resolveAuction,type ProxyState} from '../lib/auction-engine';
 import {ownerAccountId} from '../lib/owner';
-import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
+import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceBuyLabel,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
 import {addBusinessDays,createCommerceState,evaluateCommercePolicy,applyCommerceEvent} from '../lib/commerce-policy';
 import {pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,sameDigest} from '../lib/commerce-protection';
 import {carrierStatusLabel,carrierUpdate,createCarrierTracker,easyPostSignature,retrieveCarrierTracker,verifyEasyPostWebhook} from '../lib/commerce-carrier';
@@ -460,4 +460,25 @@ test('own checkout reservation: the paying buyer still sees the listing and can 
  assert.equal(resumed.order.id,started.order.id,'A new checkout request resumes the same reservation');
  await rejects(commerceCheckout(db,buyer,'buyer@example.test',{action:'checkout',listingId:listing.id,requestId:crypto.randomUUID(),sandboxAcknowledged:true,shippingAddress:{...address,line1:'2 Other St'}},testEnv),409,/already have a checkout/);
  await rejects(checkout(other,listing.id),409,/reserved|no longer available/);
+});
+test('in-app shipping label: bought once through EasyPost, cost comes out of the seller payout, tracking added',async()=>{
+ const db=getDb(),seller=await collector('labelseller'),buyer=await collector('labelbuyer');await onboard(seller);
+ const listing=await offer(seller,{price:5000,shipping:500}),orderId=await paid(buyer,listing.id);
+ const before=JSON.parse((await orderRow(orderId)).state).order.sellerTransferCents as number;
+ const calls:string[]=[];
+ const fetcher=async(url:string)=>{calls.push(url);
+  if(url.endsWith('/v2/shipments'))return Response.json({id:'shp_1',rates:[{id:'rate_media',carrier:'USPS',service:'MediaMail',rate:'3.00'},{id:'rate_ga',carrier:'USPS',service:'GroundAdvantage',rate:'6.40'},{id:'rate_pri',carrier:'USPS',service:'Priority',rate:'11.00'}]},{status:201});
+  if(url.endsWith('/v2/shipments/shp_1/buy'))return Response.json({id:'shp_1',tracking_code:'9400111899223197428490',postage_label:{label_url:'https://easypost-files.example/label.png'},selected_rate:{carrier:'USPS',service:'GroundAdvantage',rate:'6.40'},tracker:{id:'trk_label'}});
+  if(url.endsWith('/v2/trackers'))return Response.json({id:'trk_label',tracking_code:'9400111899223197428490',status:'pre_transit'},{status:201});
+  return new Response('{}',{status:404})};
+ const env={...testEnv,EASYPOST_API_KEY:'EZTK_test_key_000000'},from={name:'QA Seller',line1:'2 Seller Ave',city:'Saint Paul',state:'MN',postalCode:'55101'};
+ await rejects(commerceBuyLabel(db,buyer.userId,{action:'buy_label',orderId,from},env,fetcher as never),403);
+ const result=await commerceBuyLabel(db,seller.userId,{action:'buy_label',orderId,from},env,fetcher as never) as {order:Obj};
+ assert.equal(result.order.labelCostCents,640,'Media Mail is never bought; cheapest allowed service');
+ assert.equal(result.order.sellerNetCents,before-640,'label cost comes out of the seller payout');
+ const state=JSON.parse((await orderRow(orderId)).state);
+ assert.equal(state.order.sellerTransferCents,before-640,'the frozen transfer amount is what gets released');
+ assert.equal(state.shipment.trackingNumber,'9400111899223197428490','tracking added automatically');
+ assert.equal((await commerceBuyLabel(db,seller.userId,{action:'buy_label',orderId,from},env,fetcher as never) as {duplicate?:boolean}).duplicate,true,'a second click never buys a second label');
+ assert.equal(calls.filter(url=>url.endsWith('/buy')).length,1);
 });
