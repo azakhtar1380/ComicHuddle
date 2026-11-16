@@ -515,3 +515,22 @@ test('payment setup gate: a seller without verified charges and payouts cannot p
   else await rejects(offer(seller,{price:3000}),409,/payment onboarding/);
  }finally{delete process.env.COMMERCE_LISTING_REQUIRES_PAYOUTS}
 });
+
+test('races: simultaneous Buy It Now checkouts hold the comic for exactly one buyer; simultaneous PIN entries confirm once',async()=>{
+ const db=getDb(),seller=await collector('raceseller'),a=await collector('racebuyera'),b=await collector('racebuyerb'),c=await collector('racebuyerc');await onboard(seller);
+ const listing=await offer(seller,{price:3000,shipping:400});
+ const results=await Promise.allSettled([checkout(a,listing.id),checkout(b,listing.id),checkout(c,listing.id)]);
+ // The in-process test database serializes on one connection, so colliding transactions may all abort here;
+ // on Postgres one wins. Either way the guard must never let two buyers hold the same comic.
+ assert.ok(results.filter(r=>r.status==='fulfilled').length<=1,'never more than one checkout reserves the listing');
+ const open=(await getPool().query("SELECT count(*)::int AS n FROM ch_web.commerce_orders WHERE listing_id=$1 AND status NOT IN ('cancelled','refunded','checkout_expired')",[listing.id])).rows[0].n;
+ assert.ok(open<=1,'at most one open order per listing');
+ // Pickup PIN: the right PIN sent three times at once completes the pickup once; the others are duplicates or refused.
+ const pickup=await offer(seller,{price:2500,fulfillment:'pickup'}),orderId=await paid(a,pickup.id,testEnv,{fulfillment:'pickup'});
+ const code=String((await dto(orderId,a.userId) as Obj).pickupCode);
+ const tries=await Promise.allSettled([1,2,3].map(()=>commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code})));
+ assert.ok(tries.some(r=>r.status==='fulfilled'),'the PIN is accepted');
+ const events=(await getPool().query("SELECT count(*)::int AS n FROM ch_web.commerce_events WHERE order_id=$1 AND type='pickup_confirmed'",[orderId])).rows[0].n;
+ assert.equal(events,1,'the pickup is recorded exactly once');
+ assert.equal((await listingRow(pickup.id)).status,'sold');
+});

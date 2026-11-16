@@ -63,6 +63,9 @@ export async function viewerMaxes(db:Db,listingIds:string[],viewerId:string|unde
 const bidSchema=z.object({listingId:z.string().trim().min(1).max(100),amount:z.number().int().min(100).max(100000000),requestId:z.string().uuid(),bindingConsent:z.literal(true,{errorMap:()=>({message:'Confirm that your bid is binding before bidding.'})})}).strict();
 export type BindingBidResult={saved:true;duplicate:boolean;listingId:string;outcome:'leading'|'outbid'|'raised_max';currentBid:number|null;note:string};
 /** Places a binding maximum bid. Serializable batch + auction_version CAS; conflicts re-read and retry. */
+export const ANTI_SNIPE_MS=2*60000;
+/** New end time when a bid lands in the final 2 minutes (end + 2 minutes), otherwise null. */
+export function antiSnipeEnd(endAt:string,bidAt:string){const end=Date.parse(endAt),at=Date.parse(bidAt);return Number.isFinite(end)&&Number.isFinite(at)&&end>at&&end-at<=ANTI_SNIPE_MS?new Date(end+ANTI_SNIPE_MS).toISOString():null}
 export async function placeBindingBid(db:Db,me:Profile,raw:Record<string,unknown>,terms:AuctionTerms):Promise<BindingBidResult>{
  const value=bidSchema.parse(raw);
  for(let attempt=0;attempt<5;attempt++){
@@ -78,6 +81,8 @@ export async function placeBindingBid(db:Db,me:Profile,raw:Record<string,unknown
   const state=await proxyState(db,row,terms),bidId=crypto.randomUUID(),applied=applyProxyBid(state,{bidderId:me.id,maxCents:value.amount,bidId});
   if(!applied.accepted)throw new ApiRequestError(applied.error==='not_above_own_max'?'You are already the highest bidder. To raise your maximum, enter more than your current maximum.':'Your maximum bid must be at least '+(minimumBid(state)/100).toLocaleString('en-US',{style:'currency',currency:'USD'})+'.',400);
   const next=applied.state,stamp=new Date().toISOString(),leaderChanged=next.leader?.bidId===bidId;
+  // Anti-sniping: a bid in the last 2 minutes pushes the end back 2 minutes, so others can answer it.
+  const extendedEnd=antiSnipeEnd(row.endAt,stamp);
   const check=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM listings l JOIN profiles seller ON seller.id = l.seller_id JOIN profiles bidder ON bidder.id = ${me.id}
    WHERE l.id = ${row.id} AND l.sale_type = 'auction' AND l.status = 'active' AND l.end_at > ${stamp} AND l.auction_version = ${row.auctionVersion}
     AND l.seller_id != bidder.id AND bidder.user_id = ${me.userId} AND seller.visible = 1 AND seller.moderated = 0 AND bidder.visible = 1 AND bidder.moderated = 0
@@ -89,12 +94,12 @@ export async function placeBindingBid(db:Db,me:Profile,raw:Record<string,unknown
     ...(leaderChanged?[db.update(auctionBids).set({status:'outbid'}).where(and(eq(auctionBids.listingId,row.id),eq(auctionBids.status,'leading')))]:[]),
     db.insert(auctionBids).values({id:bidId,listingId:row.id,bidderId:me.id,requestId:value.requestId,amount:applied.displayCents,status:leaderChanged?'leading':'outbid',sequence:row.auctionVersion+1,createdAt:stamp,rulesVersion:previewRulesVersion}),
     db.execute(sql`INSERT INTO ch_web.auction_bid_maxes(bid_id,listing_id,bidder_id,max_cents,created_at) VALUES(${bidId},${row.id},${me.id},${value.amount},${stamp})`),
-    db.update(listings).set({currentBid:next.currentCents,leaderId:next.leader?.bidderId??null,leadingBidId:next.leader?.bidId??null,bidCount:sql`${listings.bidCount} + 1`,auctionVersion:sql`${listings.auctionVersion} + 1`}).where(eq(listings.id,row.id)),
+    db.update(listings).set({currentBid:next.currentCents,leaderId:next.leader?.bidderId??null,leadingBidId:next.leader?.bidId??null,bidCount:sql`${listings.bidCount} + 1`,auctionVersion:sql`${listings.auctionVersion} + 1`,...(extendedEnd?{endAt:extendedEnd}:{})}).where(eq(listings.id,row.id)),
     check.finish
    ] as never);
   }catch(error){if(operationGuardFailed(error))continue;throw error}
   const note=applied.outcome==='outbid'?'Another bidder’s maximum is higher. Your bid raised the price but you are not leading.':applied.outcome==='raised_max'?'Your maximum bid was raised. The price only increases when someone bids against you.':'You are the highest bidder. We bid for you, up to your maximum, only as needed.';
-  return {saved:true,duplicate:false,listingId:row.id,outcome:applied.outcome,currentBid:next.currentCents,note};
+  return {saved:true,duplicate:false,listingId:row.id,outcome:applied.outcome,currentBid:next.currentCents,note:extendedEnd?note+' The auction was extended by 2 minutes.':note,...(extendedEnd?{endAt:extendedEnd}:{})};
  }
  throw new ApiRequestError('The auction is busy. Refresh and review the new price before bidding again.',409);
 }

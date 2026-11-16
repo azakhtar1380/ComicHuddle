@@ -15,7 +15,8 @@ import {eq,sql} from 'drizzle-orm';
 import {getDb} from '../db';
 import {profiles,collections,media,listings,listingInventory,commerceOrders,auctionBids,offers} from '../db/schema';
 import {commerceDeliveryInfo,commerceOfferCheckout,commercePickupCodeOpen,commercePickupExpirySweep} from '../lib/commerce';
-import {listOffersAndTrades,offerExpired,respondToOffer} from '../lib/offers';
+import {expireOffers,listOffersAndTrades,offerExpired,respondToOffer} from '../lib/offers';
+import {antiSnipeEnd} from '../lib/marketplace-auction';
 import {seedStarterStatements} from '../lib/catalog-store';
 import {emptyVault} from '../lib/vault';
 import {previewRulesVersion} from '../lib/community';
@@ -179,6 +180,19 @@ test('offers: 48-hour expiry is enforced on replies and on the payment window',a
  await respondToOffer(getDb(),seller,{action:'respond',offerId:fresh,decision:'accept',expectedStatus:'pending',expectedAmount:8000});
  await getPool().query("UPDATE ch_web.offer_terms SET expires_at=now()-interval '1 minute' WHERE offer_id=$1",[fresh]);
  await rejects(offerCheckout(buyer,fresh),409,/payment window/);
+ // The cron job saves EXPIRED on both: the unanswered offer and the accepted-but-unpaid one. Running it twice changes nothing.
+ const first=await expireOffers();assert.ok(first.expired>=2);
+ const status=async(id:string)=>(await getDb().select().from(offers).where(eq(offers.id,id)))[0].status;
+ assert.equal(await status(offerId),'expired');assert.equal(await status(fresh),'expired');
+ assert.equal((await expireOffers()).expired,0,'safe to run twice');
+ const open=await makeOffer(buyer,listing.id,8500);await expireOffers();assert.equal(await status(open),'pending','a fresh offer is untouched');
+});
+
+test('anti-sniping: a bid in the last 2 minutes extends the end by 2 minutes; earlier bids do not',()=>{
+ const end='2026-11-20T18:00:00.000Z';
+ assert.equal(antiSnipeEnd(end,'2026-11-20T17:58:30.000Z'),'2026-11-20T18:02:00.000Z');
+ assert.equal(antiSnipeEnd(end,'2026-11-20T17:57:59.000Z'),null);
+ assert.equal(antiSnipeEnd(end,'2026-11-20T18:00:01.000Z'),null,'after the end, no extension (the bid is refused)');
 });
 
 test('SafePurchase delivery details point the seller at ComicHuddle, with a marked placeholder when the address is unset',async()=>{

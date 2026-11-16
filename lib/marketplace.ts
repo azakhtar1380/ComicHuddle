@@ -15,7 +15,7 @@ import {blocked} from './conversations';
 import {listingDirectoryId} from './shared-catalog';
 import {linkedCatalogIssue} from './catalog-search';
 import {conditionalGuard as guard,operationGuardFailed as marketplaceGuardFailed} from './operation-guard';
-import {auctionTablesExist,auctionTerms,auctionTermsInsert,bindingAuctionView,placeBindingBid,resolveEndedAuctions,viewerMaxes,type AuctionTerms} from './marketplace-auction';
+import {antiSnipeEnd,auctionTablesExist,auctionTerms,auctionTermsInsert,bindingAuctionView,placeBindingBid,resolveEndedAuctions,viewerMaxes,type AuctionTerms} from './marketplace-auction';
 import {auctionDurationDays,bidIncrement as auctionIncrement} from './auction-engine';
 export {marketplaceGuardFailed};
 
@@ -240,7 +240,7 @@ export async function placeBid(db:Db,me:Profile,raw:Record<string,unknown>){
  if(row.status!=='active'||!Number.isFinite(Date.parse(row.endAt))||Date.parse(row.endAt)<=Date.now())throw new ApiRequestError('This auction preview has ended.',409);
  const minimum=row.currentBid===null?row.price:row.currentBid+row.bidIncrement;
  if(value.amount<minimum)throw new ApiRequestError('Your proposal must meet the current minimum bid. Refresh the auction preview.',400);
- const stamp=new Date().toISOString(),bidId=crypto.randomUUID();
+ const stamp=new Date().toISOString(),bidId=crypto.randomUUID(),extendedEnd=antiSnipeEnd(row.endAt,stamp);
  const checked=guard(db,sql`EXISTS (SELECT 1 FROM listings l JOIN profiles seller ON seller.id = l.seller_id
   JOIN profiles bidder ON bidder.id = ${me.id} WHERE l.id = ${row.id} AND l.sale_type = 'auction'
    AND l.status = 'active' AND parse_iso_timestamp(l.end_at) IS NOT NULL AND l.end_at > ${stamp}
@@ -253,7 +253,7 @@ export async function placeBid(db:Db,me:Profile,raw:Record<string,unknown>){
   checked.start,
   db.update(auctionBids).set({status:'outbid'}).where(and(eq(auctionBids.listingId,row.id),eq(auctionBids.status,'leading'))),
   db.insert(auctionBids).values({id:bidId,listingId:row.id,bidderId:me.id,requestId:value.requestId,amount:value.amount,status:'leading',sequence:row.auctionVersion+1,createdAt:stamp,rulesVersion:previewRulesVersion}),
-  db.update(listings).set({currentBid:value.amount,leaderId:me.id,leadingBidId:bidId,bidCount:sql`${listings.bidCount} + 1`,auctionVersion:sql`${listings.auctionVersion} + 1`}).where(eq(listings.id,row.id)),
+  db.update(listings).set({currentBid:value.amount,leaderId:me.id,leadingBidId:bidId,bidCount:sql`${listings.bidCount} + 1`,auctionVersion:sql`${listings.auctionVersion} + 1`,...(extendedEnd?{endAt:extendedEnd}:{})}).where(eq(listings.id,row.id)),
   checked.finish
  ])}
  catch(error){const [repeat]=await db.select().from(auctionBids).where(and(eq(auctionBids.bidderId,me.id),eq(auctionBids.requestId,value.requestId)));if(repeat){if(repeat.listingId!==value.listingId||repeat.amount!==value.amount)throw new ApiRequestError('This bid request was already used for a different proposal.',409);const [fresh]=await db.select().from(listings).where(eq(listings.id,row.id));return resultFor(db,fresh,me,true)}if(marketplaceGuardFailed(error))throw new ApiRequestError('The auction changed while bidding. Refresh and review the new minimum.',409);throw error}

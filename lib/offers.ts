@@ -253,3 +253,16 @@ export async function notifyOrderEvent(orderId:string,event:'paid'|'tracking'|'p
   }
  }catch{}
 }
+
+/** Cron: saves EXPIRED on offers whose 48-hour window has passed — pending/countered offers nobody answered,
+ * and accepted offers that were never paid (no open order). Safe to run twice: only open offers change. */
+export async function expireOffers(nowIso=new Date().toISOString()){
+ const pool=getPool();
+ const withTerms=await offerTermsReady().catch(()=>false);
+ const r=await pool.query<{id:string;buyer_id:string}>(`UPDATE ch_web.offers o SET status='expired'
+  WHERE (o.status IN ('pending','countered') AND ${withTerms?`COALESCE((SELECT t.expires_at FROM ch_web.offer_terms t WHERE t.offer_id=o.id AND t.accepted_at IS NULL),o.created_at::timestamptz+interval '${OFFER_TTL_HOURS} hours')`:`o.created_at::timestamptz+interval '${OFFER_TTL_HOURS} hours'`}<=$1::timestamptz)
+     ${withTerms?`OR (o.status='accepted' AND EXISTS(SELECT 1 FROM ch_web.offer_terms t WHERE t.offer_id=o.id AND t.accepted_at IS NOT NULL AND t.expires_at<=$1::timestamptz)
+     AND NOT EXISTS(SELECT 1 FROM ch_web.commerce_orders c WHERE c.listing_id=o.listing_id AND c.status NOT IN ('cancelled','refunded','checkout_expired') AND c.state::jsonb->'order'->>'buyerId'=o.buyer_id))`:''}
+  RETURNING o.id,o.buyer_id`,[nowIso]);
+ return {expired:r.rows.length};
+}
