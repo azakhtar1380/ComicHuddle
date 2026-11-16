@@ -1,4 +1,4 @@
-// Commerce background job (Vercel Cron, Authorization: Bearer $CRON_SECRET). Every step is safe to run twice:
+// Commerce background job (Vercel Cron, daily on the Hobby plan; hourly needs Pro. Authorization: Bearer $CRON_SECRET). Every step is safe to run twice:
 // each one only acts on rows still in the state it changes, and money steps use per-order idempotency keys.
 //  1. close ended auctions          2. save EXPIRED on overdue offers
 //  3. poll carriers (Pending → Sold on delivery happens in the database trigger, migration 043)

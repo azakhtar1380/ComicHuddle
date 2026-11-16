@@ -38,7 +38,7 @@
     },
     {
       "path": "/api/cron/commerce",
-      "schedule": "0 * * * *"
+      "schedule": "15 6 * * *"
     }
   ]
 }
