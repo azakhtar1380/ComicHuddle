@@ -162,6 +162,22 @@ export const CHARACTER_MERGES:readonly CharacterMerge[]=[
 /** Wikidata items whose first-appearance issue must never be attached to the merged Metron character. */
 export const MERGE_FACT_EXCLUDED_QIDS:readonly string[]=CHARACTER_MERGES.filter(m=>m.keepFact===false).map(m=>m.qid);
 
+/** Wikidata items that are not comic characters at all; hidden from search, browsing and their own page. */
+export const HIDDEN_CHARACTERS:readonly {qid:string;name:string;reason:string}[]=[
+ {qid:'Q129628',name:'Yeti',reason:'the folklore creature, not a comic character'},
+];
+export const HIDDEN_CHARACTER_QIDS:readonly string[]=HIDDEN_CHARACTERS.map(h=>h.qid);
+export const isHiddenCharacter=(characterId:number)=>HIDDEN_CHARACTER_QIDS.some(qid=>wikidataCharacterId(qid)===characterId);
+/** Takes hidden items out of search and browsing and hides their facts (run after the suppression rules). */
+export async function hideNonComicCharacters(db:CatalogDb,qids:readonly string[]=HIDDEN_CHARACTER_QIDS){
+ const ids=qids.map(wikidataCharacterId).filter((id):id is number=>id!==null);
+ if(!ids.length)return 0;
+ const list=sql.join(ids.map(id=>sql`${id}`),sql`, `);
+ await db.execute(sql`UPDATE ch_web.character_first_appearances SET suppressed=true WHERE character_id IN (${list}) AND NOT suppressed`);
+ const r=await db.execute(sql`UPDATE ch_web.characters SET search_text='',sitelinks=0,updated_at=now() WHERE character_id IN (${list}) AND (search_text<>'' OR COALESCE(sitelinks,0)<>0)`);
+ return Number((r as {rowCount?:number}).rowCount||0);
+}
+
 type Rows<T>={rows:T[]};
 export async function applyCharacterMerges(db:CatalogDb,merges:readonly CharacterMerge[]=CHARACTER_MERGES){
  const report={merged:0,already:0,skipped:[] as string[]};

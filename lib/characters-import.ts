@@ -3,7 +3,7 @@
 // then derives character_issues, merges Wikidata-only characters into their Metron twins and
 // recomputes which first-appearance facts are shown. Idempotent; safe to re-run.
 import {applyFirstAppearanceReference} from './characters-reference';
-import {applyCharacterMerges,MERGE_FACT_EXCLUDED_QIDS} from './character-merges';
+import {applyCharacterMerges,hideNonComicCharacters,HIDDEN_CHARACTER_QIDS,MERGE_FACT_EXCLUDED_QIDS} from './character-merges';
 import {createReadStream,existsSync} from 'node:fs';
 import {createInterface} from 'node:readline';
 import {sql} from 'drizzle-orm';
@@ -126,7 +126,7 @@ export async function matchWikidataFacts(db:CatalogDb,facts:WikidataFact[],metro
 }
 export async function storeWikidataFacts(db:CatalogDb,facts:WikidataFact[],matches:Map<string,FactMatch>,info:Map<string,WikidataInfo>){
  const rows=facts.flatMap(f=>{
-  const id=wikidataCharacterId(f.qid);if(!id)return [];const m=matches.get(f.qid),i=info.get(f.qid);
+  const id=wikidataCharacterId(f.qid);if(!id||HIDDEN_CHARACTER_QIDS.includes(f.qid))return [];const m=matches.get(f.qid),i=info.get(f.qid);
   return [{id,qid:f.qid,name:f.name.slice(0,200),aliases:(i?.aliases||[]).slice(0,30),search:characterSearchText(f.name,i?.aliases||[]),description:i?.description??null,sitelinks:i?.sitelinks??null,
    ref:f.issueQid,issue_id:m?.issueId??null,metron_issue_id:m?.metronId??null,series:f.series[0]?.slice(0,300)??null,number:f.number?.slice(0,40)??null,year:f.years[0]??null,method:m?.method??'unmatched'}];
  });
@@ -248,6 +248,7 @@ export async function finalizeCharacters(db:CatalogDb,log:Log=()=>undefined){
   (SELECT count(*) FROM ch_web.metron_issue_details) AS issue_details`)).rows[0];
  // Hand-checked first appearances win over Metron/Wikidata (lib/first-appearance-reference.ts).
  {const reference=await applyFirstAppearanceReference(db);log(`reference first appearances: ${reference.characters} characters checked, ${reference.applied} rows applied${reference.noIssue.length?'; no issue found for: '+reference.noIssue.join(', '):''}${reference.noCharacter.length?'; no character found for: '+reference.noCharacter.join(', '):''}`)}
+ await hideNonComicCharacters(db);
  log(`finalized: ${Number(merged.rowCount||0)} Wikidata characters merged, ${Number(issues.rowCount||0)} new character/issue links; totals ${JSON.stringify(counts)}`);
  return counts;
 }

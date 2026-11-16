@@ -42,6 +42,8 @@ Deliberately **not** merged, because a matching name isn't the same character:
 - Legacy names: Robin.
 - Wrong name matches: "Anthony Scarola" and Donald Trump, D&D gods and Narnia's Aslan.
 
-Left for the owner to decide: see the list in the November 16 conversation. To merge one, add its line to `lib/character-merges.ts`.
+The owner decided to leave the remaining uncertain look-alikes (Splinter, Tigress, Changeling/Morph, Strongman and similar) as separate pages. To merge one later, add its line to `lib/character-merges.ts`.
+
+Hidden: Wikidata items that are not comic characters (the folklore Yeti), listed in `HIDDEN_CHARACTERS` in the same file. They are kept out of search and browsing, and their page shows "not found".
 
 Run the audit again any time: `scripts/audit-first-appearances.ts`. To correct a famous character, add or fix their line in `lib/first-appearance-reference.ts`, then run `scripts/apply-first-appearance-reference.ts`. The next character import also applies it.

@@ -13,7 +13,7 @@ import {seedStarterStatements,searchSharedCatalog} from '../lib/catalog-store';
 import {buildProfile,characterPage,characterQuery,characterSearchParams,characterSearchText,firstAppearanceFromDesc,issueProfile,normalizeCharacterText,parseCharacterDetail,parseIssueDetail,parseIssueListPage,profileIssueId,sameIssueRef,searchCharacters,wikidataCharacterId,type FactRow} from '../lib/characters';
 import {groupFacts,matchFactByName,matchFactViaMetron,parseSparqlJson,splitIssueLabel,type WikidataFact} from '../lib/characters-wikidata';
 import {finalizeCharacters,importCharacterDetails,importCharacterList,importIssueLists,linkMetronIssues,matchWikidataFacts,metronFirstAppearance,metronNameIndex,storeWikidataFacts,type HarvestedIssue} from '../lib/characters-import';
-import {applyCharacterMerges,CHARACTER_MERGES} from '../lib/character-merges';
+import {applyCharacterMerges,CHARACTER_MERGES,hideNonComicCharacters} from '../lib/character-merges';
 import {allowedMetronPath,metronBudgetLimits,reserveMetronCalls} from '../lib/metron-api-budget';
 
 test('character text normalization and search text',()=>{
@@ -216,6 +216,12 @@ test('hand-checked character merges: one page per character, guarded, wrong fact
  assert.deepEqual((await searchCharacters(db,'kierrok',8)).map(r=>r.characterId),[70],'search shows one result');
  const again=await applyCharacterMerges(db,list);
  assert.deepEqual([again.merged,again.already],[0,2],'safe to rerun');
+ // A Wikidata item that is not a comic character (the folklore Yeti) is hidden everywhere.
+ await engine.exec(`INSERT INTO ch_web.characters(character_id,wikidata_qid,name,search_text,sitelinks) VALUES(-129628,'Q129628','Yeti','|yeti|',83)`);
+ assert.equal(await hideNonComicCharacters(db),1);
+ assert.deepEqual(await searchCharacters(db,'yeti',8),[],'not in search');
+ assert.equal(await characterPage(db,-129628),null,'its page is gone');
+ assert.equal(await hideNonComicCharacters(db),0,'safe to rerun');
 });
 
 test('shared Metron budget: caller ceiling, shared ceiling and minute window',async()=>{

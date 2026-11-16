@@ -9,6 +9,7 @@ import {coverLookupId} from './curated-cover-ids';
 import {metronDisplayBase,normalizeIssueNumber,normalizeSeriesName} from './metron-cover-index';
 import {metronApiGet} from './metron-api-budget';
 import {GCD_DIRECTORY_OFFSET} from './shared-catalog';
+import {isHiddenCharacter} from './character-merges';
 
 export const CHARACTER_ATTRIBUTION='Character data: Metron (metron.cloud) · Wikidata (CC0)';
 export const PORTRAIT_KEY=/^metron-characters\/([1-9][0-9]{0,9})\/portrait\.webp$/;
@@ -305,7 +306,7 @@ export function characterSearchParams(params:URLSearchParams):{q:string;limit:nu
 export type CharacterPage={characterId:number;name:string;aliases:string[];description:string|null;portraitUrl:string|null;issueCount:number|null;knownIssues:number;
  firstAppearance:{issueId:number;title:string;number:string;year:number|null;publisher:string|null}|null;source:string};
 export async function characterPage(db:CatalogDb,characterId:number):Promise<CharacterPage|null>{
- if(!Number.isSafeInteger(characterId)||characterId===0||!await characterTablesPresent(db).catch(()=>false))return null;
+ if(!Number.isSafeInteger(characterId)||characterId===0||isHiddenCharacter(characterId)||!await characterTablesPresent(db).catch(()=>false))return null;
  const found=await db.execute(sql`SELECT COALESCE(merged_into,character_id) AS id FROM ch_web.characters WHERE character_id=${characterId}`);
  if(!found.rows[0])return null;
  const id=Number(found.rows[0].id);
