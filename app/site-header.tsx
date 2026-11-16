@@ -3,7 +3,7 @@
 // then a row of pill links. Phones put search on its own full-width row and scroll the pills sideways.
 import Link from 'next/link';
 import {useEffect,useState,type ComponentType} from 'react';
-import {BookOpen,ChevronDown,Home,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,UserRound,Users,Wrench} from 'lucide-react';
+import {BookOpen,ChevronDown,Home,Info,MessageCircle,ScanLine,ShieldCheck,ShoppingBag,UserRound,Users,Wrench} from 'lucide-react';
 import MobileDock from './mobile-dock';
 import HeaderSearch from './header-search';
 import UserAvatar from '../components/user-avatar';
@@ -23,9 +23,10 @@ const entries:{id:string;label:string;Icon:NavIcon}[]=[
  {id:'Pressing',label:'Comic Workshop',Icon:Wrench},
  {id:'SafePurchase',label:'SafePurchase',Icon:ShieldCheck},
  {id:'About',label:'Meet Huddles',Icon:HuddlesHeadIcon},
+ {id:'AboutUs',label:'About us',Icon:Info},
 ];
 function HuddlesHeadIcon(){return <img className="chx-huddles-head" src="/mascot/huddles-head.webp" alt="" width={20} height={20}/>}
-const pageLinks:Record<string,string>={Home:'/',Wallet:'/wallet',Characters:'/characters',SafePurchase:'/safepurchase',About:'/about-huddles',Scan:'/?section=Scan'};
+const pageLinks:Record<string,string>={Home:'/',Wallet:'/wallet',Characters:'/characters',SafePurchase:'/safepurchase',About:'/about-huddles',AboutUs:'/about',Contact:'/contact',Scan:'/?section=Scan'};
 /** URL for a section, for pages outside the main app (and for real links). */
 export function destination(section:string,tab?:string){
  if(pageLinks[section])return pageLinks[section];

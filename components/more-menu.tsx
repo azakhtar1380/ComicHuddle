@@ -3,7 +3,7 @@
 // top changes. Personal tools live in the account panel (components/account-panel.tsx), not here.
 // On phones, links that are already in the bottom bar are hidden.
 import type {ComponentType, ReactNode} from 'react';
-import {BookOpen, ChevronRight, FileText, Layers, LifeBuoy, MessageCircle, Package, ScanLine, ShieldCheck, ShoppingBag, Store, Users, Wallet, Wrench} from 'lucide-react';
+import {BookOpen, ChevronRight, FileText, Info, Layers, LifeBuoy, MessageCircle, Package, ScanLine, ShieldCheck, ShoppingBag, Store, Users, Wallet, Wrench} from 'lucide-react';
 import Image from 'next/image';
 import UserAvatar from './user-avatar';
 import {operator} from '../lib/operator';
@@ -85,7 +85,8 @@ export default function MoreMenu({signedIn, name, handle, avatarUrl, unread = 0,
         {row('SafePurchase', 'SafePurchase', ShieldCheck)}
         {row('About', 'Meet Huddles', Users, {lead: <Image src="/mascot/huddles-head.webp" width={28} height={28} alt="" unoptimized />})}
         {row('Rules', 'Collector rules', FileText)}
-        <a className="mm-row" href={'mailto:' + operator.supportEmail}><span className="mm-icon"><LifeBuoy size={20} aria-hidden /></span><span className="mm-text"><strong>Contact support</strong></span><ChevronRight size={16} aria-hidden className="mm-chev" /></a>
+        <a className="mm-row" href="/about"><span className="mm-icon"><Info size={20} aria-hidden /></span><span className="mm-text"><strong>About us</strong><small>What ComicHuddle is</small></span><ChevronRight size={16} aria-hidden className="mm-chev" /></a>
+        <a className="mm-row" href="/contact"><span className="mm-icon"><LifeBuoy size={20} aria-hidden /></span><span className="mm-text"><strong>Contact us</strong><small>{operator.supportEmail}</small></span><ChevronRight size={16} aria-hidden className="mm-chev" /></a>
       </div>
     </section>
   </div>;
