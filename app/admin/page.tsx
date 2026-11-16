@@ -4,6 +4,8 @@ import VerifyBusinessPanel from '../../components/profile/verify-business-panel'
 import {adminEmails,adminLimit} from '../../lib/admin';
 import {adminAuditReady} from '../../lib/admin-audit';
 import {protectionConfig,type ProtectionEnv} from '../../lib/commerce-protection';
+import {supportPaymentsForOwner} from '../../lib/support-payments';
+import {stripeMode} from '../../lib/stripe-sandbox';
 
 export const dynamic='force-dynamic';
 export const metadata={title:'ComicHuddle',robots:{index:false,follow:false}};
@@ -12,6 +14,8 @@ export default async function AdminHome(){
   const user=await adminPageUser(),founder=isFounder(user);
   const protection=protectionConfig(process.env as ProtectionEnv),auditReady=await adminAuditReady();
   const configured=adminEmails().length,limit=adminLimit();
+  const support=await supportPaymentsForOwner(stripeMode(process.env as never)==='live'?0:1);
+  const usd=(cents:number)=>'$'+(cents/100).toFixed(2);
   return <AdminShell current="/admin" title="Admin" accent=" tools." founder={founder} lede="Only admins can see these pages. Every action is checked on the server and written to the audit log.">
     {!auditReady&&<p className="adm-warn" role="note">Database migration 040 (audit log and SafePurchase updates) isn’t applied yet. Admin actions are refused until it is.</p>}
     <div className="adm-cards">
@@ -21,6 +25,10 @@ export default async function AdminHome(){
       <a className="adm-card" href="#verified-businesses"><h2>Verified businesses</h2><p>Grant or remove the business verified tick.</p></a>
     </div>
     <section id="verified-businesses" aria-labelledby="adm-verified" style={{margin:'0 0 32px'}}><h2 id="adm-verified" className="adm-title" style={{fontSize:28}}>Verified businesses</h2><VerifyBusinessPanel/></section>
+    <section aria-labelledby="adm-support" style={{margin:'0 0 32px'}}><h2 id="adm-support" className="adm-title" style={{fontSize:28}}>Support payments</h2>
+      <p className="adm-lede">Paid to ComicHuddle directly. Separate from marketplace revenue; never wallet balance, points or store credit. Total: <b>{usd(support.totalCents)}</b></p>
+      {support.rows.length?<div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>Date</th><th>Amount</th><th>Supporter</th><th>Status</th><th>Stripe ID</th></tr></thead><tbody>{support.rows.map(row=><tr key={row.id}><td>{row.paidAt?new Date(row.paidAt).toLocaleString('en-US'):'—'}</td><td>{usd(row.amountCents)}</td><td>{row.supporterName}</td><td>{row.status}</td><td><code>{row.stripeId}</code></td></tr>)}</tbody></table></div>:<p className="adm-empty">No support payments yet.</p>}
+    </section>
     <section aria-labelledby="adm-status"><h2 id="adm-status" className="adm-title" style={{fontSize:28}}>Status</h2>
       <ul className="adm-list">
         <li>SafePurchase: {protection.safePurchaseEnabled?'on':'off'}{protection.safePurchaseEnabled?'':' (needs SAFEPURCHASE_ENABLED=true and a receiving address)'}. Threshold ${(protection.thresholdCents/100).toLocaleString('en-US')}.</li>

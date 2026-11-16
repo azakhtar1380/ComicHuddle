@@ -15,6 +15,7 @@ import type {Listing} from '../lib/community';
 import HuddlesGuide,{HuddlesArt,type HuddlesPose} from '../components/huddles-guide';
 import {ErrorState} from '../components/states';
 import ResolvedComicCover from './resolved-comic-cover';
+import SupportComicHuddle from '../components/support-comichuddle';
 import './home.css';
 
 type Props={go:(section:string,tab?:string)=>void;onScan:()=>void;onOpenComic:(id:string)=>void;signedIn:boolean;listings:Listing[];safePurchaseLive:boolean;onStartCollection:()=>void};
@@ -119,6 +120,8 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
     <ol className="home-steps"><li><b>1</b> You buy</li><li><b>2</b> We check the book</li><li><b>3</b> It ships to you</li></ol>
     <a className="ds-link" href="/safepurchase">Learn how it works <ArrowRight size={16}/></a></div>
   </section>}
+
+  <SupportComicHuddle id="support"/>
 
   <section className="ds-section home-strip home-strip-rewards" aria-labelledby="home-rewards-title">
    <HuddlesArt pose="wallet" size="md" className="home-strip-art"/>

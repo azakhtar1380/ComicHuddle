@@ -2,6 +2,7 @@ import {ensureSellerPhotos} from './seller-photos';
 import {and,desc,eq,inArray,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
 import {chooseShippingOption,parcelFor,quoteShippingRates,ShippingQuoteError} from './shipping-rates';
+import {applySupportEvent} from './support-payments';
 import {applyPayoutEvent,payoutProblem,sellerTier,syncPayoutSchedule} from './seller-payouts';
 import {buyShippingLabel,labelAddressSchema,LabelError,type PurchasedLabel} from './shipping-labels';
 import {getDb} from '../db';
@@ -862,6 +863,8 @@ export async function commerceApplyWebhook(db:Db,event:StripeVerifiedEvent,rawBo
  if(await receiptMatches(db,event.id,fingerprint))return {received:true,sandbox,duplicate:true};
  if(!(COMMERCE_WEBHOOK_EVENTS as readonly string[]).includes(event.type))return {received:true,sandbox,ignored:true};
  const processor=stripeSandbox(environment);
+ // Support ComicHuddle payments go to the platform itself; they are never marketplace orders.
+ {const support=await applySupportEvent(event,sandbox?1:0);if(support)return {...support,sandbox}}
  if(event.type==='account.updated')return await sellerAccountUpdated(db,providerId(event.data.object),processor,mode,environment);
  // Bank payouts from sellers' connected accounts (Connect events carry the account id).
  if(event.type.startsWith('payout.')){const result=await applyPayoutEvent(event,sandbox?1:0);return {...result,sandbox}}

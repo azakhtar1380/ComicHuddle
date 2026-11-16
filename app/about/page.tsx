@@ -5,6 +5,7 @@ import SiteHeader from '../site-header';
 import SiteFooter from '../site-footer';
 import HuddlesGuide from '../../components/huddles-guide';
 import {operator} from '../../lib/operator';
+import SupportComicHuddle from '../../components/support-comichuddle';
 import '../info-pages.css';
 
 export const metadata: Metadata = {
@@ -68,6 +69,8 @@ export default function AboutPage() {
           <Link href="/about-huddles" className="info-card-link">Meet Huddles <ArrowRight size={15} aria-hidden /></Link>
         </div>
       </section>
+
+      <SupportComicHuddle id="support"/>
 
       <section className="info-section info-credits" aria-labelledby="about-credits">
         <h2 id="about-credits">Where our comic data comes from</h2>

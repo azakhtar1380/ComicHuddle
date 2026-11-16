@@ -3,6 +3,7 @@
 // migration through 024, and a synthetic in-memory Stripe behind a stubbed fetch.
 // No network, Stripe account, card, refund, transfer or payout is used.
 import {getPool} from '../db/postgres';
+import {startSupportCheckout,supportPaymentsForOwner,supportReceipts,supportStatus} from '../lib/support-payments';
 import {applyPayoutEvent,payoutProblem,runManualPayouts,sellerTier,syncPayoutSchedule} from '../lib/seller-payouts';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {after,before,test} from 'node:test';
@@ -66,7 +67,7 @@ async function fakeStripe(input:string|URL|Request,init:RequestInit={}){
  else if(method==='POST'&&route==='/v1/account_links')value={object:'account_link',expires_at:Math.floor(Date.now()/1000)+300,url:'https://connect.stripe.com/setup/'+next()};
  else if(method==='POST'&&route==='/v1/checkout/sessions'){
   const sid='cs_'+(livemode?'live':'test')+'_'+next(),amount=Object.entries(fields).filter(([k])=>/^line_items\[\d+\]\[price_data\]\[unit_amount\]$/.test(k)).reduce((s,[,v])=>s+Number(v),0);
-  value={id:sid,object:'checkout.session',livemode,mode:'payment',currency:'usd',amount_total:amount,client_reference_id:fields.client_reference_id,metadata:{order_id:fields['metadata[order_id]'],orderId:fields['metadata[orderId]']},status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+sid};
+  value={id:sid,object:'checkout.session',livemode,mode:'payment',currency:'usd',amount_total:amount,client_reference_id:fields.client_reference_id,metadata:{order_id:fields['metadata[order_id]'],orderId:fields['metadata[orderId]'],...(fields['metadata[purpose]']?{purpose:fields['metadata[purpose]'],support_id:fields['metadata[support_id]']}:{})},status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+sid};
   stripe.sessions.set(sid,value);stripe.sessionFields.set(sid,fields);
  }
  else if(method==='POST'&&route==='/v1/refunds'){
@@ -113,7 +114,7 @@ let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
  const skip=new Set(['003_catalog_ingestion.sql','005_gcd_snapshot_import.sql']);
- for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_')||n.startsWith('046_')||n.startsWith('036_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_')||n.startsWith('046_')||n.startsWith('047_')||n.startsWith('036_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -444,4 +445,30 @@ test('seller trust tiers, manual bank payouts 7 days after delivery, and payout.
  assert.equal((await payoutProblem(seller.userId))?.message,'The bank account is closed.');
  await applyPayoutEvent({...failed,id:'evt_po_paid',type:'payout.paid',data:{object:{...failed.data.object,status:'paid',failure_message:null}}} as never,1);
  assert.equal(await payoutProblem(seller.userId),null,'cleared once a payout succeeds');
+});
+
+test('Support ComicHuddle: platform payment, confirmed only by the signed webhook, never wallet money',async()=>{
+ const pool=getPool(),buyer=await collector('supporter'),processor=stripeSandbox(testEnv as never);
+ const walletBefore=JSON.stringify((await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema='ch_web' AND table_name LIKE '%wallet%' OR table_name LIKE '%reward%' OR table_name LIKE '%credit%'")).rows);
+ const counts=async()=>{const out:Record<string,number>={};for(const t of ['commerce_orders','commerce_money_requests']){out[t]=(await pool.query('SELECT count(*)::int AS n FROM ch_web.'+t)).rows[0].n}return out};
+ const before=await counts();
+ await assert.rejects(startSupportCheckout(processor,{amountCents:50,userId:buyer.userId,name:'QA',sandbox:1}),/minimum/);
+ await assert.rejects(startSupportCheckout(processor,{amountCents:50001,userId:buyer.userId,name:'QA',sandbox:1}),/maximum/);
+ const started=await startSupportCheckout(processor,{amountCents:1000,userId:buyer.userId,name:'QA Supporter',sandbox:1});
+ const req=stripe.requests.filter(r=>r.method==='POST'&&r.route==='/v1/checkout/sessions').at(-1)!;void req;
+ const sid=(await pool.query('SELECT checkout_session_id FROM ch_web.support_payments WHERE id=$1',[started.id])).rows[0].checkout_session_id;
+ const fields=stripe.sessionFields.get(sid)!;
+ assert.equal(fields['payment_intent_data[transfer_group]'],undefined,'no Connect transfer group');assert.equal(fields['payment_intent_data[transfer_data][destination]'],undefined,'no seller');
+ assert.equal((await supportStatus(started.id))?.status,'pending','returning to the thank-you page alone never marks it paid');
+ const session={...stripe.sessions.get(sid)!,status:'complete',payment_status:'paid',payment_intent:'pi_support_1'};
+ // A mismatched amount is ignored.
+ await deliver('checkout.session.completed',{...session,amount_total:999});assert.equal((await supportStatus(started.id))?.status,'pending');
+ await deliver('checkout.session.completed',session);await deliver('checkout.session.completed',session);
+ assert.equal((await supportStatus(started.id))?.status,'paid');
+ assert.equal((await supportReceipts(buyer.userId)).length,1,'one receipt for the supporter');
+ assert.equal((await supportPaymentsForOwner(1)).rows.filter(r=>r.id===started.id).length,1,'listed in the owner view');
+ assert.deepEqual(await counts(),before,'no marketplace order or money request was created');
+ assert.equal(JSON.stringify((await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema='ch_web' AND table_name LIKE '%wallet%' OR table_name LIKE '%reward%' OR table_name LIKE '%credit%'")).rows),walletBefore);
+ const ledgers=(await pool.query("SELECT count(*)::int AS n FROM information_schema.columns WHERE table_schema='ch_web' AND column_name='support_payment_id'")).rows[0].n;
+ assert.equal(ledgers,0,'no wallet, points or credit table references support payments');
 });

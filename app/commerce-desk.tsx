@@ -188,6 +188,13 @@ function LabelPurchase({busy,onBuy}:{busy:boolean;onBuy:(from:Record<string,stri
   <button className='ds-btn ds-btn-primary' disabled={busy}>{busy?'Buying label…':'Buy label'}</button>
  </form>;
 }
+/** Signed-in supporter's Support ComicHuddle receipts (separate from orders; never store credit). */
+function SupportReceipts(){
+ const [rows,setRows]=useState<{id:string;amountCents:number;status:string;paidAt:string|null}[]>([]);
+ useEffect(()=>{let live=true;fetch('/api/support',{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():{receipts:[]}).then(b=>{if(live&&Array.isArray(b.receipts))setRows(b.receipts)}).catch(()=>undefined);return()=>{live=false}},[]);
+ if(!rows.length)return null;
+ return <section className="order-callout" aria-label="Support receipts"><strong>Your support for ComicHuddle</strong><ul>{rows.map(row=><li key={row.id}>{row.paidAt?new Date(row.paidAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''} · {dollars(row.amountCents)}{row.status==='refunded'?' · refunded':''}</li>)}</ul><small>Thank you! Payments to ComicHuddle (Malik LLC). Not charitable donations; not tax-deductible.</small></section>;
+}
 export default function CommerceDesk({isOwner=false}:{isOwner?:boolean}){
  const [roleFilter,setRoleFilter]=useState<'all'|'buyer'|'seller'>(()=>{if(initialRoleLink)return initialRoleLink;if(typeof window==='undefined')return 'all';const params=new URLSearchParams(window.location.search),role=params.get('section')==='Orders'?params.get('role'):null;return role==='buyer'||role==='seller'?role:'all'});
  useEffect(()=>{initialRoleLink=null},[]);

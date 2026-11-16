@@ -486,6 +486,27 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         fail('stripe_transfer_mismatch', 'Top-up transfer does not match this release.', 502);
       verifyOrderMetadata(transfer, input.orderId); return transfer;
     },
+    /** Support ComicHuddle: a one-time payment to the platform account itself (no Connect, no transfer group). */
+    async createSupportCheckout(input: {supportId: string; amountCents: number; successUrl: string; cancelUrl: string; email?: string}, key: string) {
+      assertReady(); localId(input.supportId); cents(input.amountCents, 100); idempotencyKey(key);
+      if (input.amountCents > 50_000) fail('invalid_amount', 'Support payments are $500 or less.');
+      const fields: Record<string, string> = {
+        mode: 'payment', ui_mode: 'hosted_page', client_reference_id: input.supportId,
+        success_url: returnUrl(new URL(input.successUrl, origin!).href, origin!), cancel_url: returnUrl(new URL(input.cancelUrl, origin!).href, origin!),
+        'line_items[0][price_data][currency]': 'usd', 'line_items[0][price_data][unit_amount]': String(input.amountCents),
+        'line_items[0][price_data][product_data][name]': 'Support ComicHuddle', 'line_items[0][quantity]': '1',
+        'metadata[purpose]': 'support', 'metadata[support_id]': input.supportId,
+        'payment_intent_data[metadata][purpose]': 'support', 'payment_intent_data[metadata][support_id]': input.supportId,
+        'payment_intent_data[description]': 'Support ComicHuddle (Malik LLC) · not a charitable donation',
+        'payment_intent_data[statement_descriptor_suffix]': 'SUPPORT',
+      };
+      if (input.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email) && input.email.length <= 254) fields.customer_email = input.email;
+      const session = object(await request('POST', 'checkout/sessions', fields, key), 'checkout.session');
+      stripeId(session.id, sessionPrefix);
+      if (session.currency !== 'usd' || session.amount_total !== input.amountCents || session.mode !== 'payment' || session.client_reference_id !== input.supportId)
+        fail('stripe_order_mismatch', 'Checkout does not match this support payment.', 502);
+      return session;
+    },
     /** Seller trust tier → bank payout timing on their connected account: manual (we pay out 7 days after
      *  delivery/pickup) for new sellers, daily automatic payouts for trusted ones. */
     async setPayoutSchedule(accountId: string, interval: 'manual' | 'daily', key: string) {
