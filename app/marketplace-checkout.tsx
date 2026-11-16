@@ -43,15 +43,31 @@ function paymentUrl(value:unknown){
  if(typeof value!=='string')throw Error('Your order needs review in Orders before payment can continue.');
  const url=new URL(value);if(url.protocol!=='https:'||url.hostname!=='checkout.stripe.com'||url.username||url.password||url.port)throw Error('The secure payment link could not be verified.');return url.href;
 }
-type CheckoutProps={listingId:string;onNotice:(text:string)=>void;requiresInspection?:boolean;onInspectionRequest?:()=>void;fulfillmentOptions?:('shipping'|'pickup')[];itemCents?:number;shippingCents?:number;sellerSafePurchase?:boolean};
-export default function MarketplaceCheckout({listingId,onNotice,requiresInspection=false,onInspectionRequest,fulfillmentOptions=['shipping'],itemCents=0,shippingCents=0,sellerSafePurchase=false}:CheckoutProps){
+type Rate={id:string;carrier:string;service:string;cents:number;days:number|null};
+type CheckoutProps={listingId:string;onNotice:(text:string)=>void;requiresInspection?:boolean;onInspectionRequest?:()=>void;fulfillmentOptions?:('shipping'|'pickup')[];itemCents?:number;shippingCents?:number;shippingCalculated?:boolean;sellerSafePurchase?:boolean};
+export default function MarketplaceCheckout({listingId,onNotice,requiresInspection=false,onInspectionRequest,fulfillmentOptions=['shipping'],itemCents=0,shippingCents=0,shippingCalculated=false,sellerSafePurchase=false}:CheckoutProps){
  const {data,error:setupError,loading,reload}=usePaymentConfiguration();
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[credit,setCredit]=useState('0'),[creditBalance,setCreditBalance]=useState<number|null>(null),[payment,setPayment]=useState<{clientSecret:string;publishableKey:string;orderId:string}|null>(null);
  const [reservedUntil,setReservedUntil]=useState<number|null>(null),[clock,setClock]=useState(()=>Date.now());
  useEffect(()=>{if(reservedUntil===null)return;const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer)},[reservedUntil]);
  const [fulfillment,setFulfillment]=useState<'shipping'|'pickup'>(fulfillmentOptions[0]||'shipping'),[buyerSafePurchase,setBuyerSafePurchase]=useState(false),[waive,setWaive]=useState(false);
  const preview=protectionPreview(data?.protection,itemCents,sellerSafePurchase),safePurchase=preview.enabled&&(preview.over||sellerSafePurchase||buyerSafePurchase)&&!(fulfillment==='pickup'&&waive);
- const fee=safePurchase?preview.feeCents:0,shipping=fulfillment==='pickup'?0:shippingCents;
+ // Calculated shipping: live carrier rates for the buyer's ZIP. The server re-quotes at checkout and charges that.
+ const [rates,setRates]=useState<{zip:string;options:Rate[];packageLabel:string}|null>(null),[rateId,setRateId]=useState(''),[rateState,setRateState]=useState('');
+ const quoteSeq=useRef(0);
+ async function quote(zip:string){
+  if(!shippingCalculated||!/^\d{5}$/.test(zip)||rates?.zip===zip)return;
+  const seq=++quoteSeq.current;setRateState('Getting live shipping rates…');
+  try{
+   const response=await fetch('/api/shipping/quote?'+new URLSearchParams({listingId,zip}),{credentials:'same-origin',cache:'no-store'}),body=await response.json().catch(()=>({}));
+   if(seq!==quoteSeq.current)return;
+   if(!response.ok)throw Error(typeof body.error==='string'?body.error:'Shipping rates couldn’t be loaded.');
+   const options=(Array.isArray(body.options)?body.options:[]) as Rate[];
+   setRates({zip,options,packageLabel:typeof body.package==='string'?body.package:''});setRateId(options[0]?.id||'');setRateState('');
+  }catch(problem){if(seq===quoteSeq.current){setRates(null);setRateId('');setRateState(problem instanceof Error?problem.message:'Shipping rates couldn’t be loaded.')}}
+ }
+ const chosenRate=rates?.options.find(option=>option.id===rateId)||null,needsRate=shippingCalculated&&fulfillment==='shipping'&&!chosenRate;
+ const fee=safePurchase?preview.feeCents:0,shipping=fulfillment==='pickup'?0:shippingCalculated?chosenRate?.cents??0:shippingCents;
  const mounted=useRef(true),generation=useRef(0),inFlight=useRef(false),intent=useRef<{key:string;id:string}|null>(null);
  useEffect(()=>{mounted.current=true;generation.current++;intent.current=null;setError('');setBusy(false);setPayment(null);return()=>{mounted.current=false;generation.current++}},[listingId]);
  // Store credit is kept per payment mode: test orders spend sandbox credit, live orders spend live credit.
@@ -67,7 +83,7 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
   inFlight.current=true;setBusy(true);setError('');
   const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),25000);
   try{
-   const response=await fetch('/api/commerce',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'checkout',listingId,requestId:intent.current.id,sandboxAcknowledged:form.get('sandbox')==='on',...(shippingAddress?{shippingAddress}:{}),storeCreditCents,checkoutUiMode,...options}),signal:abort.signal});
+   const response=await fetch('/api/commerce',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'checkout',listingId,requestId:intent.current.id,sandboxAcknowledged:form.get('sandbox')==='on',...(shippingAddress?{shippingAddress}:{}),...(shippingCalculated&&chosenRate?{shippingService:chosenRate.id}:{}),storeCreditCents,checkoutUiMode,...options}),signal:abort.signal});
    const result=await response.json() as {error?:string;checkoutUrl?:string;clientSecret?:string;publishableKey?:string;order?:{id:string;createdAt?:string}};if(!response.ok)throw Error(result.error||'Checkout could not start. Please retry.');
    if(!mounted.current||token!==generation.current)return;
    // Checkout holds the listing for this buyer for an hour after the order is created.
@@ -104,14 +120,19 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
     <label className="ds-field"><span>Recipient name <span className="required-mark" aria-hidden="true">*</span></span><input name="name" autoComplete="shipping name" required maxLength={100}/></label>
     <label className="ds-field"><span>Street address <span className="required-mark" aria-hidden="true">*</span></span><input name="line1" autoComplete="shipping address-line1" required maxLength={160}/></label>
     <label className="ds-field"><span>Apt or unit (optional)</span><input name="line2" autoComplete="shipping address-line2" maxLength={100}/></label>
-    <div className="mpx-address-grid"><label className="ds-field"><span>City <span className="required-mark" aria-hidden="true">*</span></span><input name="city" autoComplete="shipping address-level2" required maxLength={80}/></label><label className="ds-field"><span>State <span className="required-mark" aria-hidden="true">*</span></span><input name="state" autoComplete="shipping address-level1" required pattern="[A-Za-z]{2}" maxLength={2}/></label><label className="ds-field"><span>ZIP code <span className="required-mark" aria-hidden="true">*</span></span><input name="postalCode" autoComplete="shipping postal-code" inputMode="numeric" required pattern="[0-9]{5}(-[0-9]{4})?" maxLength={10}/></label></div></>
+    <div className="mpx-address-grid"><label className="ds-field"><span>City <span className="required-mark" aria-hidden="true">*</span></span><input name="city" autoComplete="shipping address-level2" required maxLength={80}/></label><label className="ds-field"><span>State <span className="required-mark" aria-hidden="true">*</span></span><input name="state" autoComplete="shipping address-level1" required pattern="[A-Za-z]{2}" maxLength={2}/></label><label className="ds-field"><span>ZIP code <span className="required-mark" aria-hidden="true">*</span></span><input name="postalCode" autoComplete="shipping postal-code" inputMode="numeric" required pattern="[0-9]{5}(-[0-9]{4})?" maxLength={10} onChange={event=>void quote(event.target.value.trim().slice(0,5))}/></label></div>
+    {shippingCalculated&&<fieldset className="mpx-rates"><legend>Shipping service</legend>
+     {rates?<>{rates.options.map(option=><label key={option.id} className="check-label mpx-radio mpx-rate"><input type="radio" name="shippingService" value={option.id} checked={rateId===option.id} onChange={()=>setRateId(option.id)}/><span><strong>{option.carrier} {option.service}</strong><small>{option.days?option.days+' business day'+(option.days===1?'':'s'):'Delivery time varies'}</small></span><b>{usd(option.cents)}</b></label>)}
+      <small className="mpx-fine">Live carrier rates for {rates.packageLabel?rates.packageLabel.toLowerCase():'this package'} to {rates.zip}.</small></>
+     :<p className="mpx-fine" role="status">{rateState||'Enter your ZIP code to see shipping options.'}</p>}
+    </fieldset>}</>
     :<p className="mpx-fine">After you pay, arrange the pickup with the seller in Messages. Meet somewhere public. The seller marks it sold once you have the comic.</p>}
     <label className="ds-field"><span>Use store credit (USD)</span><input type="number" min="0" max={(creditBalance??0)/100} step="0.01" value={credit} onChange={event=>setCredit(event.target.value)} disabled={!creditBalance}/><small>{creditBalance===null?'No store credit to use. You can pay by card.':usd(creditBalance)+(live?' available':' test credit available')+'. Covers the comic, not shipping or fees.'}</small></label>
-    {itemCents>0&&<><dl className="mpx-receipt" aria-label="Order total"><div><dt>Comic</dt><dd>{usd(itemCents)}</dd></div><div><dt>{fulfillment==='pickup'?'Local pickup':'Shipping'}</dt><dd>{shipping?usd(shipping):'Free'}</dd></div>{fee>0&&<div><dt>SafePurchase</dt><dd>{usd(fee)}</dd></div>}{!creditProblem&&creditCents>0&&<div><dt>Store credit</dt><dd>&minus;{usd(creditCents)}</dd></div>}<div className="mpx-receipt-total"><dt>You pay</dt><dd className="checkout-live-total" role="status" aria-live="polite">{usd(creditProblem?gross:gross-creditCents)}</dd></div></dl>
+    {itemCents>0&&<><dl className="mpx-receipt" aria-label="Order total"><div><dt>Comic</dt><dd>{usd(itemCents)}</dd></div><div><dt>{fulfillment==='pickup'?'Local pickup':'Shipping'}</dt><dd>{needsRate?'Enter ZIP':shipping?usd(shipping):'Free'}</dd></div>{fee>0&&<div><dt>SafePurchase</dt><dd>{usd(fee)}</dd></div>}{!creditProblem&&creditCents>0&&<div><dt>Store credit</dt><dd>&minus;{usd(creditCents)}</dd></div>}<div className="mpx-receipt-total"><dt>You pay</dt><dd className="checkout-live-total" role="status" aria-live="polite">{usd(creditProblem?gross:gross-creditCents)}</dd></div></dl>
      {creditProblem&&<p className="ds-error" role="status">{creditProblem}</p>}<p className="mpx-fine">Any sales tax is added on the payment screen.</p></>}
     <label className="check-label mpx-check"><input name="sandbox" type="checkbox" required/><span>{live?(fulfillment==='pickup'?'I confirm this purchase for local pickup. Stripe charges my card.':'I confirm this purchase and address. Stripe charges my card.'):'This is a test checkout. I’ll use a Stripe test card. No real money moves.'} <span className="required-mark" aria-hidden="true">*</span></span></label>
     {error&&<p className="ds-error" role="alert">{error} <a className="ds-link" href="/?section=Account&accountTab=Orders">View Orders</a></p>}
-    <button className="ds-btn ds-btn-primary checkout-submit" disabled={busy||!available}>{busy?'Opening checkout…':live?'Continue to secure payment':'Continue to secure test payment'}<ArrowUpRight size={16}/></button>
+    <button className="ds-btn ds-btn-primary checkout-submit" disabled={busy||!available||needsRate}>{busy?'Opening checkout…':live?'Continue to secure payment':'Continue to secure test payment'}<ArrowUpRight size={16}/></button>
    </form>
   </details>}
   <p className="checkout-security mpx-fine"><LockKeyhole size={14}/> We never see or store your card number.</p>
