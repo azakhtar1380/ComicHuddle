@@ -23,7 +23,7 @@ import {createCommerceState,applyCommerceEvent,type CommerceState} from '../lib/
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
- for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql','024_commerce_live_mode.sql','026_binding_auctions.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql','024_commerce_live_mode.sql','026_binding_auctions.sql','042_listing_cover_opt_out.sql','043_pending_listings.sql','044_calculated_shipping.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -81,7 +81,9 @@ test('real ZIP origins produce PostgreSQL distance filters and prioritize local 
  await assert.rejects(resolveLocation(getDb(),'00000'));
 });
 test('seller-only cash sale is atomic, idempotent and immediately appears only in their Sold Items',async()=>{
- const seller=await collector('soldowner'),other=await collector('notowner'),listing=await offer(seller,{locationZip:'55421'});
+ const seller=await collector('soldowner'),other=await collector('notowner'),listing=await offer(seller,{locationZip:'55421',fulfillment:'both',pickupCity:'Minneapolis',pickupState:'MN'});
+ const shipOnly=await offer(seller,{locationZip:'55421'});
+ await assert.rejects(markListingSold(getDb(),seller,{listingId:shipOnly.id,soldVia:'cash_local'}),e=>(e as {status:number}).status===409,'shipping-only listings are never marked sold by hand');
  await assert.rejects(markListingSold(getDb(),other,{listingId:listing.id,soldVia:'cash_local'}),e=>(e as {status:number}).status===404);
  const saved=await markListingSold(getDb(),seller,{listingId:listing.id,soldVia:'cash_local'});assert.equal(saved.paymentVerified,false);
  const again=await markListingSold(getDb(),seller,{listingId:listing.id,soldVia:'cash_local'});assert.equal(again.duplicate,true);
@@ -93,13 +95,13 @@ test('seller-only cash sale is atomic, idempotent and immediately appears only i
  const wallet=await collectorWallet(pool,seller.userId);assert.equal(wallet.live.availableCents,'0');assert.equal(wallet.sandbox.availableCents,'0');assert.equal(wallet.history.length,0);
 });
 test('manually reported platform sale cannot mint funds or completed-sales FMV comps',async()=>{
- const seller=await collector('manualplatform'),listing=await offer(seller);
+ const seller=await collector('manualplatform'),listing=await offer(seller,{locationZip:'55421',fulfillment:'both',pickupCity:'Minneapolis',pickupState:'MN'});
  await markListingSold(getDb(),seller,{listingId:listing.id,soldVia:'platform'});
  const [sale]=(await pool.query('SELECT payment_verified,order_id FROM ch_web.marketplace_sales WHERE listing_id=$1',[listing.id])).rows;
  assert.equal(sale.payment_verified,0);assert.equal(sale.order_id,null);assert.equal((await collectorWallet(pool,seller.userId)).history.length,0);
 });
 test('an open order prevents manual sold changes without disturbing inventory',async()=>{
- const seller=await collector('reserved'),buyer=await collector('reservedbuyer'),listing=await offer(seller);
+ const seller=await collector('reserved'),buyer=await collector('reservedbuyer'),listing=await offer(seller,{locationZip:'55421',fulfillment:'both',pickupCity:'Minneapolis',pickupState:'MN'});
  const stamp=new Date().toISOString();
  await getDb().insert(commerceOrders).values({id:crypto.randomUUID(),buyerId:buyer.id,buyerUserId:buyer.userId,sellerId:seller.id,sellerUserId:seller.userId,listingId:listing.id,requestId:crypto.randomUUID(),status:'awaiting_payment',version:0,sandbox:1,snapshot:'{}',state:'{}',createdAt:stamp,updatedAt:stamp});
  await assert.rejects(markListingSold(getDb(),seller,{listingId:listing.id,soldVia:'cash_local'}),e=>(e as {status:number}).status===409);
@@ -159,7 +161,7 @@ test('specialist distance search, visibility and public DTOs protect private int
 
 
 test('account cleanup removes pending requests and manual-sale records while active custody requires review',async()=>{
- const seller=await collector('cleanup'),buyer=await collector('cleanupbuyer'),listing=await offer(seller,{safePurchaseOptIn:true,locationZip:'55421'});
+ const seller=await collector('cleanup'),buyer=await collector('cleanupbuyer'),listing=await offer(seller,{safePurchaseOptIn:true,locationZip:'55421',fulfillment:'both',pickupCity:'Minneapolis',pickupState:'MN'});
  await requestSafePurchase(getDb(),buyer,{listingId:listing.id});
  await pool.query("UPDATE ch_web.safe_purchase_requests SET status='received_at_vault' WHERE listing_id=$1",[listing.id]);
  await assert.rejects(checkMarketplaceDeletion(getDb(),seller),e=>(e as {status:number}).status===409);

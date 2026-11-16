@@ -20,7 +20,7 @@ import {marketplaceDirectory,publicListingFields,publicSellerFields,publicItemFi
 import {bidHistory,markAuctionUnpaid,resolveEndedAuctions,auctionTerms} from '../lib/marketplace-auction';
 import {applyProxyBid,bidIncrement,maskHandle,minimumBid,resolveAuction,type ProxyState} from '../lib/auction-engine';
 import {ownerAccountId} from '../lib/owner';
-import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceSellerMarkPickedUp,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
+import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
 import {addBusinessDays,createCommerceState,evaluateCommercePolicy,applyCommerceEvent} from '../lib/commerce-policy';
 import {pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,sameDigest} from '../lib/commerce-protection';
 import {carrierStatusLabel,carrierUpdate,createCarrierTracker,easyPostSignature,retrieveCarrierTracker,verifyEasyPostWebhook} from '../lib/commerce-carrier';
@@ -260,7 +260,7 @@ test('auction end: reserve not met releases copies; a winner pays the winning pr
 });
 
 // ---------- Local pickup ----------
-test('local pickup: no code; the seller marks it sold (or the buyer taps), the listing settles to sold, and the 72h window starts',async()=>{
+test('local pickup: 6-digit PIN shown only to the buyer; the seller enters it (or the buyer taps); pending until then, sold after',async()=>{
  const db=getDb(),seller=await collector('pickupseller'),buyer=await collector('pickupbuyer');await onboard(seller);
  const listing=await offer(seller,{price:2500,fulfillment:'pickup'});
  await rejects(checkout(buyer,listing.id),409,/local pickup only/);
@@ -268,15 +268,17 @@ test('local pickup: no code; the seller marks it sold (or the buyer taps), the l
  const row=await orderRow(orderId),state=JSON.parse(row.state);
  assert.equal(JSON.parse(row.snapshot).shippingCents,0);assert.equal(JSON.parse(row.snapshot).shippingAddress,undefined);
  const buyerView=await dto(orderId,buyer.userId) as Obj,sellerView=await dto(orderId,seller.userId) as Obj;
- assert.equal(buyerView.pickupCode,undefined,'Local pickups no longer use a code');assert.equal(sellerView.pickupCode,undefined);void state;
- assert.equal(sellerView.canMarkPickedUp,true);assert.equal(buyerView.canMarkPickedUp,false);
+ assert.match(String(buyerView.pickupCode),/^\d{6}$/);assert.equal(sellerView.pickupCode,undefined,'The seller never sees the PIN');
+ assert.ok(state.pickupCodeHash);assert.ok(!row.state.includes(String(buyerView.pickupCode)),'Plain PIN is not stored');
+ assert.equal(sellerView.canEnterPickupCode,true);
  assert.equal((await listingRow(listing.id)).status,'pending','a paid pickup waits as pending');
  assert.equal(buyerView.status,'awaiting_pickup');assert.equal(orderProgress(buyerView as never).steps[2].label,'Ready for pickup');
  await rejects(commerceSubmitTracking(db,seller.userId,{action:'submit_tracking',orderId,carrier:'USPS',trackingNumber:'9400111899223197428490'}),409,/pickup/);
  await rejects(commerceConfirmPickup(db,seller.userId,{action:'confirm_pickup',orderId}),403);
- await rejects(commerceSellerMarkPickedUp(db,buyer.userId,orderId),403);
- await commerceSellerMarkPickedUp(db,seller.userId,orderId);
- assert.equal((await listingRow(listing.id)).status,'sold','picked up: the listing is sold');
+ await rejects(commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code:String(buyerView.pickupCode)==='000000'?'111111':'000000'}),400,/doesn’t match/);
+ assert.equal((await listingRow(listing.id)).status,'pending','a wrong PIN changes nothing');
+ await commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code:String(buyerView.pickupCode)});
+ assert.equal((await listingRow(listing.id)).status,'sold','right PIN: picked up and the listing is sold');
  const done=await dto(orderId,seller.userId) as Obj&{pickup:{by:string;confirmedAt:string}};assert.equal(done.status,'picked_up');assert.equal(done.pickup.by,'seller');
  assert.equal(Date.parse(String(done.fundsAvailableAt))-Date.parse(done.pickup.confirmedAt),72*hour,'Funds available 72h after pickup');
  const model=orderProgress(done as never);assert.equal(model.complete,4);assert.equal(model.steps[3].label,'Picked up');

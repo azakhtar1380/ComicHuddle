@@ -8,20 +8,16 @@ import {previewRulesVersion} from './community';
 import { conditionalGuard,operationGuardFailed } from './operation-guard';
 
 export async function markListingSold(db:CatalogDb,me:typeof profiles.$inferSelect,raw:Record<string,unknown>){
- const input=z.object({listingId:z.string().uuid(),soldVia:z.enum(['platform','cash_local'])}).parse(raw);
+ const input=z.object({listingId:z.string().uuid(),soldVia:z.enum(['platform','cash_local']).default('cash_local')}).parse(raw);
  const [row]=await db.select().from(listings).where(and(eq(listings.id,input.listingId),eq(listings.sellerId,me.id)));
  if(!row)throw new ApiRequestError('Listing not found.',404);
  const custody=await db.execute(sql`SELECT id FROM ch_web.safe_purchase_requests WHERE listing_id=${row.id} AND status IN ('accepted','received_at_vault','inspected','shipped_to_buyer') LIMIT 1`);
  if(custody.rows.length)throw new ApiRequestError('Resolve the active SafePurchase inspection or shipment before manually marking this listing sold.',409);
  if(row.status==='sold')return {saved:true,duplicate:true,listingId:row.id,note:'This listing is already in Sold Items.'};
- // Paid through checkout and waiting: a local pickup is finished by the seller here; a shipped order settles itself on delivery.
- if(row.status==='pending'){
-  const [paid]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.listingId,row.id),sql`${commerceOrders.status} NOT IN ('cancelled','refunded','checkout_expired')`));
-  if(!paid)throw new ApiRequestError('This listing is waiting on an order. Check Orders.',409);
-  const {commerceSellerMarkPickedUp}=await import('./commerce');
-  const result=await commerceSellerMarkPickedUp(db as never,me.userId,paid.id);
-  return {saved:true,listingId:row.id,paymentVerified:true,note:result.note||'Marked as sold.'};
- }
+ // Mark as Sold records a sale made outside ComicHuddle (cash, in person). Shipping-only listings sell through
+ // checkout and settle on delivery; a listing with an open order is finished through that order (PIN or delivery).
+ if(row.fulfillment==='shipping')throw new ApiRequestError('Shipping listings are marked sold automatically when delivery is confirmed.',409);
+ if(row.status==='pending')throw new ApiRequestError('This listing has a paid order. It’s finished through the order: the buyer’s pickup PIN or delivery.',409);
  if(!['active','ended'].includes(row.status))throw new ApiRequestError('This listing is reserved or closed and cannot be marked sold.',409);
  const [order]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.listingId,row.id),sql`${commerceOrders.status} NOT IN ('cancelled','refunded','checkout_expired')`));
  if(order&&!['cancelled','refunded','checkout_expired'].includes(order.status))throw new ApiRequestError('Resolve the current platform order before changing this listing.',409);

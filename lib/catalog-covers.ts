@@ -73,8 +73,9 @@ export async function withCatalogCovers(db: CatalogDb, issues: Issue[]): Promise
   if (!issues.length) return issues;
   const member = await fallbackCovers(db, issues.map(issue => issue.id));
   const base = catalogArtCovers() ? await withCatalogArtCovers(db, issues)
-    // Art off: drop any incoming catalog image; only reviewed public-domain files remain.
-    : issues.map(issue => reviewedLocalCover({ ...issue, cover: undefined, coverSource: undefined, coverCredit: undefined }));
+    // Art off: drop any incoming catalog image; only reviewed public-domain files remain (the app's own
+    // /covers/ files on starter rows, or the exact GCD issues reviewedLocalCover recognizes).
+    : issues.map(issue => issue.cover?.startsWith('/covers/') ? issue : reviewedLocalCover({ ...issue, cover: undefined, coverSource: undefined, coverCredit: undefined }));
   return base.map(issue => { const cover = member.get(issue.id); return cover ? { ...issue, cover: cover.url, coverCredit: cover.attribution, coverSource: cover.source } : issue; });
 }
 async function withCatalogArtCovers(db: CatalogDb, issues: Issue[]): Promise<Issue[]> {

@@ -30,7 +30,7 @@ export default function OfferCheckout({offerId,title,amountCents,shippingCents,f
   <h3><Lock size={16} aria-hidden="true"/> Checkout at your accepted price</h3>
   {fulfillment==='both'&&<fieldset className="offer-checkout-mode"><legend>How do you want it?</legend>
    <label><input type="radio" name="mode" checked={mode==='shipping'} onChange={()=>setMode('shipping')}/> Ship it to me ({shippingCents?dollars(shippingCents):'free'})</label>
-   <label><input type="radio" name="mode" checked={mode==='pickup'} onChange={()=>setMode('pickup')}/> Local pickup (pay now, collect from the seller)</label></fieldset>}
+   <label><input type="radio" name="mode" checked={mode==='pickup'} onChange={()=>setMode('pickup')}/> Local pickup (pay now, get a pickup PIN)</label></fieldset>}
   {mode==='shipping'?<div className="offer-checkout-address">
    <label className="span-2">Full name<input name="name" required maxLength={100} autoComplete="name"/></label>
    <label className="span-2">Street address<input name="line1" required maxLength={160} autoComplete="address-line1"/></label>
@@ -39,7 +39,7 @@ export default function OfferCheckout({offerId,title,amountCents,shippingCents,f
    <label>State<select name="state" required defaultValue="" autoComplete="address-level1"><option value="" disabled>Choose</option>{STATES.map(s=><option key={s}>{s}</option>)}</select></label>
    <label>ZIP code<input name="postalCode" required inputMode="numeric" pattern="\d{5}(-\d{4})?" maxLength={10} autoComplete="postal-code"/></label>
    <small className="data-caption span-2">USA addresses only. The seller sees it only after payment is confirmed, and only until delivery.</small>
-  </div>:<p className="data-caption">{spApplies?'With SafePurchase you collect it at the ComicHuddle Inspection Center with a one-time pickup code, after it passes inspection.':'After you pay, arrange the pickup with the seller. The seller marks it sold once the comic is in your hands. If it isn’t picked up within 7 days, you’re refunded.'}</p>}
+  </div>:<p className="data-caption">{spApplies?'With SafePurchase you collect it at the ComicHuddle Inspection Center with a one-time pickup code, after it passes inspection.':'After you pay, your order shows a 6-digit pickup PIN and a QR code. Share it with the seller only once the comic is in your hands. Unused PINs expire after 7 days and you’re refunded in full.'}</p>}
   {spOn&&(auto?<p className="offer-checkout-sp"><ShieldCheck size={15} aria-hidden="true"/> SafePurchase is included: we inspect it before it reaches you.</p>:<label className="offer-checkout-sp"><input type="checkbox" checked={addSp} onChange={e=>setAddSp(e.target.checked)}/> Add SafePurchase{sp?.safePurchaseFeeCents?' ('+dollars(sp.safePurchaseFeeCents)+')':''}: we inspect it before it reaches you</label>)}
   <dl className="offer-checkout-total"><div><dt>Accepted offer</dt><dd>{dollars(amountCents)}</dd></div><div><dt>{mode==='pickup'?'Local pickup':'Shipping'}</dt><dd>{ship?dollars(ship):'Free'}</dd></div>{fee>0&&<div><dt>SafePurchase</dt><dd>{dollars(fee)}</dd></div>}<div className="is-total"><dt>Total</dt><dd>{dollars(total)}</dd></div></dl>
   {setup&&setup.setup.mode!=='live'&&<p className="data-caption">Test mode: use Stripe test cards. No real money moves.</p>}

@@ -16,7 +16,7 @@ function pendingReason(order:Order){
   if(order.status==='manual_review')return 'On hold while ComicHuddle reviews it';
   if(order.status==='delivered_review'||order.status==='picked_up')return order.fundsAvailableAt?'Buyer’s review window ends '+day(order.fundsAvailableAt):'Buyer’s review window is open';
   if(order.protection?.tier==='safepurchase')return 'Waiting on SafePurchase (our check and delivery)';
-  if(order.fulfillment==='pickup')return 'Waiting on pickup';
+  if(order.fulfillment==='pickup')return 'Waiting on the pickup PIN';
   return 'Waiting on delivery';
 }
 

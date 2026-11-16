@@ -124,8 +124,7 @@ export function commerceOrderDto(row:Row,userId:string){
   carrierConfirmed:!!shipment.acceptedAt&&!state.pickup,deliveredAt:shipment.deliveredAt,signatureVerified:shipment.signatureVerified,
   canCancel:role==='buyer'&&decision.state.refundReason==='tracking_deadline'&&!state.financial&&!state.issue?.open,
   canConfirmPickup:role==='buyer'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&(state.policy.tier!=='safepurchase'||status==='inspection_passed'),
-  canEnterPickupCode:false,
-  canMarkPickedUp:role==='seller'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&state.policy.tier!=='safepurchase',
+  canEnterPickupCode:role==='seller'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&state.policy.tier!=='safepurchase'&&!!state.pickupCodeHash,
   carrier:state.carrierStatus?{trackerId:state.carrierStatus.trackerId,status:state.carrierStatus.status,label:carrierStatusLabel(state.carrierStatus.status),problem:carrierProblem(state.carrierStatus.status),estDeliveryAt:state.carrierStatus.estDeliveryAt,lastScan:state.carrierStatus.lastScan,updatedAt:state.carrierStatus.updatedAt}:null,
   claimUntil,fundsAvailableAt,payoutsEnabled:false,feedbackEligible:completedStatuses.has(status)};
 }
@@ -143,8 +142,7 @@ export async function commerceOwnedOrder(db:Db,userId:string,orderId:string,allo
 /** Adds participant-only extras: the buyer's pickup code and the inspection address for a SafePurchase seller. */
 async function participantDto(row:Row,userId:string,environment:StripeSandboxEnv){
  const dto=commerceOrderDto(row,userId),state=stateOf(row),extra:{pickupCode?:string;inspectionAddress?:string}={};
- // Only SafePurchase pickups (at the Inspection Center) use a code; a local pickup is confirmed by the seller.
- if(dto.role==='buyer'&&dto.fulfillment==='pickup'&&state.policy.tier==='safepurchase'&&state.order.paidAt&&!state.pickup&&state.pickupCodeHash&&!state.financial){
+ if(dto.role==='buyer'&&dto.fulfillment==='pickup'&&state.order.paidAt&&!state.pickup&&state.pickupCodeHash&&!state.financial){
   try{const code=await pickupCode(environment,row.id);if(await pickupCodeMatches(row.id,state.pickupCodeHash,code))extra.pickupCode=code}catch{}
  }
  const address=protectionConfig(environment).inspectionAddress;
@@ -413,17 +411,6 @@ async function listingShipping(listing:typeof listings.$inferSelect,input:{shipp
   const options=await quoteShippingRates(environment,listing.locationZip,input.shippingAddress?.postalCode||'',parcelFor({kind:listing.kind,itemCount:listing.itemCount,cert:listing.cert,items:JSON.parse(listing.items||'[]')}));
   const chosen=chooseShippingOption(options,input.shippingService);return {cents:chosen.cents,service:chosen.carrier+' '+chosen.service};
  }catch(error){throw new ApiRequestError(error instanceof ShippingQuoteError?error.message:'Shipping couldn’t be calculated. Please try again.',422)}
-}
-/** Local pickup: the seller marks the order picked up (sold) once the buyer has the comic. No code. */
-export async function commerceSellerMarkPickedUp(db:Db,userId:string,orderId:unknown){
- const id=z.string().uuid().safeParse(orderId);if(!id.success)throw new ApiRequestError('Choose an order.',400);
- const row=await commerceOwnedOrder(db,userId,id.data),state=stateOf(row);
- if(row.sellerUserId!==userId)throw new ApiRequestError('Only the seller can mark a pickup as sold.',403);
- if(snapshotOf(row).fulfillment!=='pickup'||state.policy.tier==='safepurchase')throw new ApiRequestError('This order ships. It’s marked sold automatically once it’s delivered.',409);
- if(!state.order.paidAt)throw new ApiRequestError('The buyer hasn’t paid yet.',409);
- if(state.pickup)return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),duplicate:true};
- const next=transition(state,{...eventBase(row,'pickup_'+row.id,'server'),type:'pickup_confirmed',actor:'seller'}),updated=await persist(db,row,next,'pickup_confirmed',{note:'Seller marked the pickup as sold.'});
- return {sandbox:row.sandbox===1,order:commerceOrderDto(updated,userId),note:'Marked as sold. The buyer has the comic.'};
 }
 /** Buyer cancellation for a missed handling deadline: a full refund through the processor. */
 export async function commerceCancelOrder(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){

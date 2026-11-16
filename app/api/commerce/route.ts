@@ -2,7 +2,7 @@ import {env} from '../../../lib/runtime-env';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../lib/api-security';
-import {commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceSellerMarkPickedUp,commerceError,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOverview,commerceOwnerRefund,commerceOwnerReconcile,commerceOwnerRelease,commerceOwnerRevenue,commerceOwnerSweep,commerceParticipant,commerceResumePayment,commerceCancelCheckout,commerceRequestRefund,commerceSetup,commerceSubmitTracking,type StripeSandboxEnv} from '../../../lib/commerce';
+import {commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceError,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOverview,commerceOwnerRefund,commerceOwnerReconcile,commerceOwnerRelease,commerceOwnerRevenue,commerceOwnerSweep,commerceParticipant,commerceResumePayment,commerceCancelCheckout,commerceRequestRefund,commerceSetup,commerceSubmitTracking,type StripeSandboxEnv} from '../../../lib/commerce';
 import {ownerAccountId} from '../../../lib/owner';
 // --- offers (round 4) ---
 import {commerceDeliveryInfo,commercePickupCodeOpen,commercePickupExpirySweep} from '../../../lib/commerce';
@@ -22,7 +22,7 @@ export async function POST(req:Request){try{
  const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in to ComicHuddle to continue.'},401);
  if(req.headers.get('origin')!==new URL(req.url).origin)return privateJson({error:'Request origin rejected.'},403);
  const raw=await readObject(req,25000),action=typeof raw.action==='string'?raw.action:'unknown';
- const budgets:Record<string,number>={seller_mark_picked_up:20,checkout:10,seller_onboard:5,submit_tracking:10,request_refund:5,owner_refund:10,owner_reconcile:10,owner_sweep:3,owner_release:10,resume_payment:20,cancel_checkout:5,confirm_pickup:10,confirm_pickup_code:5,cancel_order:5,inspection:30,inspection_choice:5};
+ const budgets:Record<string,number>={checkout:10,seller_onboard:5,submit_tracking:10,request_refund:5,owner_refund:10,owner_reconcile:10,owner_sweep:3,owner_release:10,resume_payment:20,cancel_checkout:5,confirm_pickup:10,confirm_pickup_code:5,cancel_order:5,inspection:30,inspection_choice:5};
  // --- offers (round 4): owner sweep for unused pickup codes (7 days → full refund) ---
  if(action==='pickup_expiry_sweep'){const db=getDb(),limited=await enforceWriteLimits(db,user.userId,'commerce:pickup_expiry_sweep',3);if(limited)return limited;return privateJson(await commercePickupExpirySweep(db,user.userId,raw,environment()))}
  // --- end offers (round 4) ---
@@ -35,7 +35,6 @@ export async function POST(req:Request){try{
  if(action==='confirm_pickup_code'||action==='inspection'&&raw.step==='handoff'){const orderLimited=await enforceWriteLimits(db,user.userId,'commerce:pickup_code:'+String(raw.orderId||'').slice(0,100),5);if(orderLimited)return orderLimited}
  // --- offers (round 4): pickup-code expiry check and order notifications (tracking added, pickup confirmed) ---
  if(action==='confirm_pickup_code')await commercePickupCodeOpen(db,user.userId,raw.orderId,environment());
- if(action==='seller_mark_picked_up'){const result=await commerceSellerMarkPickedUp(db,user.userId,raw.orderId);if(!('duplicate'in result&&result.duplicate))await notifyOrderEvent(String(raw.orderId),'pickup');return privateJson(result)}
  if(action==='submit_tracking'||action==='confirm_pickup'||action==='confirm_pickup_code'){
   const result=action==='submit_tracking'?await commerceSubmitTracking(db,user.userId,raw,environment()):action==='confirm_pickup'?await commerceConfirmPickup(db,user.userId,raw):await commerceConfirmPickupCode(db,user.userId,raw);
   if(!('duplicate'in result&&result.duplicate))await notifyOrderEvent(String(raw.orderId),action==='submit_tracking'?'tracking':'pickup');
