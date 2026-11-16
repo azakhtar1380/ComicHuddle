@@ -108,7 +108,7 @@ test('route parameter validation',()=>{
  assert.ok(allowedMetronPath('character/?page=3'));assert.ok(allowedMetronPath('character/12/'));assert.ok(allowedMetronPath('character/12/issue_list/?page=1'));assert.ok(allowedMetronPath('issue/34067/'));
  for(const bad of ['issue/?page=1','character/0/','user/1/','issue/1/../../x','character/1/issue_list/'])assert.ok(!allowedMetronPath(bad),bad);
  assert.deepEqual(metronBudgetLimits('crawler',{}),{shared:4500,own:3700,minute:18});
- assert.deepEqual(metronBudgetLimits('app',{METRON_SHARED_DAILY_MAX:'99999'}),{shared:4900,own:4900,minute:18});
+ assert.deepEqual(metronBudgetLimits('app',{METRON_SHARED_DAILY_MAX:'99999'}),{shared:24900,own:24900,minute:18});
 });
 
 // ---------- database paths ----------

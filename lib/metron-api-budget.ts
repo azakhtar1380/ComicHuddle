@@ -12,9 +12,10 @@ export type MetronCaller='crawler'|'app';
 export const METRON_API_ORIGIN='https://metron.cloud';
 export const METRON_USER_AGENT='ComicHuddle character indexer (server-side; contact via metron.cloud account)';
 const bounded=(raw:string|undefined,fallback:number,max:number)=>{const n=Number(raw);return Number.isInteger(n)&&n>0?Math.min(n,max):fallback};
-/** Daily ceilings: all callers together <= shared (4,500); the crawler alone <= 3,700 so the app keeps headroom. */
+/** Daily ceilings: all callers together <= shared (4,500 default; settable up to 24,900 for Metron's 25,000/day supporter tier);
+ * the crawler alone <= 3,700 by default so the app keeps headroom. Metron's own headers still stop calls at its real limit. */
 export function metronBudgetLimits(caller:MetronCaller,env:MetronEnv=process.env){
- const shared=bounded(env.METRON_SHARED_DAILY_MAX,4500,4900);
+ const shared=bounded(env.METRON_SHARED_DAILY_MAX,4500,24900);
  const own=caller==='crawler'?bounded(env.METRON_CRAWLER_DAILY_MAX,3700,shared):bounded(env.METRON_APP_DAILY_MAX,shared,shared);
  return {shared,own,minute:bounded(env.METRON_SHARED_MINUTE_MAX,18,19)};
 }
