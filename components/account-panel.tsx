@@ -1,6 +1,7 @@
 'use client';
 // The signed-in account panel: who you are (picture, name, @handle), your numbers, and every personal
 // tool in one place. Navigation lives in "More" (components/more-menu.tsx).
+import GetVerified from './profile/get-verified';
 import {useEffect, useRef, useState, type ComponentType} from 'react';
 import {ArrowLeftRight, Camera, ChevronRight, Gavel, Layers, LogOut, MessageCircle, Receipt, Repeat, Settings, ShieldCheck, ShoppingBag, Sparkles, Tag, Wallet, Wrench} from 'lucide-react';
 import UserAvatar from './user-avatar';
@@ -98,6 +99,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     <section className="ap-group" aria-labelledby="ap-more"><h3 id="ap-more" className="mm-heading">You</h3>
       {row('Messages', MessageCircle, 'Messages', undefined, unread)}
       {row('Profile & showcase', Sparkles, 'Collectors')}
+      <GetVerified/>
       {row(hasStudio ? 'My workshop studio' : 'Workshop requests', Wrench, 'Pressing', hasStudio ? 'provider' : 'requests')}
       {row('Settings', Settings, 'Settings')}
     </section>

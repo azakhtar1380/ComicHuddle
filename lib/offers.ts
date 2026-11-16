@@ -6,6 +6,7 @@
 //   declined / withdrawn / closed (listing reserved or sold by someone else)
 // Migration 039 (ch_web.offer_terms) adds the round history and deadlines. Every read is tolerant:
 // without that table, expiry falls back to created_at + 48 hours and counter-offers stay off.
+import {verifiedKinds} from './person-verification';
 import {eq} from 'drizzle-orm';
 import {z} from 'zod';
 import type {PoolClient} from 'pg';
@@ -68,7 +69,7 @@ export async function acceptedOfferForCheckout(db:Db,offerId:string,buyerProfile
 export async function offerExpired(offerId:string,status:string,createdAt:string){return past(offerDeadline(status,createdAt,(await termsFor([offerId])).get(offerId)))}
 
 // ---------- list ----------
-type Person={id:string;name:string;handle:string;color:string;avatarUrl:string|null};
+type Person={id:string;name:string;handle:string;color:string;avatarUrl:string|null;verified?:'person'|'business'|null};
 type Item={title:string;issue:string;grade:string};
 export type OfferView={kind:'offer'|'trade';id:string;tab:'received'|'sent';listing:{id:string;title:string;priceCents:number;shippingCents:number;photoId:string|null;available:boolean;fulfillment:string};other:Person;
  status:'pending'|'countered'|'accepted'|'declined'|'expired'|'withdrawn'|'closed'|'ordered'|'cancelled';yourTurn:boolean;deadline:string|null;createdAt:string;
@@ -88,12 +89,12 @@ export async function listOffersAndTrades(me:Profile){
    FROM ch_web.trade_proposals t LEFT JOIN ch_web.listings l ON l.id=t.listing_id WHERE t.buyer_id=$1 OR t.seller_id=$1 ORDER BY t.created_at DESC LIMIT 100`,[me.id])).rows;
  const people=new Set<string>();for(const r of offerRows)people.add(r.buyer_id===me.id?r.seller_id:r.buyer_id);for(const r of tradeRows)people.add(r.buyer_id===me.id?r.seller_id:r.buyer_id);
  const ids=[...people];
- const [profileRows,avatars,terms]=await Promise.all([
+ const [profileRows,avatars,terms,verified]=await Promise.all([
   ids.length?pool.query<{id:string;name:string;handle:string;color:string;visible:number}>('SELECT id,name,handle,color,visible FROM ch_web.profiles WHERE id=ANY($1::text[])',[ids]).then(r=>r.rows):Promise.resolve([]),
-  avatarUrls(ids),termsFor(offerRows.map(r=>r.id)),
+  avatarUrls(ids),termsFor(offerRows.map(r=>r.id)),verifiedKinds(ids).catch(()=>new Map<string,'person'|'business'>()),
  ]);
  const profileMap=new Map(profileRows.map(p=>[p.id,p]));
- const person=(id:string):Person=>{const p=profileMap.get(id);return p&&Number(p.visible)===1?{id,name:p.name,handle:p.handle,color:p.color,avatarUrl:avatars.get(id)||null}:{id,name:p?.name||'Former collector',handle:p?.handle||'',color:p?.color||'',avatarUrl:null}};
+ const person=(id:string):Person=>{const p=profileMap.get(id);return p&&Number(p.visible)===1?{id,name:p.name,handle:p.handle,color:p.color,avatarUrl:avatars.get(id)||null,verified:verified.get(id)||null}:{id,name:p?.name||'Former collector',handle:p?.handle||'',color:p?.color||'',avatarUrl:null}};
  // Orders started from an accepted offer carry {offer:{id}} in their snapshot.
  const accepted=offerRows.filter(r=>r.status==='accepted');const orders=new Map<string,{id:string;status:string}>();
  if(accepted.length){

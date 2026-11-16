@@ -94,6 +94,11 @@ export async function businessSummaries(profileIds: readonly string[]): Promise<
     const result = await getPool().query<Row>("SELECT * FROM ch_web.business_profiles WHERE profile_id = ANY($1::text[]) AND account_type = 'business'", [ids]);
     for (const row of result.rows) out.set(row.profile_id, summaryOf(row));
   } catch { /* table not migrated yet: everyone is a collector */ }
+  // Verified collectors (migration 054): the same blue check, as a person.
+  try {
+    const people = await getPool().query<{profile_id: string}>("SELECT profile_id FROM ch_web.person_verifications WHERE status = 'verified' AND profile_id = ANY($1::text[])", [ids]);
+    for (const row of people.rows) if (!out.get(row.profile_id)?.isBusiness) out.set(row.profile_id, {isBusiness: false, verified: true, shopName: null});
+  } catch { /* not migrated yet */ }
   return out;
 }
 export async function businessSummary(profileId: string | null | undefined): Promise<BusinessSummary> {
@@ -101,7 +106,7 @@ export async function businessSummary(profileId: string | null | undefined): Pro
   return (await businessSummaries([profileId])).get(profileId) || COLLECTOR;
 }
 /** Compact fields for listing sellers and message peers (no policies). */
-export const sellerBusinessFields = (s: BusinessSummary | undefined) => s?.isBusiness ? {isBusiness: true, verified: s.verified, shopName: s.shopName} : {isBusiness: false, verified: false, shopName: null};
+export const sellerBusinessFields = (s: BusinessSummary | undefined) => s?.isBusiness ? {isBusiness: true, verified: s.verified, shopName: s.shopName} : {isBusiness: false, verified: !!s?.verified, shopName: null};
 
 export async function ownBusiness(profileId: string): Promise<OwnBusiness | null> {
   try {

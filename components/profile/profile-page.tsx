@@ -91,7 +91,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
   {uploading==='photo'&&<p className="pp-uploading" role="status">Uploading your photo…</p>}
 
   <section className="pp-card pp-namecard">
-   <h1 id={ids+'-name'} className="pp-name"><span>{p.name}</span>{verifiedLabel&&<VerifiedBadge size={24}/>}{biz.verified&&biz.isBusiness&&<span className="pp-shop-tag">Shop</span>}</h1>
+   <h1 id={ids+'-name'} className="pp-name"><span>{p.name}</span>{verifiedLabel&&<VerifiedBadge kind={biz.isBusiness?'business':'person'} size={24}/>}</h1>
    {verifiedLabel&&<p className="pp-verified-line">{verifiedLabel} · <a href="/verified">How we verify</a></p>}
    <p className="pp-meta"><b>@{p.handle}</b> · Collecting since <span className="pp-num">{p.since}</span>{p.location?<> · {p.location}</>:null}</p>
    {x.rating&&<p className="pp-rating">{x.rating.stars!==null?<><span className="pp-stars" aria-hidden="true">{[1,2,3,4,5].map(n=><Star key={n} size={16} fill={n<=Math.round(x.rating!.stars!)?'currentColor':'none'}/>)}</span><span className="pp-num">{x.rating.stars.toFixed(1)}</span><span className="sr-only">out of 5 stars</span></>:<span className="pp-num">{x.rating.percent}% positive</span>} · <span className="pp-num">{x.rating.count}</span> {x.rating.count===1?'review':'reviews'}</p>}

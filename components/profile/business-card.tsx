@@ -15,7 +15,7 @@ export default function BusinessCard({summary,own=false}:{summary:BusinessSummar
    <span className="pf-logo pf-logo-lg" aria-hidden="true">{b.logoUrl?<img src={b.logoUrl+'&size=thumbnail'} alt="" width={72} height={72}/>:<Store size={30}/>}</span>
    <div>
     <p className="ds-eyebrow">{b.kind==='dealer'?'Comic dealer':'Comic shop'}</p>
-    <h2 id="pf-shop-name" className="pf-shop-name">{b.shopName}{summary.verified&&<> <VerifiedBadge size={20} link/></>}</h2>
+    <h2 id="pf-shop-name" className="pf-shop-name">{b.shopName}{summary.verified&&<> <VerifiedBadge kind="business" size={20} link shopTag={false}/></>}</h2>
     <p className="pf-shop-meta">{where&&<span><MapPin size={15} aria-hidden="true"/> {where}</span>}{site&&<a className="ds-link" href={site} target="_blank" rel="noopener noreferrer nofollow ugc">{host(site)} <ArrowUpRight size={14} aria-hidden="true"/></a>}</p>
     {!summary.verified&&own&&<p className="pf-hint">Not verified yet. <a className="ds-link" href="/verified">How the verified tick works</a></p>}
    </div>

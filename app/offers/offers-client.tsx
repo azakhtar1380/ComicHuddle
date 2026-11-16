@@ -1,4 +1,5 @@
 'use client';
+import {VerifiedBadge} from '../../components/verified-badge';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {ArrowUpRight,Check,Clock,MessageCircle,RefreshCw,Repeat2,X} from 'lucide-react';
@@ -9,7 +10,7 @@ import {accountLinks} from '../../components/account-prompt';
 import OfferCheckout from '../../components/offers/offer-checkout';
 
 type Item={title:string;issue:string;grade:string};
-type Row={kind:'offer'|'trade';id:string;tab:'received'|'sent';listing:{id:string;title:string;priceCents:number;shippingCents:number;photoId:string|null;available:boolean;fulfillment:string};other:{id:string;name:string;handle:string;color:string;avatarUrl:string|null};
+type Row={kind:'offer'|'trade';id:string;tab:'received'|'sent';listing:{id:string;title:string;priceCents:number;shippingCents:number;photoId:string|null;available:boolean;fulfillment:string};other:{id:string;name:string;handle:string;color:string;avatarUrl:string|null;verified?:'person'|'business'|null};
  status:'pending'|'countered'|'accepted'|'declined'|'expired'|'withdrawn'|'closed'|'ordered'|'cancelled';yourTurn:boolean;deadline:string|null;createdAt:string;amountCents?:number;originalCents?:number|null;rounds?:number;note?:string;orderId?:string|null;orderStatus?:string|null;
  trade?:{threadId:string;version:number;offered:Item[];requested:Item[]};actions:{accept:boolean;counter:boolean;decline:boolean;withdraw:boolean;pay:boolean;cancel:boolean;message:boolean}};
 type Data={received:Row[];sent:Row[];ttlHours:number;counterOffers:boolean};
@@ -45,7 +46,7 @@ function OfferCard({row,now,busy,onAct,onPaid}:{row:Row;now:number;busy:boolean;
   <a className="of-cover-link" href={listingHref} aria-label={'Open listing: '+row.listing.title}><Cover row={row}/></a>
   <div className="of-body">
    <div className="of-top"><a className="of-title" href={listingHref}>{row.listing.title}</a><span className={'of-status of-status-'+row.status}>{row.kind==='trade'&&<Repeat2 size={13} aria-hidden="true"/>}{STATUS[row.status]}</span></div>
-   <div className="of-person"><UserAvatar name={row.other.name} src={row.other.avatarUrl} color={row.other.color||undefined} size={28}/><span>{received?'From ':'To '}<b>{row.other.name}</b>{row.other.handle&&<small> @{row.other.handle}</small>}</span></div>
+   <div className="of-person"><UserAvatar name={row.other.name} src={row.other.avatarUrl} color={row.other.color||undefined} size={28}/><span>{received?'From ':'To '}<b>{row.other.name}</b>{row.other.verified&&<> <VerifiedBadge kind={row.other.verified} size={14} shopTag={false}/></>}{row.other.handle&&<small> @{row.other.handle}</small>}</span></div>
    {row.kind==='offer'?<dl className="of-terms"><div><dt>{whose}</dt><dd className="of-price">{dollars(amount)}</dd></div><div><dt>List price</dt><dd>{row.listing.priceCents?dollars(row.listing.priceCents):'Not listed'}</dd></div>{row.originalCents&&row.originalCents!==amount?<div><dt>First offer</dt><dd>{dollars(row.originalCents)}</dd></div>:null}</dl>
     :<dl className="of-terms of-trade"><div><dt>{whose}</dt><dd>{itemLine(row.trade!.offered)||'No comics listed'}</dd></div><div><dt>In exchange for</dt><dd>{itemLine(row.trade!.requested)||row.listing.title}</dd></div></dl>}
    {row.note&&<p className="of-note">“{row.note}”</p>}
