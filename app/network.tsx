@@ -25,6 +25,8 @@ import type {Vault} from '../lib/vault';
 import BusinessFields from '../components/profile/business-fields';
 import ProfilePage from '../components/profile/profile-page';
 import ProfileShare from '../components/profile/profile-share';
+import PublicCollectionTab from '../components/collection/public-collection';
+import type {CollectionRun} from '../lib/collection-runs';
 import ProfileDetailsFields,{draftFromExtras,saveDetails,type DetailsDraft} from '../components/profile/profile-details-fields';
 import type {ProfileExtras} from '../lib/profile-page-types';
 import {businessDraftProblem,draftFrom,fetchMyBusiness,forgetAccountType,rememberedAccountType,saveMyBusiness,type BusinessDraft,type BusinessSummary,type OwnBusiness} from '../components/profile/business-client';
@@ -154,6 +156,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
  }
  // Your own profile opened from /@handle is a loaded copy: after a change, show the refreshed one.
  async function refreshOwn(){await net.refresh();if(profile&&profile.id===me?.id)selectProfile(null)}
+ async function addRunToWishlist(run:CollectionRun){if(!gate())return;const add=(run.missingIds||[]).filter(id=>!vault.wants.includes(id));if(!add.length){notice(run.missingIds?.length?'Those issues are already on your wishlist.':'We couldn’t match these issues in the Directory yet.');return}if(await commit({...vault,wants:[...vault.wants,...add].slice(0,1000)}))notice(add.length+(add.length===1?' issue':' issues')+' added to your wishlist.')}
  async function copyProfileLink(p:CollectorProfile){try{await navigator.clipboard.writeText(window.location.origin+'/@'+p.handle);notice('Profile link copied.')}catch{notice('Copy didn’t work. Your link is comichuddle.com/@'+p.handle)}}
  const [wantRecords,setWantRecords]=useState<Record<number,Issue>>({});
  const wantKey=tab==='Collectors'&&currentProfile?currentProfile.wantIds.slice(0,12).filter(id=>!catalog[id]&&!wantRecords[id]).join(','):'';
@@ -170,7 +173,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
      onEdit={()=>setProfileOpen(true)} onBook={openBook} onIssue={openIssue} onReport={()=>{if(gate())setReport({type:'profile',id:currentProfile.id})}}
      onMessage={context=>void startMessage(currentProfile.id,context||'')} onShare={()=>setShare(currentProfile)} onTheme={()=>notice('Profile themes are coming next.')} onCollection={openCollection}
      onPhoto={file=>void upload('photo',file)} onCover={file=>void upload('cover',file)} onCopyLink={()=>void copyProfileLink(currentProfile)} art={b=><ComicArt book={b}/>}
-     collectionTab={<section className="pp-card pp-block" aria-label="Collection"><div className="pp-block-head"><h2><span className="pp-eyebrow">Up for trade</span>Trade pile</h2></div>{currentProfile.tradeBooks.length?<BookGrid books={currentProfile.tradeBooks} onBook={openBook} label="Trade pile"/>:<p className="nw-empty">{own?'Nothing up for trade yet. Mark comics for trade in your collection.':'Nothing up for trade right now.'}</p>}</section>}
+     collectionTab={<PublicCollectionTab key={currentProfile.handle} handle={currentProfile.handle} own={own} dmOpen={currentProfile.dmOpen} signedIn={signedIn} onIssue={openIssue} onMessage={context=>void startMessage(currentProfile.id,context)} onAddToWishlist={run=>void addRunToWishlist(run)} favorites={currentProfile.showcase.length?<><h3>Favorites</h3><BookGrid books={currentProfile.showcase.slice(0,6)} onBook={openBook} label="Favorites"/></>:null}/>}
      reviewsTab={<section className="pp-card pp-block" aria-label="Seller feedback"><SellerFeedback profileId={currentProfile.id}/></section>}
      ownerExtras={own?<section className="pp-card pp-block" aria-labelledby="nw-wallet"><div className="pp-block-head"><h2 id="nw-wallet"><span className="pp-eyebrow">Only you can see this</span>Wallet</h2><a className="ds-link" href="/wallet">How rewards work <ArrowUpRight size={16} aria-hidden="true"/></a></div><CollectorWallet key={currentProfile.id} showInfoLink={false}/></section>:undefined}/>
    :<div className="nw-invite ds-card"><ul>

@@ -1,5 +1,6 @@
 'use client';
-// My collection: the heart of the app. Collection · For trade (the Wants tab is hidden; its code and data are kept), with search, sort, filters,
+// My collection: the heart of the app, styled as the member's own comic shop (components/collection/shop-front.tsx).
+// The shop front links into the list views below. Collection · For trade (the Wants tab is hidden; its code and data are kept), with search, sort, filters,
 // grid/list views, a ⋯ menu per comic, select mode for bulk actions, and a detail view of your copy.
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowRight,Bookmark,Camera,Check,CheckSquare,ChevronDown,Download,Grid3X3,List,Lock,MoreHorizontal,Pencil,Plus,Repeat2,Search,ShoppingBag,SlidersHorizontal,Sparkles,Trash2,Upload,X} from 'lucide-react';
@@ -11,6 +12,10 @@ import {ComicArt,Modal,uploadPhoto} from './network';
 import PageHeader from '../components/page-header';
 import {EmptyState,LoadingState} from '../components/states';
 import {handOffBooksForSale} from '../lib/listing-draft';
+import ShopFront,{type ShopData} from '../components/collection/shop-front';
+import ComicPicker from './comic-picker';
+import type {CollectionRun} from '../lib/collection-runs';
+import type {ShopWindow} from '../lib/collection-shop';
 import './my-collection.css';
 
 type Book=Vault['books'][number];
@@ -23,7 +28,7 @@ type Props={
  tab:CollectionTab;onTab:(tab:CollectionTab)=>void;
  onAdd:()=>void;onScan:()=>void;onBrowse:()=>void;onOpenIssue:(id:number)=>void;onEdit:(bookId:string)=>void;
  onFindForSale:(issueId:number)=>void;onFeature:()=>void;onReconnect:()=>void;
- listedBookIds:Set<string>;featuredIds:string[];
+ listedBookIds:Set<string>;featuredIds:string[];name?:string;since?:number;
 };
 const pageSize=60;
 type Sort='recent'|'title'|'issue'|'year'|'publisher';
@@ -63,25 +68,44 @@ export default function MyCollection(p:Props){
  const [publisher,setPublisher]=useState(''),[format,setFormat]=useState<''|'raw'|'graded'>(''),[condition,setCondition]=useState(''),[tradeOnly,setTradeOnly]=useState(false);
  const [sheet,setSheet]=useState(false),[selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
  const [shown,setShown]=useState(pageSize);
+ const [mode,setMode]=useState<'shop'|'list'>(p.tab==='trade'?'list':'shop'),[era,setEra]=useState(''),[character,setCharacter]=useState(''),[creator,setCreator]=useState(''),[keysOnly,setKeysOnly]=useState(false),[inRun,setInRun]=useState(false);
+ const [shop,setShop]=useState<ShopData|null>(null),[shopBusy,setShopBusy]=useState(false),[runSetup,setRunSetup]=useState<{issue:Issue|null;from:string;to:string;title:string}|null>(null),[runError,setRunError]=useState('');
+ const shopKey=p.signedIn&&p.loaded?vault.books.map(book=>book.id).join(','):'';
+ useEffect(()=>{if(!shopKey&&!p.signedIn)return;const controller=new AbortController();const timer=setTimeout(()=>{void fetch('/api/collection-shop?mine=1',{credentials:'same-origin',cache:'no-store',signal:controller.signal}).then(async r=>{if(!r.ok)throw Error();return r.json() as Promise<ShopData>}).then(d=>setShop(d)).catch(()=>undefined)},250);return()=>{clearTimeout(timer);controller.abort()}},[shopKey,p.signedIn]);
+ async function shopPost(url:string,body:Record<string,unknown>){const r=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({})) as {error?:string;runs?:CollectionRun[];issueIds?:number[]};if(!r.ok)throw Error(d.error||'That didn’t save.');return d}
+ async function setWindow(w:ShopWindow){if(!shop)return;const before=shop.window;setShop({...shop,window:w});setShopBusy(true);try{await shopPost('/api/profile-extras',{shopWindow:w});p.notice(w==='open'?'Your shop is open: visitors see every comic.':w==='window'?'Window display: visitors see your glass case, runs and favorites.':'Shop closed: your Collection tab is hidden.')}catch(e){setShop(s=>s&&{...s,window:before});p.notice(e instanceof Error?e.message:'That didn’t save.')}finally{setShopBusy(false)}}
+ async function createRun(){if(!runSetup?.issue)return;const from=Number(runSetup.from),to=Number(runSetup.to);if(!Number.isInteger(from)||!Number.isInteger(to)||to<from){setRunError('Enter the first and last issue numbers.');return}setShopBusy(true);setRunError('');try{const d=await shopPost('/api/collection-runs',{action:'create',issueId:runSetup.issue.id,from,to,...(runSetup.title.trim()?{title:runSetup.title.trim()}:{})});setShop(s=>s&&{...s,runs:d.runs||s.runs});setRunSetup(null);p.notice('Run added to your wall.')}catch(e){setRunError(e instanceof Error?e.message:'That run didn’t save.')}finally{setShopBusy(false)}}
+ async function deleteRun(id:string){setShopBusy(true);try{const d=await shopPost('/api/collection-runs',{action:'delete',id});setShop(s=>s&&{...s,runs:d.runs||s.runs.filter(r=>r.id!==id)})}catch(e){p.notice(e instanceof Error?e.message:'That run didn’t delete.')}finally{setShopBusy(false)}}
+ async function addMissing(run:CollectionRun){setShopBusy(true);try{const d=await shopPost('/api/collection-runs',{action:'missing',id:run.id});const add=(d.issueIds||[]).filter(id=>!vault.wants.includes(id));if(!add.length){p.notice(d.issueIds?.length?'Those issues are already on your wishlist.':'We couldn’t match the missing issues in the Directory yet.');return}const next=[...vault.wants,...add].slice(0,1000);if(await p.commit({...vault,wants:next}))p.notice(add.length+' missing '+(add.length===1?'issue':'issues')+' added to your wishlist.')}catch(e){p.notice(e instanceof Error?e.message:'That didn’t work.')}finally{setShopBusy(false)}}
+ const openList=(setup:()=>void)=>{setup();setMode('list');requestAnimationFrame(()=>window.scrollTo({top:0}))};
  const [menu,setMenu]=useState<string|null>(null),[detail,setDetail]=useState<string|null>(null),[confirmRemove,setConfirmRemove]=useState<string[]|null>(null),[photoBusy,setPhotoBusy]=useState('');
  const order=useMemo(()=>new Map(vault.books.map((book,index)=>[book.id,index])),[vault.books]);
  const ids=useMemo(()=>[...new Set([...vault.books.map(directoryId),...vault.wants].filter((id):id is number=>id!==null))],[vault.books,vault.wants]);
  const {lookup,loading}=useRecords(ids);
  const trade=useMemo(()=>new Set(vault.tradeBookIds),[vault.tradeBookIds]),featured=new Set(p.featuredIds);
  // Big collections render a page at a time; any search, filter or sort change starts from the top again.
- const listKey=[tab,query,publisher,format,condition,tradeOnly,sort].join('|'),[shownKey,setShownKey]=useState(listKey);
+ const listKey=[tab,query,publisher,format,condition,tradeOnly,sort,era,character,creator,keysOnly,inRun].join('|'),[shownKey,setShownKey]=useState(listKey);
  if(shownKey!==listKey){setShownKey(listKey);setShown(pageSize)}
  const publishers=useMemo(()=>[...new Set(vault.books.map(book=>lookup(directoryId(book))?.publisher).filter((v):v is string=>!!v))].sort(),[vault.books,lookup]);
+ const keyed=(book:Book)=>{const id=directoryId(book);return id!==null&&!!shop?.keys[String(id)]};
+ const runKeys=useMemo(()=>new Set((shop?.runs||[]).map(run=>(run.seriesName+'|'+run.publisher).toLowerCase())),[shop?.runs]);
+ const inARun=(book:Book)=>{const r=lookup(directoryId(book));return !!r&&runKeys.has((r.title+'|'+r.publisher).toLowerCase())};
+ const creatorsOf=(r:Issue|undefined)=>r?[r.writer,r.artist].filter((v):v is string=>!!v).flatMap(v=>v.split(/;|,/)).map(v=>v.trim()).filter(Boolean):[];
+ const eras=useMemo(()=>[...new Set(vault.books.map(book=>lookup(directoryId(book))?.era).filter((v):v is string=>!!v))].sort(),[vault.books,lookup]);
+ const characters=useMemo(()=>[...new Set(vault.books.flatMap(book=>lookup(directoryId(book))?.characters||[]))].sort().slice(0,300),[vault.books,lookup]);
+ const creators=useMemo(()=>[...new Set(vault.books.flatMap(book=>creatorsOf(lookup(directoryId(book)))))].sort().slice(0,300),[vault.books,lookup]);
  const conditions=useMemo(()=>[...new Set(vault.books.filter(book=>!format||(format==='graded')===graded(book)).map(conditionOf))].sort((a,b)=>conditionRank(a)-conditionRank(b)||a.localeCompare(b)),[vault.books,format]);
  const books=useMemo(()=>{
   const q=query.trim().toLowerCase().replace('#','');
   const pool=tab==='trade'?vault.books.filter(book=>trade.has(book.id)):vault.books;
   return pool.filter(book=>{const record=lookup(directoryId(book));
-   if(q&&!(book.title+' '+book.issue+' '+(record?.publisher||'')+' '+(record?.year||'')).toLowerCase().replace('#','').includes(q))return false;
+   if(q&&!(book.title+' '+book.issue+' '+(record?.publisher||'')+' '+(record?.year||'')+' '+(record?.characters||[]).join(' ')+' '+creatorsOf(record).join(' ')).toLowerCase().replace('#','').includes(q))return false;
    if(publisher&&record?.publisher!==publisher)return false;
    if(format==='graded'&&!graded(book))return false;if(format==='raw'&&graded(book))return false;
    if(condition&&conditionOf(book)!==condition)return false;
-   if(tradeOnly&&!trade.has(book.id))return false;return true;})
+   if(tradeOnly&&!trade.has(book.id))return false;
+   if(era&&record?.era!==era)return false;if(character&&!(record?.characters||[]).includes(character))return false;if(creator&&!creatorsOf(record).includes(creator))return false;
+   if(keysOnly&&!keyed(book))return false;if(inRun&&!inARun(book))return false;return true;})
    .sort((a,b)=>{const ra=lookup(directoryId(a)),rb=lookup(directoryId(b));
     if(sort==='title')return a.title.localeCompare(b.title)||issueNumber(a.issue)-issueNumber(b.issue);
     if(sort==='issue')return issueNumber(a.issue)-issueNumber(b.issue)||a.title.localeCompare(b.title);
@@ -89,8 +113,8 @@ export default function MyCollection(p:Props){
     if(sort==='publisher')return (ra?.publisher||'~').localeCompare(rb?.publisher||'~')||a.title.localeCompare(b.title);
     return (order.get(b.id)||0)-(order.get(a.id)||0);});
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[vault.books,vault.tradeBookIds,tab,query,publisher,format,condition,tradeOnly,sort,lookup,order]);
- const filtersOn=!!(publisher||format||condition||tradeOnly)||sort!=='recent';
+ },[vault.books,vault.tradeBookIds,tab,query,publisher,format,condition,tradeOnly,sort,lookup,order,era,character,creator,keysOnly,inRun,shop]);
+ const filtersOn=!!(publisher||format||condition||tradeOnly||era||character||creator||keysOnly||inRun)||sort!=='recent';
  // A condition that no longer exists (copy edited/removed, or hidden by the raw/graded filter) is dropped.
  if(condition&&!conditions.includes(condition))setCondition('');
  const menuRef=useRef<HTMLDivElement>(null);
@@ -152,8 +176,14 @@ export default function MyCollection(p:Props){
  const wants=vault.wants;
  const detailBook=detail?vault.books.find(book=>book.id===detail):undefined;
  return <section className="mc">
-  {header}
-  {!p.loaded?<LoadingState message={p.status.includes('unavailable')?'Couldn’t load your collection.':'Loading your collection…'}/>:<>
+  {mode==='list'?header:null}
+  {mode==='shop'&&p.loaded&&<ShopFront name={p.name||'Your'} since={p.since||new Date().getFullYear()} books={vault.books} tradeIds={trade} shop={shop} record={record} directoryId={directoryId} busy={saving||shopBusy}
+   art={(book,small)=><ComicArt book={book} small={small}/>} addMenu={<AddMenu onAdd={p.onAdd} onScan={p.onScan} onBrowse={p.onBrowse} label="Stock comics"/>}
+   onSearch={q=>openList(()=>{setQuery(q);p.onTab('collection')})} onSeeAll={()=>openList(()=>{setSort('recent');p.onTab('collection')})}
+   onOpenBook={id=>setDetail(id)} onOpenTrade={()=>openList(()=>p.onTab('trade'))} onOpenBin={pub=>openList(()=>{setPublisher(pub);p.onTab('collection')})}
+   onNewRun={()=>{setRunError('');setRunSetup({issue:null,from:'1',to:'12',title:''})}} onDeleteRun={id=>void deleteRun(id)} onAddMissing={run=>void addMissing(run)} onWindow={w=>void setWindow(w)}/>}
+  {mode==='list'&&p.loaded&&<button type="button" className="ds-link mc-back-shop" onClick={()=>{setMode('shop');setQuery('');setPublisher('');setEra('');setCharacter('');setCreator('');setKeysOnly(false);setInRun(false)}}><ArrowRight size={16} style={{transform:'rotate(180deg)'}} aria-hidden="true"/> Back to the shop</button>}
+  {mode==='shop'&&p.loaded?null:!p.loaded?<LoadingState message={p.status.includes('unavailable')?'Couldn’t load your collection.':'Loading your collection…'}/>:<>
   <div className="mc-summary" role="list">
    <div role="listitem"><strong>{vault.books.length}</strong><span>Comics</span></div>
    {SHOW_WANTS&&<div role="listitem"><strong>{wants.length}</strong><span>Wants</span></div>}
@@ -175,6 +205,11 @@ export default function MyCollection(p:Props){
      <label className="ds-field"><span>Publisher</span><select value={publisher} onChange={event=>setPublisher(event.target.value)}><option value="">All publishers</option>{publishers.map(name=><option key={name}>{name}</option>)}</select></label>
      <label className="ds-field"><span>Raw or graded</span><select value={format} onChange={event=>setFormat(event.target.value as ''|'raw'|'graded')}><option value="">Raw and graded</option><option value="raw">Raw only</option><option value="graded">Graded only</option></select></label>
      <label className="ds-field"><span>Condition</span><select value={condition} onChange={event=>setCondition(event.target.value)} disabled={!conditions.length}><option value="">All conditions</option>{conditions.map(label=><option key={label} value={label}>{label}</option>)}</select></label>
+     <label className="ds-field"><span>Era</span><select value={era} onChange={event=>setEra(event.target.value)} disabled={!eras.length}><option value="">All eras</option>{eras.map(name=><option key={name}>{name}</option>)}</select></label>
+     <label className="ds-field"><span>Character</span><select value={character} onChange={event=>setCharacter(event.target.value)} disabled={!characters.length}><option value="">All characters</option>{characters.map(name=><option key={name}>{name}</option>)}</select></label>
+     <label className="ds-field"><span>Creator</span><select value={creator} onChange={event=>setCreator(event.target.value)} disabled={!creators.length}><option value="">All creators</option>{creators.map(name=><option key={name}>{name}</option>)}</select></label>
+     <label className="mc-toggle"><input type="checkbox" checked={keysOnly} onChange={event=>setKeysOnly(event.target.checked)}/> Keys only</label>
+     <label className="mc-toggle"><input type="checkbox" checked={inRun} onChange={event=>setInRun(event.target.checked)}/> In a run</label>
      {tab==='collection'&&<label className="mc-toggle"><input type="checkbox" checked={tradeOnly} onChange={event=>setTradeOnly(event.target.checked)}/> For trade only</label>}
      <button type="button" className="ds-btn ds-btn-primary mc-sheet-done" onClick={()=>setSheet(false)}>Show {books.length} comics</button>
     </div>
@@ -182,7 +217,12 @@ export default function MyCollection(p:Props){
     <div className="mc-view" role="group" aria-label="Layout"><button type="button" aria-pressed={view==='grid'} aria-label="Grid view" onClick={()=>setView('grid')}><Grid3X3 size={18}/></button><button type="button" aria-pressed={view==='list'} aria-label="List view" onClick={()=>setView('list')}><List size={18}/></button></div>
     {vault.books.length>0&&<button type="button" className={'ds-btn ds-btn-secondary ds-btn-sm'+(selecting?' on':'')} onClick={()=>{setSelecting(!selecting);setSelected(new Set())}}><CheckSquare size={17}/> {selecting?'Done':'Select'}</button>}
    </div>
-   {(publisher||format||condition||tradeOnly)&&<div className="mc-active-filters" aria-label="Active filters">
+   {(publisher||format||condition||tradeOnly||era||character||creator||keysOnly||inRun)&&<div className="mc-active-filters" aria-label="Active filters">
+    {era&&<button type="button" className="mc-active-chip" aria-label={'Remove the era filter: '+era} onClick={()=>setEra('')}>{era}<X size={14} aria-hidden="true"/></button>}
+    {character&&<button type="button" className="mc-active-chip" aria-label={'Remove the character filter: '+character} onClick={()=>setCharacter('')}>{character}<X size={14} aria-hidden="true"/></button>}
+    {creator&&<button type="button" className="mc-active-chip" aria-label={'Remove the creator filter: '+creator} onClick={()=>setCreator('')}>{creator}<X size={14} aria-hidden="true"/></button>}
+    {keysOnly&&<button type="button" className="mc-active-chip" aria-label="Remove the keys only filter" onClick={()=>setKeysOnly(false)}>Keys only<X size={14} aria-hidden="true"/></button>}
+    {inRun&&<button type="button" className="mc-active-chip" aria-label="Remove the in a run filter" onClick={()=>setInRun(false)}>In a run<X size={14} aria-hidden="true"/></button>}
     {publisher&&<button type="button" className="mc-active-chip" aria-label={'Remove the publisher filter: '+publisher} onClick={()=>setPublisher('')}>{publisher}<X size={14} aria-hidden="true"/></button>}
     {format&&<button type="button" className="mc-active-chip" aria-label={'Remove the '+format+' filter'} onClick={()=>setFormat('')}>{format==='raw'?'Raw only':'Graded only'}<X size={14} aria-hidden="true"/></button>}
     {condition&&<button type="button" className="mc-active-chip" aria-label={'Remove the condition filter: '+condition} onClick={()=>setCondition('')}>{condition}<X size={14} aria-hidden="true"/></button>}
@@ -202,7 +242,7 @@ export default function MyCollection(p:Props){
    {loading&&<p className="mc-quiet" role="status">Loading publisher and year details…</p>}
    {!vault.books.length?<EmptyState title="Your longbox is waiting." message="Add your first comic. Scan it, search for it, or add it by hand." action={{label:'Scan a comic',onClick:p.onScan}} secondary={{label:'Search the directory',onClick:p.onBrowse}}/>
     :tab==='trade'&&!tradeCount?<EmptyState compact title="Nothing in your trade pile yet." message="Open a comic's ⋯ menu and pick “Mark for trade”."/>
-    :!books.length?<EmptyState compact title="No comics match." message="Try another search or clear the filters." action={{label:'Clear filters',onClick:()=>{setQuery('');setPublisher('');setFormat('');setCondition('');setTradeOnly(false);setSort('recent')}}}/>
+    :!books.length?<EmptyState compact title="No comics match." message="Try another search or clear the filters." action={{label:'Clear filters',onClick:()=>{setQuery('');setPublisher('');setFormat('');setCondition('');setTradeOnly(false);setSort('recent');setEra('');setCharacter('');setCreator('');setKeysOnly(false);setInRun(false)}}}/>
     :<><div className={view==='grid'?'mc-grid':'mc-list'}>{books.slice(0,shown).map(card)}</div>{books.length>shown&&<div className="mc-more"><span>Showing {shown} of {books.length}</span><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setShown(value=>value+pageSize*2)}>Show more</button></div>}</>}
   </>}
 
@@ -221,6 +261,7 @@ export default function MyCollection(p:Props){
     <p className="ds-eyebrow">{record(detailBook)?.publisher||'Your comic'}{record(detailBook)?.year?' · '+record(detailBook)?.year:''}</p>
     <h2>{detailBook.title} <span>{detailBook.issue}</span></h2>
     <div className="mc-badges inline">{badges(detailBook)}</div>
+    {(()=>{const id=directoryId(detailBook),k=id===null?null:shop?.keys[String(id)];return k?<p className="mc-key-note"><b>Key:</b> {k.reasons[0]||k.note}</p>:null})()}
     {record(detailBook)&&<p>{record(detailBook)?.note}</p>}
     {directoryId(detailBook)!==null&&<button type="button" className="ds-link" onClick={()=>{const id=directoryId(detailBook);setDetail(null);if(id!==null)p.onOpenIssue(id)}}>See the full issue page <ArrowRight size={16}/></button>}
     <div className="mc-private" aria-labelledby="mc-private-title"><p className="mc-private-head"><span className="ds-eyebrow" id="mc-private-title">Your copy</span><span className="mc-private-tag"><Lock size={14} aria-hidden="true"/> Only you can see this</span></p><dl>
@@ -240,6 +281,14 @@ export default function MyCollection(p:Props){
    </div>
   </div></Modal>}
 
+  {runSetup&&<Modal label="New run" onClose={()=>setRunSetup(null)}><form className="mc-confirm mc-run-setup" onSubmit={event=>{event.preventDefault();void createRun()}}>
+   <h2>Start a run</h2><p>Pick any issue of the series from the Directory, then the issue range you’re collecting.</p>
+   <ComicPicker value={runSetup.issue} onChange={issue=>setRunSetup(r=>r&&{...r,issue})} label="Series (pick any issue)" disabled={shopBusy}/>
+   <div className="mc-run-range"><label className="ds-field"><span>From #</span><input inputMode="numeric" value={runSetup.from} onChange={e=>setRunSetup(r=>r&&{...r,from:e.target.value.replace(/\D/g,'')})} required/></label><label className="ds-field"><span>To #</span><input inputMode="numeric" value={runSetup.to} onChange={e=>setRunSetup(r=>r&&{...r,to:e.target.value.replace(/\D/g,'')})} required/></label></div>
+   <label className="ds-field"><span>Name (optional)</span><input value={runSetup.title} maxLength={80} onChange={e=>setRunSetup(r=>r&&{...r,title:e.target.value})} placeholder="Claremont X-Men"/></label>
+   {runError&&<p className="ds-error" role="alert">{runError}</p>}
+   <div className="ds-actions"><button type="submit" className="ds-btn ds-btn-primary" disabled={shopBusy||!runSetup.issue}>Add to the wall</button><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setRunSetup(null)}>Cancel</button></div>
+  </form></Modal>}
   {confirmRemove&&<Modal label="Remove comics" onClose={()=>setConfirmRemove(null)}><div className="mc-confirm">
    <h2>Remove {confirmRemove.length>1?confirmRemove.length+' comics':'this comic'}?</h2>
    <p>It comes off your collection. You can add it again any time.</p>
@@ -248,15 +297,15 @@ export default function MyCollection(p:Props){
  </section>;
 }
 
-function AddMenu({onAdd,onScan,onBrowse}:{onAdd:()=>void;onScan:()=>void;onBrowse:()=>void}){
+function AddMenu({onAdd,onScan,onBrowse,label='Add comics'}:{onAdd:()=>void;onScan:()=>void;onBrowse:()=>void;label?:string}){
  const [open,setOpen]=useState(false),box=useRef<HTMLDivElement>(null);
  useEffect(()=>{if(!open)return;const close=(event:PointerEvent)=>{if(box.current&&!box.current.contains(event.target as Node))setOpen(false)};const esc=(event:KeyboardEvent)=>{if(event.key==='Escape')setOpen(false)};document.addEventListener('pointerdown',close);document.addEventListener('keydown',esc);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',esc)}},[open]);
  return <div className="mc-add" ref={box}>
-  <button type="button" className="ds-btn ds-btn-primary" aria-haspopup="menu" aria-expanded={open} onClick={()=>setOpen(!open)}><Plus size={18}/> Add comics <ChevronDown size={16}/></button>
+  <button type="button" className="ds-btn ds-btn-primary" aria-haspopup="menu" aria-expanded={open} onClick={()=>setOpen(!open)}><Plus size={18}/> {label} <ChevronDown size={16}/></button>
   {open&&<div className="mc-menu-list mc-add-list" role="menu">
-   <button role="menuitem" type="button" onClick={()=>{setOpen(false);onScan()}}><Camera size={17}/> Scan a comic</button>
-   <button role="menuitem" type="button" onClick={()=>{setOpen(false);onBrowse()}}><Search size={17}/> Search the directory</button>
-   <button role="menuitem" type="button" onClick={()=>{setOpen(false);onAdd()}}><Pencil size={17}/> Add by hand</button>
+   <button role="menuitem" type="button" onClick={()=>{setOpen(false);onScan()}}><Camera size={17}/> Scan</button>
+   <button role="menuitem" type="button" onClick={()=>{setOpen(false);onBrowse()}}><Search size={17}/> From Directory</button>
+   <button role="menuitem" type="button" onClick={()=>{setOpen(false);onAdd()}}><Pencil size={17}/> Import list</button>
   </div>}
  </div>;
 }

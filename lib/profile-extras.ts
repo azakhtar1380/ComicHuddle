@@ -61,6 +61,7 @@ export const extrasInput=z.object({
  grailIssueId:z.number().int().min(0).nullable().optional(),
  grailReward:z.string().trim().max(80).optional(),
  shareWishlist:z.boolean().optional(),shareReviews:z.boolean().optional(),shareCity:z.boolean().optional(),
+ shopWindow:z.enum(['open','window','closed']).optional(),
 }).strict();
 export type ExtrasInput=z.infer<typeof extrasInput>;
 
@@ -78,6 +79,7 @@ export async function saveExtras(db:CatalogDb,profile:{id:string;userId:string},
  if(input.shareWishlist!==undefined)columns.push(['share_wishlist',input.shareWishlist]);
  if(input.shareReviews!==undefined)columns.push(['share_reviews',input.shareReviews]);
  if(input.shareCity!==undefined)columns.push(['share_city',input.shareCity]);
+ if(input.shopWindow!==undefined)columns.push(['shop_window',input.shopWindow]);
  await upsertExtras(profile,columns);
 }
 export class ExtrasError extends Error{status=400}

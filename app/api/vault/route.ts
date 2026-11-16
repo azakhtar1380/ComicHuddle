@@ -8,6 +8,7 @@ import {ApiRequestError,enforceWriteLimits,privateJson,readObject,chunks} from '
 import {previewRulesVersion} from '../../../lib/community';
 import {sharedProviderIdentity,listingDirectoryId} from '../../../lib/shared-catalog';
 import {vaultVersionHeader} from '../../../lib/vault-client';
+import {syncVaultLedger} from '../../../lib/vault-ledger';
 
 async function etag(row:typeof collections.$inferSelect|undefined){
  if(!row)return '"empty"';
@@ -53,5 +54,7 @@ export async function POST(req:Request){try{
   :await db.insert(collections).values({userId:user.userId,data:serialized,revision}).onConflictDoNothing().returning({userId:collections.userId});
  if(!changed.length)return privateJson({error:'Your collection changed while saving. Reload it before trying again.'},409);
  const version='"'+revision+'"';
+ // Per-copy history (migration 052): when each copy was added or removed. Never blocks the save.
+ await syncVaultLedger(user.userId,data);
  return privateJson({saved:true},200,{ETag:version,[vaultVersionHeader]:version});
 }catch(error){if(error instanceof ApiRequestError)return privateJson({error:error.message},error.status);return privateJson({error:'Could not save your collection. Please retry.'},500)}}
