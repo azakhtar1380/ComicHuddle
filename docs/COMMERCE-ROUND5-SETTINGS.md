@@ -13,6 +13,7 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 | 045 | `045_listing_package.sql` | Optional package `weight_oz`, `length_in`, `width_in`, `height_in`. |
 | 046 | `046_seller_payouts.sql` | `seller_payouts`: bank payouts and `payout.*` events. |
 | 047 | `047_support_payments.sql` | `support_payments`: Support ComicHuddle payments. |
+| 050 | `050_first_appearance_reference.sql` | Lets hand-checked first appearances be stored (docs/DATA-ACCURACY.md). |
 | 049 | `049_listing_drafts.sql` | `listing_drafts`: several saved listing drafts per seller (Your drafts). |
 | 048 | `048_saved_cards.sql` | `buyer_saved_cards` (Stripe customer and card IDs, brand, last 4 digits, expiry, shipping address) and `auction_auto_charges` (one row per won auction). |
 

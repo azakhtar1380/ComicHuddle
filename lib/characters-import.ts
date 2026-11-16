@@ -2,6 +2,7 @@
 // loads the crawler's cache files (.metron-cache/characters/*.ndjson), stores Wikidata facts,
 // then derives character_issues, merges Wikidata-only characters into their Metron twins and
 // recomputes which first-appearance facts are shown. Idempotent; safe to re-run.
+import {applyFirstAppearanceReference} from './characters-reference';
 import {createReadStream,existsSync} from 'node:fs';
 import {createInterface} from 'node:readline';
 import {sql} from 'drizzle-orm';
@@ -241,6 +242,8 @@ export async function finalizeCharacters(db:CatalogDb,log:Log=()=>undefined){
   (SELECT count(*) FROM ch_web.characters WHERE portrait_key IS NOT NULL) AS portraits,(SELECT count(*) FROM ch_web.character_first_appearances WHERE issue_id IS NOT NULL AND NOT suppressed) AS facts,
   (SELECT count(DISTINCT issue_id) FROM ch_web.character_first_appearances WHERE issue_id IS NOT NULL AND NOT suppressed) AS key_issues,(SELECT count(*) FROM ch_web.character_issues) AS character_issues,
   (SELECT count(*) FROM ch_web.metron_issue_details) AS issue_details`)).rows[0];
+ // Hand-checked first appearances win over Metron/Wikidata (lib/first-appearance-reference.ts).
+ {const reference=await applyFirstAppearanceReference(db);log(`reference first appearances: ${reference.characters} characters checked, ${reference.applied} rows applied${reference.noIssue.length?'; no issue found for: '+reference.noIssue.join(', '):''}${reference.noCharacter.length?'; no character found for: '+reference.noCharacter.join(', '):''}`)}
  log(`finalized: ${Number(merged.rowCount||0)} Wikidata characters merged, ${Number(issues.rowCount||0)} new character/issue links; totals ${JSON.stringify(counts)}`);
  return counts;
 }

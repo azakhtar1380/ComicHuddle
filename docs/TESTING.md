@@ -38,6 +38,8 @@ There are two layers. Run both before anything goes live.
    - Buy now returns to the same listing
    - Messages for guests, browser Back button
    - Peek inside on the home page, Hulk #181 key fact
+   - trading an owned comic for a listing (opens Messages with the terms)
+   - making an offer, with the result shown inside the listing window
    - signed-in cart; Orders, Wallet and Messages open; admin pages closed to buyers
 4. **Admin** (`e2e/4-admin.spec.ts`): admin sections, cover review, email previews, audit log.
 5. **Screenshots** (`e2e/5-visual.spec.ts`): home, marketplace, about, contact, sign-in, cart, directory, wallet, sell form.

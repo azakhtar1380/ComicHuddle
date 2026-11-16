@@ -150,19 +150,20 @@ export async function resolveProfileIssue(db:CatalogDb,id:number,tables:boolean)
  * (match_method metron_desc_confirmed). "metron_issue_list" only means "earliest issue Metron has
  * indexed for the character" — an inference that is often wrong (e.g. Dick Grayson -> Batman #1,
  * Lex Luthor -> Superman #4, Darkseid -> Jimmy Olsen #134), so it is never shown as a first
- * appearance or used to call an issue a key issue. */
-export const VERIFIED_FIRST_APPEARANCE=sql`NOT suppressed AND (source='wikidata' OR match_method='metron_desc_confirmed')`;
-const VERIFIED_FIRST_APPEARANCE_F=sql`NOT f.suppressed AND (f.source='wikidata' OR f.match_method='metron_desc_confirmed')`;
-const VERIFIED_FIRST_ORDER=sql`(match_method='metron_desc_confirmed') DESC,(source='wikidata') DESC`;
+ * appearance or used to call an issue a key issue. Hand-checked rows (source 'reference', lib/first-appearance-reference.ts)
+ * outrank both and hide any conflicting row for that character. */
+export const VERIFIED_FIRST_APPEARANCE=sql`NOT suppressed AND (source='reference' OR source='wikidata' AND match_method NOT IN ('name_only','name_only_dominant') OR match_method='metron_desc_confirmed')`;
+const VERIFIED_FIRST_APPEARANCE_F=sql`NOT f.suppressed AND (f.source='reference' OR f.source='wikidata' AND f.match_method NOT IN ('name_only','name_only_dominant') OR f.match_method='metron_desc_confirmed')`;
+const VERIFIED_FIRST_ORDER=sql`(source='reference') DESC,(match_method='metron_desc_confirmed') DESC,(source='wikidata') DESC`;
 
 // ---------- profile ----------
 export type ProfileCharacter={characterId:number;name:string;portraitUrl:string|null;debut:boolean};
-export type ProfileFirstAppearance={characterId:number;name:string;portraitUrl:string|null;source:'metron'|'wikidata'};
+export type ProfileFirstAppearance={characterId:number;name:string;portraitUrl:string|null;source:'metron'|'wikidata'|'reference'};
 export type IssueProfile={issueId:number;metronId:number|null;status:'ready'|'pending'|'unavailable';keyIssue:boolean;keyReasons:string[];description:string|null;
  firstAppearances:ProfileFirstAppearance[];characters:ProfileCharacter[];teams:string[];credits:{name:string;roles:string[]}[];attribution:string;catalogIssueId?:number|null};
 export const emptyProfile=(issueId:number,metronId:number|null=null,status:IssueProfile['status']='unavailable'):IssueProfile=>({issueId,metronId,status,keyIssue:false,keyReasons:[],description:null,firstAppearances:[],characters:[],teams:[],credits:[],attribution:CHARACTER_ATTRIBUTION});
 
-export type FactRow={characterId:number;name:string;source:'metron'|'wikidata';portraitKey:string|null;issueCount:number|null;sitelinks:number|null};
+export type FactRow={characterId:number;name:string;source:'metron'|'wikidata'|'reference';portraitKey:string|null;issueCount:number|null;sitelinks:number|null};
 export type CharacterRow={characterId:number;name:string;portraitKey:string|null;issueCount:number|null;aliases?:string[]};
 export type ProfileInput={issueId:number;metronId:number|null;status:IssueProfile['status'];detail:{description:string|null;characters:MetronCharacterRef[];teams:string[];credits:{name:string;roles:string[]}[]}|null;
  facts:FactRow[];known:Map<number,CharacterRow>;listed:CharacterRow[];base:string|null};
@@ -179,7 +180,7 @@ export function buildProfile(input:ProfileInput):IssueProfile{
  // One entry per character: Metron facts win over Wikidata; a Wikidata-only fact whose name matches a
  // Metron character listed in this issue is shown as that character (portrait, id).
  const weight=(f:FactRow)=>f.issueCount??-1;
- const facts=[...input.facts].sort((a,b)=>(a.source==='metron'?0:1)-(b.source==='metron'?0:1)||weight(b)-weight(a)||(b.sitelinks??0)-(a.sitelinks??0)||a.name.localeCompare(b.name));
+ const facts=[...input.facts].sort((a,b)=>(a.source==='reference'?0:a.source==='metron'?1:2)-(b.source==='reference'?0:b.source==='metron'?1:2)||weight(b)-weight(a)||(b.sitelinks??0)-(a.sitelinks??0)||a.name.localeCompare(b.name));
  const seenIds=new Set<number>(),seenNames=new Set<string>(),factIds=new Set(facts.map(f=>f.characterId)),first:(ProfileFirstAppearance&{w:number;s:number})[]=[];
  for(const f of facts){
   const twin=f.characterId<0?byName.get(normalizeCharacterText(f.name)):undefined;
@@ -246,7 +247,7 @@ export async function issueProfile(db:CatalogDb,id:number,options:{enrich?:boole
   const ids=(detail?.characters||[]).map(c=>c.id).slice(0,300);
   const knownRows=ids.length?(await db.execute(sql`SELECT character_id,name,portrait_key,issue_count,aliases FROM ch_web.characters WHERE character_id IN (${sql.join(ids.map(i=>sql`${i}`),sql`,`)})`)).rows:[];
   const row=(r:Record<string,unknown>):CharacterRow=>({characterId:Number(r.character_id),name:String(r.name),portraitKey:typeof r.portrait_key==='string'?r.portrait_key:null,issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),aliases:Array.isArray(r.aliases)?(r.aliases as unknown[]).filter((a):a is string=>typeof a==='string'):[]});
-  const facts:FactRow[]=factRows.rows.map(r=>({...row(r),source:r.source==='metron'?'metron':'wikidata',sitelinks:r.sitelinks===null||r.sitelinks===undefined?null:Number(r.sitelinks)}));
+  const facts:FactRow[]=factRows.rows.map(r=>({...row(r),source:r.source==='metron'?'metron':r.source==='reference'?'reference':'wikidata',sitelinks:r.sitelinks===null||r.sitelinks===undefined?null:Number(r.sitelinks)}));
   if(!detail&&!metronId&&!facts.length&&!listedRows.rows.length)status='unavailable';
   const profile=buildProfile({issueId:id,metronId,status,detail,facts,known:new Map(knownRows.map(r=>[Number(r.character_id),row(r)])),listed:listedRows.rows.map(row),base:metronDisplayBase()});
   return {...profile,catalogIssueId:issueId};

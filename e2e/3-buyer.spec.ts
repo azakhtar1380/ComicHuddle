@@ -2,7 +2,7 @@
 // Relies on the listing the seller journey published (Planet Comics #12, $25).
 import {test,expect,open,isPhone,signedInAs} from './fixtures';
 import type {Page} from '@playwright/test';
-import {ensureListing} from './helpers';
+import {addComicToCollection,ensureListing} from './helpers';
 
 // Each run starts with an empty test database: make sure the seller's listing exists (the seller journey makes it).
 test.beforeAll(async({browser})=>{await ensureListing(browser)});
@@ -117,5 +117,38 @@ test.describe('signed-in buyer',()=>{
  test('a buyer cannot open admin pages',async({page})=>{
   await open(page,'/admin');
   await expect(page.getByText(/audit log/i)).toHaveCount(0);
+ });
+});
+
+test.describe('signed-in trader',()=>{
+ signedInAs('buyer');
+ test('a buyer proposes a trade with a comic they own; the seller gets the terms in Messages',async({page})=>{
+  await page.goto('/');await addComicToCollection(page);
+  const detail=await openListing(page);
+  await detail.getByRole('button',{name:/^trade$/i}).click();
+  const form=detail.locator('form.mpx-trade');
+  await expect(form).toBeVisible();
+  await form.getByRole('checkbox',{name:/incredible hulk/i}).check();
+  await form.locator('input[type=checkbox][required]').check();
+  await form.getByRole('button',{name:/send proposal/i}).click();
+  // Success: the conversation opens with the trade terms card waiting on the seller.
+  await expect(page).toHaveURL(/section=Messages/);
+  await expect(page.getByText(/waiting on seller/i).first()).toBeVisible();
+  await expect(page.getByText(/incredible hulk #181/i).first()).toBeVisible();
+ });
+});
+
+test.describe('signed-in offer',()=>{
+ signedInAs('buyer');
+ test('making an offer reports back inside the listing window, never on the page behind it',async({page})=>{
+  const detail=await openListing(page);
+  await detail.getByRole('button',{name:/make an offer/i}).click();
+  const form=detail.locator('form.mpx-form').filter({has:page.locator('[name=amount]')});
+  await form.locator('[name=amount]').fill('20');
+  const note=form.locator('[name=note]');if(await note.count())await note.fill('Would you take $20?');
+  for(const box of await form.locator('input[type=checkbox][required]').all())await box.check();
+  await form.getByRole('button',{name:/send|make|offer/i}).last().click();
+  await expect(detail.locator('.mpx-detail-message')).toBeVisible();
+  await expect(page.locator('.marketplace-page > .ds-error')).toHaveCount(0);
  });
 });

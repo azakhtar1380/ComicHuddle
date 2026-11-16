@@ -41,3 +41,14 @@ export async function ensureListing(browser:Browser){
  if(!(listings.listings||[]).some((l:{title:string;status?:string})=>/planet comics #12/i.test(l.title)))await publishListing(page);
  await context.close();
 }
+/** Puts one comic in the signed-in account's collection (through the normal collection API). */
+export async function addComicToCollection(page:Page,title='Incredible Hulk',issue='#181'){
+ const {emptyVault}=await import('../lib/vault');
+ const current=await page.request.get('/api/vault');
+ const version=current.headers()['x-comichuddle-vault-version']||current.headers()['etag']||'';
+ const vault=(await current.json())||emptyVault('QA Buyer');
+ if(vault.books.some((b:{title:string;issue:string})=>b.title===title&&b.issue===issue))return;
+ vault.books.push({id:crypto.randomUUID(),title,issue,grade:'Raw 6.0',price:0,catalogId:10}); // 10 = Incredible Hulk #181 in the curated catalog
+ const saved=await page.request.post('/api/vault',{data:vault,headers:{'If-Match':version,'X-ComicHuddle-Vault-Version':version,Origin:'http://localhost:'+(process.env.E2E_PORT||3100)}});
+ expect(saved.ok(),'collection saved: '+(await saved.text()).slice(0,200)).toBe(true);
+}

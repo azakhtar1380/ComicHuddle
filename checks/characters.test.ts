@@ -154,14 +154,15 @@ test('import, profile with on-demand enrichment, search and the catalog characte
  const profile=await issueProfile(db,4000000724,{fetcher});
  assert.deepEqual(calls,['https://metron.cloud/api/issue/34067/']);
  assert.equal(profile?.status,'ready');assert.equal(profile?.metronId,34067);assert.equal(profile?.description,'Batman battles the Joker.');
- assert.deepEqual(profile?.firstAppearances.map(f=>[f.characterId,f.name,f.source]),[[2,'Joker','metron'],[3,'Catwoman','wikidata'],[-3,'Hugo Strange','wikidata']],'the Wikidata Catwoman is shown as the Metron Catwoman listed in this issue');
+ // Joker and Catwoman are in the hand-checked list (Batman #1), so that source wins; Hugo Strange stays Wikidata.
+ assert.deepEqual(profile?.firstAppearances.map(f=>[f.characterId,f.name,f.source]),[[2,'Joker','reference'],[3,'Catwoman','reference'],[-3,'Hugo Strange','wikidata']],'hand-checked first appearances outrank Metron and Wikidata');
  assert.deepEqual(profile?.characters.slice(0,4).map(c=>[c.name,c.debut]),[['Joker',true],['Catwoman',true],['Hugo Strange',true],['Batman',false]]);
  assert.deepEqual(profile?.credits,[{name:'Bob Kane',roles:['Penciller']}]);
  // After the next import the Wikidata Catwoman merges into Metron Catwoman (same name, same issue).
  await finalizeCharacters(db);
  const merged=await issueProfile(db,35,{fetcher});
  assert.equal(merged?.catalogIssueId,4000000724,'curated id 35 maps through coverLookupId');
- assert.deepEqual(merged?.firstAppearances.map(f=>[f.characterId,f.source]),[[2,'metron'],[3,'wikidata'],[-3,'wikidata']]);
+ assert.deepEqual(merged?.firstAppearances.map(f=>[f.characterId,f.source]),[[2,'reference'],[3,'reference'],[-3,'wikidata']]);
  assert.equal(calls.length,1,'stored details are reused');
  assert.equal(merged?.issueId,35);
  // Pending: a linked Metron issue that cannot be fetched (no token) is queued.
@@ -170,7 +171,10 @@ test('import, profile with on-demand enrichment, search and the catalog characte
  assert.equal(pending?.status,'pending');
  assert.equal((await engine.query('SELECT 1 FROM ch_web.character_enrichment_queue WHERE metron_issue_id=34068')).rows.length,1);
  assert.equal(await issueProfile(db,4000009999),null,'unknown issue');
- assert.equal((await issueProfile(db,4000005068))?.keyIssue,false,'an unconfirmed Metron issue-list inference (earliest indexed issue) is not shown as a first appearance');
+ // Detective #27: the Metron 'earliest indexed issue' guess alone is never shown, but Batman is in the hand-checked list.
+ const tec27=await issueProfile(db,4000005068);
+ assert.deepEqual(tec27?.firstAppearances.map(f=>[f.name,f.source]),[['Batman','reference']],'shown only because of the hand-checked fact, never the issue-list inference');
+ assert.equal((await engine.query("SELECT suppressed FROM ch_web.character_first_appearances WHERE character_id=1 AND source='metron'")).rows[0]?.suppressed,true,'the inferred row stays hidden');
 
  const search=await searchCharacters(db,'joker',8);
  assert.deepEqual(search.map(r=>r.name),['Joker','Jokerz']);

@@ -22,7 +22,7 @@ import './issue-showcase.css';
 
 export type ProfileCharacter={characterId:number;name:string;portraitUrl:string|null;debut:boolean};
 export type IssueProfile={issueId:number;metronId:number|null;status:'ready'|'pending'|'unavailable';keyIssue:boolean;keyReasons:string[];description:string|null;
- firstAppearances:{characterId:number;name:string;portraitUrl:string|null;source:'metron'|'wikidata'}[];characters:ProfileCharacter[];teams:string[];credits:{name:string;roles:string[]}[];attribution:string};
+ firstAppearances:{characterId:number;name:string;portraitUrl:string|null;source:'metron'|'wikidata'|'reference'}[];characters:ProfileCharacter[];teams:string[];credits:{name:string;roles:string[]}[];attribution:string};
 export type IssueInsights={issueId:number;currency:'USD';status:'available'|'limited'|'unavailable';
  headline:{value:number;low:number;high:number;grade:string|null;label:string|null;basis:string}|null;confidence:'high'|'medium'|'low'|null;
  lastSale:{amount:number;date:string;grade:string|null;label:string|null;venue:string;sourceUrl:string|null}|null;
@@ -163,7 +163,7 @@ export default function IssueShowcase({viewerProfileId=null,issue,cover,coverNot
   <section className="is-section" aria-labelledby="is-collector-title">
    <h3 id="is-collector-title">Collector information</h3>
    {firstCount>0?<ul className="is-firsts">
-    {verifiedFirsts.map(f=><li key={'v'+f.characterId}><a href={'/characters/'+f.characterId}><Portrait name={f.name} src={f.portraitUrl} size="sm"/><span><strong>{f.name}</strong> first appearance</span></a><Source kind="verified">{f.source==='metron'?'Metron':'Wikidata'}</Source></li>)}
+    {verifiedFirsts.map(f=><li key={'v'+f.characterId}><a href={'/characters/'+f.characterId}><Portrait name={f.name} src={f.portraitUrl} size="sm"/><span><strong>{f.name}</strong> first appearance</span></a><Source kind="verified">{f.source==='reference'?'Checked by ComicHuddle':f.source==='metron'?'Metron':'Wikidata'}</Source></li>)}
     {gcdFirsts.map(f=><li key={'g'+f.name}><span className="is-first-plain"><strong>{f.name}</strong> {f.qualifier}</span><Source kind="verified">GCD</Source></li>)}
    </ul>:profileLoading?<p className="is-quiet" role="status"><span className="is-spinner" aria-hidden="true"/> Checking first-appearance records…</p>
    :p?.status==='ready'?<p className="is-quiet">No first appearance is recorded for this issue.</p>:null}

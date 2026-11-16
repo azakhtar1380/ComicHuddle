@@ -13,7 +13,7 @@ import {profiles,collections,media,listings,listingInventory,careProviders,comme
 import {seedStarterStatements} from '../lib/catalog-store';
 import {emptyVault} from '../lib/vault';
 import {previewRulesVersion} from '../lib/community';
-import {createListing,checkMarketplaceDeletion,anonymizeMarketplaceHistory} from '../lib/marketplace';
+import {createListing,checkMarketplaceDeletion,anonymizeMarketplaceHistory,proposeListingTrade} from '../lib/marketplace';
 import {markListingSold,requestSafePurchase} from '../lib/marketplace-sales';
 import {marketplaceDirectory} from '../lib/marketplace-directory';
 import {workshopDirectoryRows,studioVisibleFields} from '../lib/workshop-directory';
@@ -193,4 +193,15 @@ test('editing unpublishes into a private exact-copy draft atomically and preserv
  assert.equal((await readDraft(getDb(),other.userId,id)).draft,null,'nor read it');
  await deleteDraft(getDb(),other.userId,id,null);assert.equal((await listDrafts(getDb(),seller.userId)).length,3);
  await deleteDraft(getDb(),seller.userId,id,null);assert.equal((await listDrafts(getDb(),seller.userId)).length,2);
+});
+
+test('trade proposal: a buyer offers an owned copy for a listing; the seller gets the terms in Messages',async()=>{
+ const seller=await collector('tradeseller'),buyer=await collector('tradebuyer'),listing=await offer(seller);
+ const db=getDb(),bookId=crypto.randomUUID(),vault=emptyVault(buyer.name);
+ vault.books.push({id:bookId,title:'Incredible Hulk',issue:'#181',grade:'Raw 6.0',price:0,catalogId:0} as never);
+ await db.insert(collections).values({userId:buyer.userId,data:JSON.stringify(vault),revision:crypto.randomUUID()});
+ const result=await proposeListingTrade(db,buyer,{action:'trade_offer',listingId:listing.id,bookIds:[bookId],note:'Straight swap?',requestId:crypto.randomUUID()});
+ assert.equal(result.saved,true);assert.equal(result.duplicate,false);
+ assert.equal((await pool.query('SELECT count(*)::int AS n FROM ch_web.trade_proposals WHERE id=$1',[result.proposalId])).rows[0].n,1);
+ assert.equal((await pool.query('SELECT count(*)::int AS n FROM ch_web.messages WHERE id=$1',[result.proposalId])).rows[0].n,1);
 });

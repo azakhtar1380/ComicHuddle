@@ -577,3 +577,6 @@
 .mpx-setup.is-test>svg,.mpx-setup.needs-payouts>svg{color:var(--ink)}
 .mpx-setup.is-test>p,.mpx-setup.needs-payouts>p{font-size:16px;color:var(--ink)}
 .mpx-setup.is-test strong{font-weight:800}
+.mpx-detail-message{display:flex;align-items:flex-start;gap:8px}
+.mpx-detail-message>span{flex:1}
+.mpx-detail-message .ds-link{padding:2px}

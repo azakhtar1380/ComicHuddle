@@ -339,7 +339,7 @@ export async function tradeTermsAccountData(db:Db,profileId:string){
 }
 // A durable proposal is separate from its ordinary chat message. Neither record
 // charges, reserves or transfers a book; acceptance records agreed terms only.
-export async function proposeListingTrade(db:Db,me:Profile,raw:Record<string,unknown>){
+export async function proposeListingTrade(db:Db,me:Profile,raw:Record<string,unknown>,attempt=0):Promise<{saved:true;proposalId:string;threadId:string;duplicate:boolean;note:string}>{
  const value=z.object({action:z.literal('trade_offer'),listingId:z.string().min(1).max(100),bookIds:z.array(bookId).min(1).max(10).refine(ids=>new Set(ids).size===ids.length),note:z.string().trim().max(300).default(''),requestId:z.string().uuid()}).strict().parse(raw),requestBody=JSON.stringify({listingId:value.listingId,bookIds:value.bookIds,note:value.note});
  const [existing]=await db.select().from(tradeProposals).where(eq(tradeProposals.id,value.requestId));
  if(existing){if(existing.buyerId!==me.id||existing.requestBody!==requestBody)throw new ApiRequestError('This request was already used for different trade terms.',409);const [thread]=await db.select().from(threads).where(eq(threads.id,existing.threadId));if(!thread||![thread.a,thread.b].includes(me.id))throw new ApiRequestError('Conversation not found.',404);return {saved:true,proposalId:existing.id,threadId:existing.threadId,duplicate:true,note:'These saved trade terms already exist. No new message or trade was created.'}}
@@ -377,7 +377,12 @@ export async function proposeListingTrade(db:Db,me:Profile,raw:Record<string,unk
   db.insert(tradeProposals).select(db.select({id:sql<string>`${value.requestId}`.as('id'),threadId:threads.id,listingId:sql<string>`${listing.id}`.as('listing_id'),buyerId:sql<string>`${me.id}`.as('buyer_id'),sellerId:sql<string>`${seller.id}`.as('seller_id'),status:sql<string>`'pending'`.as('status'),version:sql<number>`0`.as('version'),requestBody:sql<string>`${requestBody}`.as('request_body'),buyerItems:sql<string>`${buyerItems}`.as('buyer_items'),sellerItems:sql<string>`${sellerItems}`.as('seller_items'),listingSnapshot:sql<string>`${listingSnapshot}`.as('listing_snapshot'),createdAt:sql<string>`${stamp}`.as('created_at'),updatedAt:sql<string>`${stamp}`.as('updated_at'),decidedAt:sql<null>`NULL`.as('decided_at'),decidedBy:sql<null>`NULL`.as('decided_by')}).from(threads).where(eq(threads.pair,pair))).onConflictDoNothing().returning({id:tradeProposals.id}),
   db.insert(messages).select(db.select({id:sql<string>`${value.requestId}`.as('id'),threadId:threads.id,profileId:sql<string>`${me.id}`.as('profile_id'),body:sql<string>`${body}`.as('body'),createdAt:sql<string>`${stamp}`.as('created_at')}).from(threads).where(eq(threads.pair,pair))).onConflictDoNothing(),
   checked.finish
- ]);inserted=Array.isArray(results[2])&&results[2].length>0}catch(error){if(marketplaceGuardFailed(error))throw new ApiRequestError('The listing, available copies or messaging permissions changed. Refresh before sending a trade proposal.',409);throw error}
+ ]);inserted=Array.isArray(results[2])&&results[2].length>0}catch(error){if(marketplaceGuardFailed(error)){
+  const reason=await tradeFailureReason(db,{listingId:listing.id,listingItems:listing.items,buyerId:me.id,buyerUserId:me.userId,sellerId:seller.id,sellerUserId:seller.userId,bookIds:value.bookIds,buyerRevision:source.revision,sellerRevision:sellerSource.revision});
+  // A collection saved in the background (another tab, an autosave) only means the snapshot is stale: check again once.
+  if(attempt===0&&/collection (changed|just changed)/.test(reason))return proposeListingTrade(db,me,raw,1);
+  throw new ApiRequestError(reason,409)}
+ throw error}
  const [thread]=await db.select().from(threads).where(eq(threads.pair,pair));
  return {saved:true,proposalId:value.requestId,threadId:thread.id,duplicate:!inserted,note:'Trade terms saved for the seller. Acceptance records an agreement only; no completed trade, protection, payment or transfer is created.'};
 }
@@ -430,4 +435,23 @@ export function anonymizeMarketplaceHistory(db:Db,me:Profile){
   db.update(listings).set({sellerId:removed,title:'Cancelled preview · seller account removed',description:'Historical nonbinding preview. The seller removed their account.',photos:'[]',items:'[]',itemCount:0,bookId:'deleted',issueId:null,grade:'',cert:'',vaultRevision:'',usaAttestedAt:'',fulfillment:'shipping',pickupCity:'',pickupState:'',locationZip:'',locationCity:'',locationState:'',latitude:null,longitude:null,safePurchaseOptIn:0,safePurchaseVerifiedAt:null}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),gt(listings.bidCount,0),eq(listings.status,'cancelled'))),
   db.delete(listingInventory).where(eq(listingInventory.sellerId,me.id))
  ],after:[sellerSafe.finish,bidderSafe.finish]};
+}
+/** Why a trade proposal's final safety check failed, in words the buyer can act on (each part of the check on its own). */
+export async function tradeFailureReason(db:Db,input:{listingId:string;listingItems:string;buyerId:string;buyerUserId:string;sellerId:string;sellerUserId:string;bookIds:string[];buyerRevision:string;sellerRevision:string}){
+ const one=async(query:SQL)=>((await db.execute(query)).rows as Record<string,unknown>[])[0];
+ const listing=await one(sql`SELECT status,sale_type,items FROM listings WHERE id=${input.listingId}`);
+ if(!listing||listing.status!=='active'||listing.sale_type!=='fixed')return 'This listing isn’t available for trades anymore. Refresh to see its current status.';
+ if(listing.items!==input.listingItems)return 'The seller just changed this listing. Refresh and look at it again before proposing a trade.';
+ const reserved=(await db.execute(sql`SELECT DISTINCT l.title FROM listing_inventory r JOIN listings l ON l.id=r.listing_id WHERE r.seller_id=${input.buyerId} AND r.book_id IN (${sql.join(input.bookIds.map(id=>sql`${id}`),sql`, `)}) AND (l.status IN ('active','pending','checkout_reserved') OR EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id=r.listing_id AND o.status NOT IN ('cancelled','checkout_expired','refunded')))`)).rows as {title:string}[];
+ if(reserved.length)return 'You can’t offer a comic that’s in your own listing: '+reserved.map(r=>'“'+r.title+'”').join(', ')+'. Take it out of that listing first, or pick a different comic.';
+ const buyerVault=await one(sql`SELECT revision FROM collections WHERE user_id=${input.buyerUserId}`),sellerVault=await one(sql`SELECT revision FROM collections WHERE user_id=${input.sellerUserId}`);
+ if(buyerVault?.revision!==input.buyerRevision)return 'Your collection changed while you were choosing (maybe in another tab). Refresh and pick your comics again.';
+ if(sellerVault?.revision!==input.sellerRevision)return 'The seller’s collection just changed. Refresh and try again.';
+ const people=(await db.execute(sql`SELECT id,visible,dm_open,moderated,deletion_started_at,rules_version,rules_accepted_at FROM profiles WHERE id IN (${input.buyerId},${input.sellerId})`)).rows as {id:string;visible:number;dm_open:number;moderated:number;deletion_started_at:string|null;rules_version:string;rules_accepted_at:string}[];
+ const buyer=people.find(p=>p.id===input.buyerId),seller=people.find(p=>p.id===input.sellerId);
+ if(!buyer?.visible||!buyer.dm_open)return 'Turn on your public profile and direct messages in Settings to send trade proposals.';
+ if(!seller?.visible||!seller.dm_open)return 'This seller isn’t accepting private messages, so trade proposals can’t be sent right now.';
+ if(buyer.rules_version!==previewRulesVersion||!buyer.rules_accepted_at)return 'Accept the current community rules in your profile before proposing a trade.';
+ if(buyer.moderated||seller.moderated||buyer.deletion_started_at||seller.deletion_started_at)return 'One of the accounts can’t trade right now.';
+ return 'Something changed while sending. Refresh and try again.';
 }
