@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
-import {COMMUNITY_COVER_CREDIT,SELLER_PHOTO_CREDIT,coverMediaId} from '../lib/cover-cache-types';
+import {COMMUNITY_COVER_CREDIT,coverMediaId} from '../lib/cover-cache-types';
 import {addSharedCover,coverDisplayVersion,removeCoverUrl,shownCover,subscribeCoverDisplay} from './cover-display-store';
 import {refreshResolvedCover} from './resolved-comic-cover';
 
@@ -47,7 +47,7 @@ export default function CoverContribution({issueId}:{issueId:number}){
   finally{setBusy(false)}
  }
  async function remove(url:string){
-  const mediaId=coverMediaId(url);if(!mediaId||busy||!window.confirm('Remove this cover photo from the directory? A seller’s photo stays on their listing.'))return;
+  const mediaId=coverMediaId(url);if(!mediaId||busy||!window.confirm('Remove this cover photo from the directory?'))return;
   setBusy(true);setNote('');
   try{
    const {response,error}=await send('/api/admin/covers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',mediaId})});
@@ -56,7 +56,7 @@ export default function CoverContribution({issueId}:{issueId:number}){
   }catch{setNote('The photo could not be removed. Please retry.')}
   finally{setBusy(false)}
  }
- const memberPhoto=!!shown?.url&&(shown.credit===COMMUNITY_COVER_CREDIT||shown.credit===SELLER_PHOTO_CREDIT)&&!!coverMediaId(shown.url);
+ const memberPhoto=!!shown?.url&&shown.credit===COMMUNITY_COVER_CREDIT&&!!coverMediaId(shown.url);
  const canAdd=!!shown&&(!shown.url||memberPhoto),canReport=!admin&&memberPhoto&&shown!.credit===COMMUNITY_COVER_CREDIT,canRemove=admin&&memberPhoto;
  if(!canAdd&&!canReport&&!canRemove&&!note)return null;
  const addLabel=!shown?.url?'Add a cover photo':admin?'Replace photo':'Suggest a better photo';

@@ -32,7 +32,7 @@ export default function AdminCoverReview(){
     {(['review','recent'] as const).map(v=><button key={v} type="button" aria-pressed={view===v} onClick={()=>{if(v!==view){setCovers(null);setView(v)}}}>{v==='review'?'Needs review':'All recent uploads'}</button>)}
    </div>
   </div>
-  <p className="adm-hint">Members add photos where an issue has none, and suggest better ones where it has one. Only admins approve suggestions and remove photos. To remove a seller’s listing photo from the directory, open the issue and use “Remove photo”; the photo stays on the listing.</p>
+  <p className="adm-hint">Members add photos where an issue has none, and suggest better ones where it has one. Only admins approve suggestions and remove photos. Marketplace listing photos are never used as directory covers.</p>
   {note&&<p role="status" className="adm-ok">{note}</p>}
   {error?<p role="alert" className="ds-error">{error}</p>:!covers?<p role="status">Loading cover photos…</p>:!covers.length?<p className="adm-empty">{view==='review'?'Nothing needs review right now.':'No cover photos have been uploaded yet.'}</p>:
   <ul className="adm-cover-grid">{covers.map(cover=><li key={cover.mediaId} className="adm-cover">

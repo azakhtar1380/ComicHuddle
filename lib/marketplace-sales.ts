@@ -14,6 +14,14 @@ export async function markListingSold(db:CatalogDb,me:typeof profiles.$inferSele
  const custody=await db.execute(sql`SELECT id FROM ch_web.safe_purchase_requests WHERE listing_id=${row.id} AND status IN ('accepted','received_at_vault','inspected','shipped_to_buyer') LIMIT 1`);
  if(custody.rows.length)throw new ApiRequestError('Resolve the active SafePurchase inspection or shipment before manually marking this listing sold.',409);
  if(row.status==='sold')return {saved:true,duplicate:true,listingId:row.id,note:'This listing is already in Sold Items.'};
+ // Paid through checkout and waiting: a local pickup is finished by the seller here; a shipped order settles itself on delivery.
+ if(row.status==='pending'){
+  const [paid]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.listingId,row.id),sql`${commerceOrders.status} NOT IN ('cancelled','refunded','checkout_expired')`));
+  if(!paid)throw new ApiRequestError('This listing is waiting on an order. Check Orders.',409);
+  const {commerceSellerMarkPickedUp}=await import('./commerce');
+  const result=await commerceSellerMarkPickedUp(db as never,me.userId,paid.id);
+  return {saved:true,listingId:row.id,paymentVerified:true,note:result.note||'Marked as sold.'};
+ }
  if(!['active','ended'].includes(row.status))throw new ApiRequestError('This listing is reserved or closed and cannot be marked sold.',409);
  const [order]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.listingId,row.id),sql`${commerceOrders.status} NOT IN ('cancelled','refunded','checkout_expired')`));
  if(order&&!['cancelled','refunded','checkout_expired'].includes(order.status))throw new ApiRequestError('Resolve the current platform order before changing this listing.',409);

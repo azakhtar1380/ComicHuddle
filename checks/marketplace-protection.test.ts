@@ -20,7 +20,7 @@ import {marketplaceDirectory,publicListingFields,publicSellerFields,publicItemFi
 import {bidHistory,markAuctionUnpaid,resolveEndedAuctions,auctionTerms} from '../lib/marketplace-auction';
 import {applyProxyBid,bidIncrement,maskHandle,minimumBid,resolveAuction,type ProxyState} from '../lib/auction-engine';
 import {ownerAccountId} from '../lib/owner';
-import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
+import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceSellerMarkPickedUp,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
 import {addBusinessDays,createCommerceState,evaluateCommercePolicy,applyCommerceEvent} from '../lib/commerce-policy';
 import {pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,sameDigest} from '../lib/commerce-protection';
 import {carrierStatusLabel,carrierUpdate,createCarrierTracker,easyPostSignature,retrieveCarrierTracker,verifyEasyPostWebhook} from '../lib/commerce-carrier';
@@ -85,7 +85,7 @@ let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
  const skip=new Set(['003_catalog_ingestion.sql','005_gcd_snapshot_import.sql']);
- for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);return {...result,rowCount:result.affectedRows,command:'',rows:typeof config!=='string'&&config.rowMode==='array'?result.rows.map(row=>result.fields.map(field=>row[field.name])):result.rows}};
  Object.assign(pool,{query,connect:async()=>({query,release(){}})});
@@ -253,14 +253,14 @@ test('auction end: reserve not met releases copies; a winner pays the winning pr
  assert.equal((mine.auction as unknown as Obj).youWon,true);
  await rejects(checkout(other,won.id),409,/winning bidder/);
  const orderId=await paid(winner,won.id);const order=await orderRow(orderId);
- assert.equal(JSON.parse(order.snapshot).itemAmountCents,2600,'Checkout charges the winning amount');assert.equal((await listingRow(won.id)).status,'sold');assert.equal((await auctionTerms(db,[won.id])).get(won.id)?.result,'paid');
+ assert.equal(JSON.parse(order.snapshot).itemAmountCents,2600,'Checkout charges the winning amount');assert.equal((await listingRow(won.id)).status,'pending');assert.equal((await auctionTerms(db,[won.id])).get(won.id)?.result,'paid');
  await rejects(markAuctionUnpaid(db,seller,unpaid.id),409,/until/);
  await db.execute(sql`UPDATE ch_web.marketplace_auction_terms SET payment_due_at=${ago(1000)} WHERE listing_id=${unpaid.id}`);
  assert.equal((await markAuctionUnpaid(db,seller,unpaid.id)).saved,true);assert.equal((await listingRow(unpaid.id)).status,'ended');assert.equal((await auctionTerms(db,[unpaid.id])).get(unpaid.id)?.result,'unpaid');
 });
 
 // ---------- Local pickup ----------
-test('local pickup: 6-digit code shown only to the buyer; seller code or buyer tap completes it and starts the 72h window',async()=>{
+test('local pickup: no code; the seller marks it sold (or the buyer taps), the listing settles to sold, and the 72h window starts',async()=>{
  const db=getDb(),seller=await collector('pickupseller'),buyer=await collector('pickupbuyer');await onboard(seller);
  const listing=await offer(seller,{price:2500,fulfillment:'pickup'});
  await rejects(checkout(buyer,listing.id),409,/local pickup only/);
@@ -268,13 +268,15 @@ test('local pickup: 6-digit code shown only to the buyer; seller code or buyer t
  const row=await orderRow(orderId),state=JSON.parse(row.state);
  assert.equal(JSON.parse(row.snapshot).shippingCents,0);assert.equal(JSON.parse(row.snapshot).shippingAddress,undefined);
  const buyerView=await dto(orderId,buyer.userId) as Obj,sellerView=await dto(orderId,seller.userId) as Obj;
- assert.match(String(buyerView.pickupCode),/^\d{6}$/);assert.equal(sellerView.pickupCode,undefined,'The seller never sees the code');
- assert.ok(state.pickupCodeHash);assert.ok(!row.state.includes(String(buyerView.pickupCode)),'Plain code is not stored');
+ assert.equal(buyerView.pickupCode,undefined,'Local pickups no longer use a code');assert.equal(sellerView.pickupCode,undefined);void state;
+ assert.equal(sellerView.canMarkPickedUp,true);assert.equal(buyerView.canMarkPickedUp,false);
+ assert.equal((await listingRow(listing.id)).status,'pending','a paid pickup waits as pending');
  assert.equal(buyerView.status,'awaiting_pickup');assert.equal(orderProgress(buyerView as never).steps[2].label,'Ready for pickup');
  await rejects(commerceSubmitTracking(db,seller.userId,{action:'submit_tracking',orderId,carrier:'USPS',trackingNumber:'9400111899223197428490'}),409,/pickup/);
- await rejects(commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code:String(buyerView.pickupCode)==='000000'?'111111':'000000'}),400,/doesn’t match/);
  await rejects(commerceConfirmPickup(db,seller.userId,{action:'confirm_pickup',orderId}),403);
- await commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code:String(buyerView.pickupCode)});
+ await rejects(commerceSellerMarkPickedUp(db,buyer.userId,orderId),403);
+ await commerceSellerMarkPickedUp(db,seller.userId,orderId);
+ assert.equal((await listingRow(listing.id)).status,'sold','picked up: the listing is sold');
  const done=await dto(orderId,seller.userId) as Obj&{pickup:{by:string;confirmedAt:string}};assert.equal(done.status,'picked_up');assert.equal(done.pickup.by,'seller');
  assert.equal(Date.parse(String(done.fundsAvailableAt))-Date.parse(done.pickup.confirmedAt),72*hour,'Funds available 72h after pickup');
  const model=orderProgress(done as never);assert.equal(model.complete,4);assert.equal(model.steps[3].label,'Picked up');

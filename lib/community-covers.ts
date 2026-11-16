@@ -4,15 +4,15 @@ import {sql} from 'drizzle-orm';
 import {z} from 'zod';
 import type {CatalogDb} from './catalog-store';
 import {ApiRequestError} from './api-security';
-import {COMMUNITY_COVER_CREDIT,SELLER_PHOTO_CREDIT,communityPhotoUrl} from './cover-cache-types';
+import {COMMUNITY_COVER_CREDIT,communityPhotoUrl} from './cover-cache-types';
 
-// Member covers: they come before any catalog source. Full priority (see withCatalogCovers / resolveCoverBatch):
-//  1. seller photo (front photo of an active, else most recent sold, listing of that exact issue, unless
-//     the seller opted out)  2. most recent approved collector-submitted cover photo
-//  3. reviewed local public-domain /covers/ files, then catalog art only when CATALOG_ART_COVERS=on
-export type FallbackOrigin='seller'|'community';
+// Member covers come before any catalog source. Full priority (see withCatalogCovers / resolveCoverBatch):
+//  1. most recent approved collector-submitted cover photo (added on the issue itself)
+//  2. reviewed local public-domain /covers/ files, then catalog art only when CATALOG_ART_COVERS=on
+// Marketplace listing photos are NEVER used as directory covers: they belong to that listing only.
+export type FallbackOrigin='community';
 export type FallbackCover={url:string;attribution:string;source:string;origin:FallbackOrigin};
-export const FALLBACK_COVER_ORDER:readonly FallbackOrigin[]=['seller','community'];
+export const FALLBACK_COVER_ORDER:readonly FallbackOrigin[]=['community'];
 export function pickFallbackCover(found:Partial<Record<FallbackOrigin,FallbackCover>>):FallbackCover|null{for(const origin of FALLBACK_COVER_ORDER){const cover=found[origin];if(cover)return cover}return null}
 
 export const COMMUNITY_COVER_DAILY_LIMIT=20,COMMUNITY_COVER_MAX_UPLOAD=10*1024*1024,COMMUNITY_COVER_MAX_EDGE=1200;
@@ -45,16 +45,6 @@ export async function normalizeCommunityCover(bytes:Uint8Array,contentType:strin
 
 // One definition of "may be shown publicly" for both the catalog fallback and /api/media.
 const accountInGoodStanding=(profile:string)=>sql`${sql.raw(profile)}.moderated=0 AND ${sql.raw(profile)}.deletion_started_at IS NULL AND NOT EXISTS(SELECT 1 FROM ch_web.account_restrictions r WHERE r.user_id=${sql.raw(profile)}.user_id AND r.scope='account')`;
-// cover_opt_out (migration 042): the seller kept this listing's photo out of the directory.
-const coverListing=sql`l.status IN ('active','sold') AND l.issue_id IS NOT NULL AND l.cover_opt_out=0`;
-const frontPhoto=sql`(CASE WHEN jsonb_typeof(l.photos::jsonb)='array' THEN l.photos::jsonb->>0 END)`;
-
-async function sellerPhotoRows(db:CatalogDb,ids:number[]){
- const rows=await db.execute(sql`SELECT DISTINCT ON(l.issue_id) l.issue_id,m.id AS media_id FROM ch_web.listings l JOIN ch_web.profiles p ON p.id=l.seller_id JOIN ch_web.media m ON m.id=${frontPhoto} AND m.user_id=p.user_id
-  WHERE l.issue_id IN (${sql.join(ids.map(id=>sql`${id}`),sql`,`)}) AND ${coverListing} AND p.visible=1 AND ${accountInGoodStanding('p')}
-  ORDER BY l.issue_id,(l.status='active') DESC,l.created_at DESC,l.id`);
- return new Map(rows.rows.map(row=>[Number(row.issue_id),String(row.media_id)]));
-}
 async function communityCoverRows(db:CatalogDb,ids:number[]){
  const rows=await db.execute(sql`SELECT DISTINCT ON(c.issue_id) c.issue_id,c.media_id FROM ch_web.community_covers c JOIN ch_web.media m ON m.id=c.media_id AND m.user_id=c.user_id JOIN ch_web.profiles p ON p.user_id=c.user_id
   WHERE c.issue_id IN (${sql.join(ids.map(id=>sql`${id}`),sql`,`)}) AND c.status='approved' AND ${accountInGoodStanding('p')}
@@ -65,23 +55,18 @@ async function communityCoverRows(db:CatalogDb,ids:number[]){
 /** Fallback covers for issues that still have none. Never throws: a missing migration means no fallbacks. */
 export async function fallbackCovers(db:CatalogDb,ids:number[]):Promise<Map<number,FallbackCover>>{
  const out=new Map<number,FallbackCover>(),wanted=[...new Set(ids.filter(id=>Number.isSafeInteger(id)&&id>=0))];if(!wanted.length)return out;
- const [seller,community]=await Promise.all([sellerPhotoRows(db,wanted).catch(()=>new Map<number,string>()),communityCoverRows(db,wanted).catch(()=>new Map<number,string>())]);
+ const community=await communityCoverRows(db,wanted).catch(()=>new Map<number,string>());
  for(const id of wanted){
-  const s=seller.get(id),c=community.get(id);
-  const cover=pickFallbackCover({
-   ...(s?{seller:{url:communityPhotoUrl(s),attribution:SELLER_PHOTO_CREDIT,source:'/?section=Marketplace&issue='+id,origin:'seller' as const}}:{}),
-   ...(c?{community:{url:communityPhotoUrl(c),attribution:COMMUNITY_COVER_CREDIT,source:communityPhotoUrl(c),origin:'community' as const}}:{})});
+  const c=community.get(id);
+  const cover=pickFallbackCover(c?{community:{url:communityPhotoUrl(c),attribution:COMMUNITY_COVER_CREDIT,source:communityPhotoUrl(c),origin:'community'}}:{});
   if(cover)out.set(id,cover);
  }
  return out;
 }
 
-/** /api/media exception: a photo is public when it is currently usable as a catalog cover. */
+/** /api/media exception: a photo is public when it is an approved collector cover. */
 export async function isPublicCoverPhoto(db:CatalogDb,id:string){
  if(!mediaId.safeParse(id).success)return false;
- const seller=await db.execute(sql`SELECT 1 FROM ch_web.media m JOIN ch_web.profiles p ON p.user_id=m.user_id JOIN ch_web.listings l ON l.seller_id=p.id
-  WHERE m.id=${id} AND ${coverListing} AND ${frontPhoto}=m.id AND p.visible=1 AND ${accountInGoodStanding('p')} LIMIT 1`).catch(()=>({rows:[]}));
- if(seller.rows.length)return true;
  const community=await db.execute(sql`SELECT 1 FROM ch_web.community_covers c JOIN ch_web.media m ON m.id=c.media_id AND m.user_id=c.user_id JOIN ch_web.profiles p ON p.user_id=c.user_id
   WHERE c.media_id=${id} AND c.status='approved' AND ${accountInGoodStanding('p')} LIMIT 1`).catch(()=>({rows:[]}));
  return community.rows.length>0;
@@ -107,28 +92,16 @@ export async function reportCommunityCover(db:CatalogDb,userId:string,input:z.in
 
 // ---- Admin moderation (callers must have passed requireAdmin) ----
 export const adminCoverAction=z.object({action:z.enum(['approve','remove']),mediaId}).strict();
-export type AdminCoverResult={kind:'community'|'seller';issueId:number};
+export type AdminCoverResult={kind:'community';issueId:number};
 
-/** approve: a pending/hidden collector photo goes live. remove: a collector photo is rejected, or a
- * seller's listing photo is taken out of the directory (the photo stays on the listing). */
+/** approve: a pending/hidden collector photo goes live. remove: a collector photo is rejected. */
 export async function adminModerateCover(db:CatalogDb,action:'approve'|'remove',id:string):Promise<AdminCoverResult>{
  if(!mediaId.safeParse(id).success)throw new ApiRequestError('That cover photo was not found.',404);
  const status=action==='approve'?'approved':'rejected';
  // Approving a reported photo means "keep it": its open reports are cleared from the review queue.
  const [community]=(await db.execute(sql`UPDATE ch_web.community_covers SET status=${status},report_count=CASE WHEN ${status}='approved' THEN 0 ELSE report_count END,reviewed_at=now(),updated_at=now() WHERE media_id=${id} RETURNING issue_id`)).rows as {issue_id:unknown}[];
  if(community)return {kind:'community',issueId:Number(community.issue_id)};
- if(action==='remove'){
-  const [listing]=(await db.execute(sql`UPDATE ch_web.listings l SET cover_opt_out=1 WHERE l.issue_id IS NOT NULL AND ${frontPhoto}=${id} RETURNING l.issue_id`)).rows as {issue_id:unknown}[];
-  if(listing)return {kind:'seller',issueId:Number(listing.issue_id)};
- }
  throw new ApiRequestError('That cover photo was not found.',404);
-}
-
-/** When an admin replaces a seller's photo, that listing's photo leaves the directory. Returns its media id. */
-export async function removeSellerCoverForIssue(db:CatalogDb,issueId:number){
- const id=(await sellerPhotoRows(db,[issueId])).get(issueId);
- if(id)await adminModerateCover(db,'remove',id);
- return id||null;
 }
 
 export type AdminCoverRow={mediaId:string;issueId:number;title:string;status:string;reportCount:number;uploader:string;createdAt:string;url:string};

@@ -123,7 +123,8 @@ export function commerceOrderDto(row:Row,userId:string){
   carrierConfirmed:!!shipment.acceptedAt&&!state.pickup,deliveredAt:shipment.deliveredAt,signatureVerified:shipment.signatureVerified,
   canCancel:role==='buyer'&&decision.state.refundReason==='tracking_deadline'&&!state.financial&&!state.issue?.open,
   canConfirmPickup:role==='buyer'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&(state.policy.tier!=='safepurchase'||status==='inspection_passed'),
-  canEnterPickupCode:role==='seller'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&state.policy.tier!=='safepurchase'&&!!state.pickupCodeHash,
+  canEnterPickupCode:false,
+  canMarkPickedUp:role==='seller'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&state.policy.tier!=='safepurchase',
   carrier:state.carrierStatus?{trackerId:state.carrierStatus.trackerId,status:state.carrierStatus.status,label:carrierStatusLabel(state.carrierStatus.status),problem:carrierProblem(state.carrierStatus.status),estDeliveryAt:state.carrierStatus.estDeliveryAt,lastScan:state.carrierStatus.lastScan,updatedAt:state.carrierStatus.updatedAt}:null,
   claimUntil,fundsAvailableAt,payoutsEnabled:false,feedbackEligible:completedStatuses.has(status)};
 }
@@ -141,7 +142,8 @@ export async function commerceOwnedOrder(db:Db,userId:string,orderId:string,allo
 /** Adds participant-only extras: the buyer's pickup code and the inspection address for a SafePurchase seller. */
 async function participantDto(row:Row,userId:string,environment:StripeSandboxEnv){
  const dto=commerceOrderDto(row,userId),state=stateOf(row),extra:{pickupCode?:string;inspectionAddress?:string}={};
- if(dto.role==='buyer'&&dto.fulfillment==='pickup'&&state.order.paidAt&&!state.pickup&&state.pickupCodeHash&&!state.financial){
+ // Only SafePurchase pickups (at the Inspection Center) use a code; a local pickup is confirmed by the seller.
+ if(dto.role==='buyer'&&dto.fulfillment==='pickup'&&state.policy.tier==='safepurchase'&&state.order.paidAt&&!state.pickup&&state.pickupCodeHash&&!state.financial){
   try{const code=await pickupCode(environment,row.id);if(await pickupCodeMatches(row.id,state.pickupCodeHash,code))extra.pickupCode=code}catch{}
  }
  const address=protectionConfig(environment).inspectionAddress;
@@ -401,6 +403,17 @@ export async function commerceConfirmPickupCode(db:Db,userId:string,raw:Record<s
  if(!state.pickupCodeHash||!await pickupCodeMatches(row.id,state.pickupCodeHash,input.code))throw new ApiRequestError('That code doesn’t match this order. Ask the buyer to read the 6-digit code shown on their order.',400);
  const next=transition(state,{...eventBase(row,'pickup_'+row.id,'server'),type:'pickup_confirmed',actor:'seller'}),updated=await persist(db,row,next,'pickup_confirmed',{note:'Seller confirmed the hand-off with the buyer’s pickup code.'});
  return {sandbox:row.sandbox===1,order:commerceOrderDto(updated,userId),note:'Pickup confirmed with the buyer’s code.'};
+}
+/** Local pickup: the seller marks the order picked up (sold) once the buyer has the comic. No code. */
+export async function commerceSellerMarkPickedUp(db:Db,userId:string,orderId:unknown){
+ const id=z.string().uuid().safeParse(orderId);if(!id.success)throw new ApiRequestError('Choose an order.',400);
+ const row=await commerceOwnedOrder(db,userId,id.data),state=stateOf(row);
+ if(row.sellerUserId!==userId)throw new ApiRequestError('Only the seller can mark a pickup as sold.',403);
+ if(snapshotOf(row).fulfillment!=='pickup'||state.policy.tier==='safepurchase')throw new ApiRequestError('This order ships. It’s marked sold automatically once it’s delivered.',409);
+ if(!state.order.paidAt)throw new ApiRequestError('The buyer hasn’t paid yet.',409);
+ if(state.pickup)return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),duplicate:true};
+ const next=transition(state,{...eventBase(row,'pickup_'+row.id,'server'),type:'pickup_confirmed',actor:'seller'}),updated=await persist(db,row,next,'pickup_confirmed',{note:'Seller marked the pickup as sold.'});
+ return {sandbox:row.sandbox===1,order:commerceOrderDto(updated,userId),note:'Marked as sold. The buyer has the comic.'};
 }
 /** Buyer cancellation for a missed handling deadline: a full refund through the processor. */
 export async function commerceCancelOrder(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
@@ -731,7 +744,7 @@ async function recordPaid(db:Db,row:Row,event:StripeVerifiedEvent,processor:Proc
  const evaluated=evaluateCommercePolicy(next,stamp).state;
  if(snapshot.auction)await ensureLocalAuctionSchema(db);
  const check=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM commerce_orders o JOIN listings l ON l.id = o.listing_id WHERE o.id = ${row.id} AND o.version = ${row.version} AND o.sandbox = ${row.sandbox} AND o.status NOT IN ('cancelled','checkout_expired') AND (o.checkout_session_id IS NULL OR o.checkout_session_id = ${sessionId}) AND (o.payment_intent_id IS NULL OR o.payment_intent_id = ${intentId})) AND NOT EXISTS (SELECT 1 FROM commerce_events e WHERE e.provider_event_id = ${event.id})`);
- try{await db.batch([check.start,db.update(commerceOrders).set({checkoutSessionId:sessionId,paymentIntentId:intentId,chargeId,state:JSON.stringify(evaluated),status:evaluated.status,version:row.version+1,updatedAt:stamp}).where(eq(commerceOrders.id,row.id)),db.update(listings).set({status:'sold'}).where(and(eq(listings.id,row.listingId),eq(listings.status,'checkout_reserved'))),...(snapshot.auction?[markAuctionPaidStatement(db,row.listingId)]:[]),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId:row.id,providerEventId:event.id,type:'payment_confirmed',body:JSON.stringify({fingerprint,note:'Signed provider event and server-retrieved session, intent and charge confirm this exact order amount.',providerCreatedAt:typeof event.created==='number'?event.created:null}),createdAt:stamp}),...(!state.order.paidAt?[platformLedgerEntry(db,row,snapshot,'application_fee_recorded',chargeId,stamp)]:[]),db.execute(sql`SELECT ch_web.reconcile_order_rewards(${row.id})`),check.finish])}
+ try{await db.batch([check.start,db.update(commerceOrders).set({checkoutSessionId:sessionId,paymentIntentId:intentId,chargeId,state:JSON.stringify(evaluated),status:evaluated.status,version:row.version+1,updatedAt:stamp}).where(eq(commerceOrders.id,row.id)),db.update(listings).set({status:'pending'}).where(and(eq(listings.id,row.listingId),eq(listings.status,'checkout_reserved'))),...(snapshot.auction?[markAuctionPaidStatement(db,row.listingId)]:[]),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId:row.id,providerEventId:event.id,type:'payment_confirmed',body:JSON.stringify({fingerprint,note:'Signed provider event and server-retrieved session, intent and charge confirm this exact order amount.',providerCreatedAt:typeof event.created==='number'?event.created:null}),createdAt:stamp}),...(!state.order.paidAt?[platformLedgerEntry(db,row,snapshot,'application_fee_recorded',chargeId,stamp)]:[]),db.execute(sql`SELECT ch_web.reconcile_order_rewards(${row.id})`),check.finish])}
  catch(error){if(operationGuardFailed(error))throw new ApiRequestError('Order changed while confirming payment. Retry the signed event.',409);throw error}
  if(!state.order.paidAt)await import('./offers').then(m=>m.notifyOrderEvent(row.id,'paid')).catch(()=>undefined); // offers (round 4): buyer + seller "paid" notifications
  return {received:true,sandbox:row.sandbox===1};

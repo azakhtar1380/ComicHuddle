@@ -6,8 +6,8 @@ import {media,profiles} from '../../../../db/schema';
 import {previewRulesVersion} from '../../../../lib/community';
 import {ApiRequestError,enforceWriteLimits,isRestricted,privateJson,readBytes} from '../../../../lib/api-security';
 import {catalogIssuesById} from '../../../../lib/catalog-store';
-import {COMMUNITY_COVER_CREDIT,SELLER_PHOTO_CREDIT,communityPhotoUrl} from '../../../../lib/cover-cache-types';
-import {COMMUNITY_COVER_DAILY_LIMIT,COMMUNITY_COVER_MAX_UPLOAD,communityCoverSubmission,communitySubmissionsToday,initialCommunityCoverStatus,normalizeCommunityCover,removeSellerCoverForIssue} from '../../../../lib/community-covers';
+import {COMMUNITY_COVER_CREDIT,communityPhotoUrl} from '../../../../lib/cover-cache-types';
+import {COMMUNITY_COVER_DAILY_LIMIT,COMMUNITY_COVER_MAX_UPLOAD,communityCoverSubmission,communitySubmissionsToday,initialCommunityCoverStatus,normalizeCommunityCover} from '../../../../lib/community-covers';
 import {isAdmin} from '../../../../lib/admin';
 import {logAdminAction} from '../../../../lib/admin-audit';
 export const runtime='nodejs';export const dynamic='force-dynamic';
@@ -16,7 +16,7 @@ const json=(error:string,status:number)=>privateJson({error},status);
 /** A signed-in member adds a cover photo for a Directory issue.
  * - No cover yet: it shows right away (COMMUNITY_COVERS_REVIEW=manual queues it instead).
  * - A member photo already shows: the new photo is a suggestion that waits for an admin.
- * - An admin's upload replaces the current member photo at once (a seller's photo leaves the directory, not the listing).
+ * - An admin's upload replaces the current member photo at once. (Marketplace listing photos never become covers.)
  * Removing photos is admin-only (app/api/admin/covers). Body: the raw JPEG/PNG/WebP bytes. Query: ?issueId=. */
 export async function POST(req:Request){try{
  const user=await getChatGPTUser();if(!user)return json('Sign in to add a cover photo.',401);
@@ -32,7 +32,7 @@ export async function POST(req:Request){try{
  const [issue]=await catalogIssuesById(db,[input.data.issueId]);if(!issue)return json('That Directory issue was not found.',404);
  // Reviewed public-domain files and licensed art are never replaced by uploads; member photos can be.
  // (comics.org references are never shown directly by the cover component, so they do not count.)
- const memberCover=issue.coverCredit===COMMUNITY_COVER_CREDIT||issue.coverCredit===SELLER_PHOTO_CREDIT;
+ const memberCover=issue.coverCredit===COMMUNITY_COVER_CREDIT;
  if(issue.cover&&!/comics\.org/i.test(issue.cover)&&!memberCover)return json('This issue already has a cover image.',409);
  const admin=isAdmin(user),replacing=!!issue.cover&&memberCover,suggestion=replacing&&!admin;
  if(await communitySubmissionsToday(db,user.userId)>=COMMUNITY_COVER_DAILY_LIMIT)return json('You can share up to '+COMMUNITY_COVER_DAILY_LIMIT+' cover photos per day. Please try again tomorrow.',429);
@@ -46,8 +46,6 @@ export async function POST(req:Request){try{
   db.execute(sql`INSERT INTO ch_web.community_covers(id,issue_id,media_id,user_id,status,width,height,content_hash) VALUES(${crypto.randomUUID()},${issue.id},${id},${user.userId},${status},${prepared.width},${prepared.height},${prepared.hash})`)])}
  catch{await env.BUCKET.delete(['photos/'+id,'thumbnails/'+id]);return json('Cover photo could not be saved.',500)}
  if(admin){
-  // Seller photos outrank collector photos, so an admin replacement takes that listing's photo out of the directory.
-  if(issue.coverCredit===SELLER_PHOTO_CREDIT)await removeSellerCoverForIssue(db,issue.id);
   await logAdminAction({admin:user,action:replacing?'cover.replace':'cover.add',targetType:'issue',targetId:String(issue.id),detail:{mediaId:id}});
  }
  return privateJson({status,suggestion,cover:status==='approved'?{url:communityPhotoUrl(id),attribution:COMMUNITY_COVER_CREDIT}:null});

@@ -109,7 +109,7 @@ let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
  const skip=new Set(['003_catalog_ingestion.sql','005_gcd_snapshot_import.sql']);
- for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -152,7 +152,7 @@ test('test-mode order: deterministic checkout expiry, signed payment, refund, an
  const row=await orderRow(orderId),fields=stripe.sessionFields.get(row.checkoutSessionId!)!;
  assert.equal(row.sandbox,1);assert.match(row.checkoutSessionId!,/^cs_test_/);
  assert.equal(Number(fields.expires_at),Math.floor(Date.parse(row.createdAt)/1000)+3600,'Checkout expires one hour after the persisted order');
- assert.equal(JSON.parse(row.state).order.paidAt!==null,true);assert.equal((await listingRow(listing.id)).status,'sold');
+ assert.equal(JSON.parse(row.state).order.paidAt!==null,true);assert.equal((await listingRow(listing.id)).status,'pending','paid but not delivered: pending');
  // Duplicate payment signal for the same intent is accepted without a second state change.
  await deliver('payment_intent.succeeded',stripe.intents.get(row.paymentIntentId!)!);
  await commerceRequestRefund(getDb(),buyer.userId,{action:'request_refund',orderId,requestId:crypto.randomUUID(),reason:'Item never shipped'});

@@ -561,3 +561,5 @@
 .mpx-gallery-stack .mp-cover-stack{transform:scale(1.6);transform-origin:center}
 @media(max-width:760px){.mpx-gallery-stack .mp-cover-stack{transform:scale(1.25)}}
 .mpx-sold-note{margin:0 0 14px;padding:12px 14px;border-left:4px solid var(--red);background:var(--cream);border-radius:0 10px 10px 0;font-size:14px;line-height:1.5}
+.mpx-pending{margin:0 0 8px;padding:10px 12px;border-radius:10px;background:var(--cream);border:1.5px solid var(--ink);font-weight:700}
+.mpx-pending-tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:var(--yellow);border:1.5px solid var(--ink);font:800 12px/1 var(--font-body);text-transform:uppercase;letter-spacing:.5px}

@@ -1,7 +1,7 @@
 'use client';
 // Wallet → Bank payouts. Sellers connect a bank once through Stripe's hosted onboarding (Stripe Connect;
 // ComicHuddle never sees or stores bank numbers). Amounts come from the seller's real orders (/api/commerce):
-// "Pending" = paid but waiting on delivery, SafePurchase or the pickup code; "Ready to pay out" = the
+// "Pending" = paid but waiting on delivery, SafePurchase or pickup; "Ready to pay out" = the
 // protection window ended. Payouts to the bank follow Stripe's automatic schedule.
 import {useEffect,useState} from 'react';
 import {Landmark,ExternalLink,Clock,CheckCircle2} from 'lucide-react';
@@ -16,7 +16,7 @@ function pendingReason(order:Order){
   if(order.status==='manual_review')return 'On hold while ComicHuddle reviews it';
   if(order.status==='delivered_review'||order.status==='picked_up')return order.fundsAvailableAt?'Buyer’s review window ends '+day(order.fundsAvailableAt):'Buyer’s review window is open';
   if(order.protection?.tier==='safepurchase')return 'Waiting on SafePurchase (our check and delivery)';
-  if(order.fulfillment==='pickup')return 'Waiting on the pickup code';
+  if(order.fulfillment==='pickup')return 'Waiting on pickup';
   return 'Waiting on delivery';
 }
 

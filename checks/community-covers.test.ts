@@ -1,4 +1,4 @@
-// Isolated PGlite: cover priority order (seller photo > collector cover > reviewed local > catalog art, only when on)
+// Isolated PGlite: cover priority order (collector cover > reviewed local > catalog art, only when on). Listing photos never.
 // and collector-submission validation. No provider calls, no real storage.
 import {before,after,test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,8 +11,8 @@ import {getDb} from '../db';
 import {listings,media,profiles} from '../db/schema';
 import {seedStarterStatements,catalogIssuesById} from '../lib/catalog-store';
 import {resolveCoverBatch} from '../lib/cover-cache';
-import {COMMUNITY_COVER_CREDIT,SELLER_PHOTO_CREDIT,communityPhotoUrl,coverMediaId} from '../lib/cover-cache-types';
-import {FALLBACK_COVER_ORDER,communityCoverReport,communityCoverSubmission,communitySubmissionsToday,fallbackCovers,initialCommunityCoverStatus,isPublicCoverPhoto,normalizeCommunityCover,pickFallbackCover,reportCommunityCover,adminCoverQueue,adminModerateCover,removeSellerCoverForIssue} from '../lib/community-covers';
+import {COMMUNITY_COVER_CREDIT,communityPhotoUrl,coverMediaId} from '../lib/cover-cache-types';
+import {FALLBACK_COVER_ORDER,communityCoverReport,communityCoverSubmission,communitySubmissionsToday,fallbackCovers,initialCommunityCoverStatus,isPublicCoverPhoto,normalizeCommunityCover,pickFallbackCover,reportCommunityCover,adminCoverQueue,adminModerateCover} from '../lib/community-covers';
 
 let engine:PGlite;const pool=new Pool(),db=getDb();
 const ISSUE=4000000123,PLANET=4000001400,OTHER=4000000124;
@@ -40,10 +40,10 @@ before(async()=>{
 });
 after(async()=>{await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_API_TOKEN','COVER_DIRECT_DISPLAY','CATALOG_ART_COVERS'])delete process.env[key]});
 
-test('fallback order is seller photo, then collector cover',()=>{
- assert.deepEqual(FALLBACK_COVER_ORDER,['seller','community']);
- const seller={url:'/s',attribution:SELLER_PHOTO_CREDIT,source:'',origin:'seller' as const},collector={url:'/c',attribution:COMMUNITY_COVER_CREDIT,source:'',origin:'community' as const};
- assert.equal(pickFallbackCover({seller,community:collector}),seller);assert.equal(pickFallbackCover({community:collector}),collector);assert.equal(pickFallbackCover({}),null);
+test('collector covers are the only member fallback',()=>{
+ assert.deepEqual(FALLBACK_COVER_ORDER,['community']);
+ const collector={url:'/c',attribution:COMMUNITY_COVER_CREDIT,source:'',origin:'community' as const};
+ assert.equal(pickFallbackCover({community:collector}),collector);assert.equal(pickFallbackCover({}),null);
  assert.equal(coverMediaId(communityPhotoUrl(uuid(4))),uuid(4));assert.equal(coverMediaId('/api/media?id=x'),null);assert.equal(coverMediaId('https://evil.example/api/media?id='+uuid(4)),null);
 });
 
@@ -61,19 +61,17 @@ test('collector cover fills a gap; most recent approved wins; hidden/rejected/pe
  assert.equal(await isPublicCoverPhoto(db,uuid(5)),true);assert.equal(await isPublicCoverPhoto(db,uuid(6)),false);assert.equal(await isPublicCoverPhoto(db,uuid(7)),false);
 });
 
-test('seller front photo outranks collector covers; active beats most recent sold; other photos stay private',async()=>{
+test('marketplace listing photos never become directory covers or public photos',async()=>{
  await listing('sold-old',"seller",ISSUE,'sold',[uuid(1),uuid(3)],'2026-01-01T00:00:00Z');
- let [resolved]=await resolveCoverBatch(db,[ISSUE]);
- assert.equal(resolved.url,communityPhotoUrl(uuid(1)));assert.equal(resolved.attribution,SELLER_PHOTO_CREDIT);
- assert.equal(await isPublicCoverPhoto(db,uuid(1)),true,'front photo of a sold listing is a public catalog cover');
- assert.equal(await isPublicCoverPhoto(db,uuid(3)),false,'later photos of a sold listing stay private');
  await listing('active-older','seller',ISSUE,'active',[uuid(2)],'2025-06-01T00:00:00Z');
- [resolved]=await resolveCoverBatch(db,[ISSUE]);assert.equal(resolved.url,communityPhotoUrl(uuid(2)),'an active listing wins over a newer sold one');
- const [issue]=await catalogIssuesById(db,[ISSUE]);assert.equal(issue.cover,communityPhotoUrl(uuid(2)));assert.equal(issue.coverCredit,SELLER_PHOTO_CREDIT);
- // A seller who is no longer publicly visible stops supplying covers.
- await engine.exec(`UPDATE ch_web.profiles SET visible=0 WHERE id='seller'`);
- [resolved]=await resolveCoverBatch(db,[ISSUE]);assert.equal(resolved.url,communityPhotoUrl(uuid(5)));assert.equal(await isPublicCoverPhoto(db,uuid(1)),false);
- await engine.exec(`UPDATE ch_web.profiles SET visible=1 WHERE id='seller'`);
+ const [resolved]=await resolveCoverBatch(db,[ISSUE]);
+ assert.equal(resolved.url,communityPhotoUrl(uuid(5)),'the collector cover shows, not a listing photo');assert.equal(resolved.attribution,COMMUNITY_COVER_CREDIT);
+ const [issue]=await catalogIssuesById(db,[ISSUE]);assert.equal(issue.cover,communityPhotoUrl(uuid(5)));
+ assert.equal(await isPublicCoverPhoto(db,uuid(1)),false,'a sold listing photo stays private');
+ assert.equal(await isPublicCoverPhoto(db,uuid(2)),false,'an active listing photo is not a directory cover');
+ await listing('only-listing','seller',OTHER,'active',[uuid(3)],now);
+ assert.equal((await fallbackCovers(db,[OTHER])).size,0,'an issue with only a listing photo has no cover');
+ await engine.exec(`DELETE FROM ch_web.listings WHERE id='only-listing'`);
 });
 
 test('catalog art off (default): no provider lookup runs and a gap shows no cover',async()=>{
@@ -88,18 +86,14 @@ test('member photos outrank catalog art even when CATALOG_ART_COVERS=on',async()
  Object.assign(process.env,{CATALOG_ART_COVERS:'on',METRON_API_TOKEN:'qa_token_'+'x'.repeat(30),COVER_DIRECT_DISPLAY:'metron'});
  await resolveCoverBatch(db,[ISSUE]);
  await engine.exec(`UPDATE ch_web.cover_cache SET status='CACHED',source_url='${METRON_IMAGE}',permission_expires_at=now()+interval '1 day' WHERE issue_id=${ISSUE} AND source_provider='METRON' AND source_cover_id='direct'`);
- const [resolved]=await resolveCoverBatch(db,[ISSUE]);assert.equal(resolved.status,'CACHED');assert.equal(resolved.url,communityPhotoUrl(uuid(2)));assert.equal(resolved.attribution,SELLER_PHOTO_CREDIT);
- const [issue]=await catalogIssuesById(db,[ISSUE]);assert.equal(issue.cover,communityPhotoUrl(uuid(2)));
+ const [resolved]=await resolveCoverBatch(db,[ISSUE]);assert.equal(resolved.status,'CACHED');assert.equal(resolved.url,communityPhotoUrl(uuid(5)));assert.equal(resolved.attribution,COMMUNITY_COVER_CREDIT);
+ const [issue]=await catalogIssuesById(db,[ISSUE]);assert.equal(issue.cover,communityPhotoUrl(uuid(5)));
  delete process.env.CATALOG_ART_COVERS;delete process.env.COVER_DIRECT_DISPLAY;
 });
 
-test('a seller can opt out; reviewed public-domain files fill gaps behind member photos',async()=>{
+test('reviewed public-domain files fill gaps; a listing photo never replaces them; a collector cover does',async()=>{
  await listing('planet','seller',PLANET,'active',[uuid(2)],now);
- let [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,communityPhotoUrl(uuid(2)),'member photo first');
- await engine.exec(`UPDATE ch_web.listings SET cover_opt_out=1 WHERE id='planet'`);
- [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,'/covers/planet-12.jpg','opted-out photo is not a directory cover');
- await engine.exec(`UPDATE ch_web.listings SET cover_opt_out=1 WHERE id='sold-old'`);
- assert.equal(await isPublicCoverPhoto(db,uuid(1)),false,'an opted-out sold listing photo is not public');
+ let [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,'/covers/planet-12.jpg','the listing photo is not a directory cover');
  await community('c-planet',PLANET,9,'user-collector','approved',now);
  [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,communityPhotoUrl(uuid(9)),'a collector cover still outranks the local file');
 });
@@ -154,15 +148,4 @@ test('reports go to admins; a photo hides itself only after 3 different members 
  assert.equal(await isPublicCoverPhoto(db,uuid(5)),false);
  assert.equal((await adminCoverQueue(db,'recent')).find(row=>row.mediaId===uuid(5))?.status,'rejected');
  await assert.rejects(adminModerateCover(db,'remove',uuid(99)),/not found/);
-});
-
-test('admin removal of a seller photo keeps the listing but takes the photo out of the directory',async()=>{
- await listing('admin-seller','seller',OTHER,'active',[uuid(2)],'2026-05-01T00:00:00Z');
- assert.equal((await fallbackCovers(db,[OTHER])).get(OTHER)?.origin,'seller');
- assert.equal(await removeSellerCoverForIssue(db,OTHER),uuid(2));
- assert.equal((await fallbackCovers(db,[OTHER])).has(OTHER),false);
- const [kept]=(await engine.query<{status:string;cover_opt_out:number}>(`SELECT status,cover_opt_out::int FROM ch_web.listings WHERE id='admin-seller'`)).rows;
- assert.deepEqual(kept,{status:'active',cover_opt_out:1});
- assert.equal(await removeSellerCoverForIssue(db,OTHER),null);
- await engine.exec(`DELETE FROM ch_web.listings WHERE id='admin-seller'`);
 });
