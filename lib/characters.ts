@@ -6,7 +6,7 @@ import {sql} from 'drizzle-orm';
 import type {CatalogDb} from './catalog-store';
 import {catalog} from './catalog';
 import {coverLookupId} from './curated-cover-ids';
-import {metronCoverCdnBase,normalizeIssueNumber,normalizeSeriesName} from './metron-cover-index';
+import {metronDisplayBase,normalizeIssueNumber,normalizeSeriesName} from './metron-cover-index';
 import {metronApiGet} from './metron-api-budget';
 import {GCD_DIRECTORY_OFFSET} from './shared-catalog';
 
@@ -97,7 +97,7 @@ export function characterTablesPresent(db:CatalogDb){
  present={expires:Date.now()+60000,value};void value.catch(()=>{if(present?.value===value)present=null});
  return value;
 }
-export function portraitUrl(key:unknown,base=metronCoverCdnBase()):string|null{return base&&typeof key==='string'&&PORTRAIT_KEY.test(key)?base+'/'+key:null}
+export function portraitUrl(key:unknown,base=metronDisplayBase()):string|null{return base&&typeof key==='string'&&PORTRAIT_KEY.test(key)?base+'/'+key:null}
 
 // ---------- storing issue details (crawler import + on-demand) ----------
 export async function storeIssueDetails(db:CatalogDb,details:MetronIssueDetail[]){
@@ -248,7 +248,7 @@ export async function issueProfile(db:CatalogDb,id:number,options:{enrich?:boole
   const row=(r:Record<string,unknown>):CharacterRow=>({characterId:Number(r.character_id),name:String(r.name),portraitKey:typeof r.portrait_key==='string'?r.portrait_key:null,issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),aliases:Array.isArray(r.aliases)?(r.aliases as unknown[]).filter((a):a is string=>typeof a==='string'):[]});
   const facts:FactRow[]=factRows.rows.map(r=>({...row(r),source:r.source==='metron'?'metron':'wikidata',sitelinks:r.sitelinks===null||r.sitelinks===undefined?null:Number(r.sitelinks)}));
   if(!detail&&!metronId&&!facts.length&&!listedRows.rows.length)status='unavailable';
-  const profile=buildProfile({issueId:id,metronId,status,detail,facts,known:new Map(knownRows.map(r=>[Number(r.character_id),row(r)])),listed:listedRows.rows.map(row),base:metronCoverCdnBase()});
+  const profile=buildProfile({issueId:id,metronId,status,detail,facts,known:new Map(knownRows.map(r=>[Number(r.character_id),row(r)])),listed:listedRows.rows.map(row),base:metronDisplayBase()});
   return {...profile,catalogIssueId:issueId};
  }catch(error){
   console.warn('Issue profile character data deferred: '+((error as {code?:string})?.code||'error'));
@@ -276,7 +276,7 @@ export async function searchCharacters(db:CatalogDb,q:string,limit:number):Promi
   LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET}
   LEFT JOIN gcd.gcd_series s ON s.id=i.series_id
   ORDER BY h.rank,(h.character_id<0 AND COALESCE(h.sitelinks,0)<=3),h.issue_count DESC NULLS LAST,h.sitelinks DESC NULLS LAST,length(h.name),h.character_id`);
- const base=metronCoverCdnBase();
+ const base=metronDisplayBase();
  return rows.rows.map(r=>({characterId:Number(r.character_id),name:String(r.name),portraitUrl:portraitUrl(r.portrait_key,base),issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),
   firstAppearance:r.issue_id&&r.series?{issueId:Number(r.issue_id),title:String(r.series),number:String(r.number??''),year:r.year===null||r.year===undefined?null:Number(r.year)}:null}));
 }
@@ -348,7 +348,7 @@ export async function browseCharacters(db:CatalogDb,options:{letter:string|null;
    SELECT p.*,f.issue_id,s.name AS series,i.number,CASE WHEN i.key_date ~ '^[0-9]{4}' THEN substring(i.key_date,1,4)::integer END AS year FROM page p
    LEFT JOIN LATERAL (SELECT issue_id FROM ch_web.character_first_appearances WHERE character_id=p.character_id AND issue_id IS NOT NULL AND ${VERIFIED_FIRST_APPEARANCE} ORDER BY ${VERIFIED_FIRST_ORDER} LIMIT 1) f ON true
    LEFT JOIN gcd.gcd_issue i ON i.id=f.issue_id-${GCD_DIRECTORY_OFFSET} LEFT JOIN gcd.gcd_series s ON s.id=i.series_id`)]);
- const base=metronCoverCdnBase(),position=new Map<number,number>();
+ const base=metronDisplayBase(),position=new Map<number,number>();
  const list=rows.rows.map((r,index)=>{position.set(Number(r.character_id),index);return {characterId:Number(r.character_id),name:String(r.name),portraitUrl:portraitUrl(r.portrait_key,base),issueCount:r.issue_count===null||r.issue_count===undefined?null:Number(r.issue_count),
   firstAppearance:r.issue_id&&r.series?{issueId:Number(r.issue_id),title:String(r.series),number:String(r.number??''),year:r.year===null||r.year===undefined?null:Number(r.year)}:null}});
  return {characters:list,total:Number(count.rows[0]?.n||0),offset:options.offset,limit:options.limit};

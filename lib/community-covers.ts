@@ -6,12 +6,10 @@ import type {CatalogDb} from './catalog-store';
 import {ApiRequestError} from './api-security';
 import {COMMUNITY_COVER_CREDIT,SELLER_PHOTO_CREDIT,communityPhotoUrl} from './cover-cache-types';
 
-// Community cover fallbacks, used only when an issue has no cover from the existing
-// sources. Full priority (see withCatalogCovers / resolveCoverBatch):
-//  1. reviewed local /covers/ files  2. catalog references, S3/CDN cache, the owner's Metron CDN copy
-//     (lib/metron-cover-index.ts), Metron direct display
-//  3. seller photo (front photo of an active, else most recent sold, listing of that exact issue)
-//  4. most recent approved collector-submitted cover photo
+// Member covers: they come before any catalog source. Full priority (see withCatalogCovers / resolveCoverBatch):
+//  1. seller photo (front photo of an active, else most recent sold, listing of that exact issue, unless
+//     the seller opted out)  2. most recent approved collector-submitted cover photo
+//  3. reviewed local public-domain /covers/ files, then catalog art only when CATALOG_ART_COVERS=on
 export type FallbackOrigin='seller'|'community';
 export type FallbackCover={url:string;attribution:string;source:string;origin:FallbackOrigin};
 export const FALLBACK_COVER_ORDER:readonly FallbackOrigin[]=['seller','community'];
@@ -47,7 +45,8 @@ export async function normalizeCommunityCover(bytes:Uint8Array,contentType:strin
 
 // One definition of "may be shown publicly" for both the catalog fallback and /api/media.
 const accountInGoodStanding=(profile:string)=>sql`${sql.raw(profile)}.moderated=0 AND ${sql.raw(profile)}.deletion_started_at IS NULL AND NOT EXISTS(SELECT 1 FROM ch_web.account_restrictions r WHERE r.user_id=${sql.raw(profile)}.user_id AND r.scope='account')`;
-const coverListing=sql`l.status IN ('active','sold') AND l.issue_id IS NOT NULL`;
+// cover_opt_out (migration 042): the seller kept this listing's photo out of the directory.
+const coverListing=sql`l.status IN ('active','sold') AND l.issue_id IS NOT NULL AND l.cover_opt_out=0`;
 const frontPhoto=sql`(CASE WHEN jsonb_typeof(l.photos::jsonb)='array' THEN l.photos::jsonb->>0 END)`;
 
 async function sellerPhotoRows(db:CatalogDb,ids:number[]){

@@ -131,6 +131,12 @@ export default function AboutHuddlesPage() {
           </div>
         </div>
       </section>
+
+      <section className="ah-credits" aria-labelledby="ah-credits-title">
+        <h2 id="ah-credits-title">Where our comic data comes from</h2>
+        <p>Issue data from <a href="https://metron.cloud/" target="_blank" rel="noreferrer">Metron</a> (metron.cloud), licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>. Catalog data also comes from the <a href="https://www.comics.org/" target="_blank" rel="noreferrer">Grand Comics Database</a> under the same license. ComicHuddle has formatted and combined this data, and the Metron-based data in our directory is shared under CC BY-SA 4.0 too. That license doesn&apos;t cover our software or members&apos; listings.</p>
+        <p>Cover art belongs to its publishers and creators.</p>
+      </section>
     </main>
     <SiteFooter />
   </div>;

@@ -4,6 +4,7 @@
 import {sql} from 'drizzle-orm';
 import type {CatalogDb} from './catalog-store';
 import {METRON_COVER_ATTRIBUTION} from './data-credits';
+import {catalogArtCovers} from './cover-policy';
 
 /** Validated https origin (optionally with a path prefix), without trailing slash; else null. */
 export function metronCoverCdnBase(env:Record<string,string|undefined>=process.env):string|null{
@@ -14,6 +15,9 @@ export function metronCoverCdnBase(env:Record<string,string|undefined>=process.e
   return url.href.replace(/\/+$/,'');
  }catch{return null}
 }
+
+/** The CDN base for showing our Metron copies (covers, character portraits); null while catalog art is off. */
+export const metronDisplayBase=()=>catalogArtCovers()?metronCoverCdnBase():null;
 
 // ---- Normalization (mirrored exactly by the SQL in lib/metron-cover-import.ts) ----
 /** lowercase, drop apostrophes, '&' -> 'and', other punctuation -> space, collapse, strip a leading "the". */
@@ -75,7 +79,7 @@ function hasIndexTable(db:CatalogDb){
 }
 /** Matched CDN copies by catalog issue id. Never throws: missing config/migration means none. */
 export async function metronCdnCovers(db:CatalogDb,issueIds:number[]):Promise<Map<number,MetronCdnCover>>{
- const out=new Map<number,MetronCdnCover>(),base=metronCoverCdnBase();
+ const out=new Map<number,MetronCdnCover>(),base=metronDisplayBase();
  const ids=[...new Set(issueIds.filter(id=>Number.isSafeInteger(id)&&id>0))];
  if(!base||!ids.length)return out;
  try{

@@ -5,7 +5,7 @@ export type MetronEnv=Record<string,string|undefined>;
 export function metronConfig(env:MetronEnv=process.env){
  const token=typeof env.METRON_API_TOKEN==='string'&&/^[A-Za-z0-9_.~-]{20,512}$/.test(env.METRON_API_TOKEN)?env.METRON_API_TOKEN:null;
  const bounded=(raw:string|undefined,fallback:number,max:number)=>{const value=Number(raw);return Number.isInteger(value)&&value>0?Math.min(value,max):fallback};
- return {token,upcEnabled:!!token&&env.METRON_UPC_ENABLED==='true',directCovers:!!token&&env.COVER_DIRECT_DISPLAY==='metron',
+ return {token,upcEnabled:!!token&&env.METRON_UPC_ENABLED==='true',directCovers:!!token&&env.COVER_DIRECT_DISPLAY==='metron'&&env.CATALOG_ART_COVERS==='on',
   // Defaults leave headroom under Metron's standard 20/min and 5,000/day for the nightly catalog sync.
   dailyBudget:bounded(env.METRON_DAILY_BUDGET,2000,25000),minuteBudget:bounded(env.METRON_MINUTE_BUDGET,15,20)};
 }

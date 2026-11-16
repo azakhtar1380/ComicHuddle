@@ -31,7 +31,7 @@ before(async()=>{
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{const r=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);return {...r,rowCount:r.affectedRows,command:'',rows:typeof config!=='string'&&config.rowMode==='array'?r.rows.map(row=>r.fields.map(field=>row[field.name])):r.rows}};
  Object.assign(pool,{query,connect:async()=>({query,release(){}})});(globalThis as typeof globalThis&{comicHuddlePool:Pool}).comicHuddlePool=pool;await db.batch(seedStarterStatements(db,new Date().toISOString()));
  await engine.exec(`INSERT INTO gcd.gcd_publisher VALUES(78,'QA Publisher',0);INSERT INTO gcd.gcd_series VALUES(17,'Secret Wars',78,0);INSERT INTO gcd.gcd_issue(id,series_id,number,key_date,variant_name,deleted) VALUES(123,17,'1','1984-05-00','First printing',0),(124,17,'1','1984-05-00','Facsimile',0),(125,17,'1AU','2020-01-00','First printing',0)`);
- process.env.ENRICHMENT_AI_ENABLED='false';
+ process.env.ENRICHMENT_AI_ENABLED='false';process.env.CATALOG_ART_COVERS='on';// these checks cover the catalog-art pipeline (lib/cover-policy.ts)
 });
 after(async()=>{await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['ENRICHMENT_AI_ENABLED','ENRICHMENT_COVERS_ENABLED','COVER_STORAGE_BUCKET','COVER_CDN_BASE_URL','COVER_CLOUDFRONT_DISTRIBUTION_ID','COVER_STORAGE_REVIEWED','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY'])delete process.env[key]});
 const quote=(low:number,high:number):EstimateSnapshot=>({...unavailableEstimate(null),id:randomUUID(),status:'available',lowCents:low,highCents:high,calculatedAt:new Date().toISOString()});

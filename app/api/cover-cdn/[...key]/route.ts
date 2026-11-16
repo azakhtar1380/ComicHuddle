@@ -3,6 +3,7 @@
 // Only the copiers' exact key shapes are readable (covers, plus character portraits from
 // scripts/import-characters.ts); responses are cached at the edge.
 import {GetObjectCommand,S3Client} from '@aws-sdk/client-s3';
+import {catalogArtCovers} from '../../../../lib/cover-policy';
 export const runtime='nodejs';
 const IMAGE=/^(metron\/[1-9][0-9]{0,9}\/(card|dense)|metron-characters\/[1-9][0-9]{0,9}\/portrait)\.webp$/,MANIFEST='metron/manifest.ndjson.gz';
 let client:S3Client|null=null;
@@ -12,6 +13,8 @@ export async function GET(_request:Request,{params}:{params:Promise<{key:string[
  const key=(await params).key.join('/'),bucket=process.env.COVER_S3_BUCKET;
  if(!bucket||!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket))return new Response('Cover storage is not configured.',{status:503});
  const image=IMAGE.test(key);if(!image&&key!==MANIFEST)return new Response('Not found.',{status:404});
+ // Copied Metron art is not shown while catalog art is off (lib/cover-policy.ts).
+ if(image&&!catalogArtCovers())return new Response('Not found.',{status:404,headers:{'Cache-Control':'no-store'}});
  try{
   const object=await s3().send(new GetObjectCommand({Bucket:bucket,Key:key}));
   const body=await object.Body!.transformToByteArray();

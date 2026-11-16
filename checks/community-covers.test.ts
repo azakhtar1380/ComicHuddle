@@ -1,4 +1,4 @@
-// Isolated PGlite: cover priority order (reviewed local > provider covers > seller photo > collector cover)
+// Isolated PGlite: cover priority order (seller photo > collector cover > reviewed local > catalog art, only when on)
 // and collector-submission validation. No provider calls, no real storage.
 import {before,after,test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,7 +38,7 @@ before(async()=>{
  await engine.exec(`INSERT INTO ch_web.account_restrictions(user_id,scope,created_at) VALUES('user-banned','account','${now}')`);
  for(const [n,user] of [[1,'user-seller'],[2,'user-seller'],[3,'user-seller'],[4,'user-collector'],[5,'user-collector'],[6,'user-hidden'],[7,'user-banned'],[8,'user-banned'],[9,'user-collector']] as const)await photo(n,user);
 });
-after(async()=>{await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_API_TOKEN','COVER_DIRECT_DISPLAY'])delete process.env[key]});
+after(async()=>{await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_API_TOKEN','COVER_DIRECT_DISPLAY','CATALOG_ART_COVERS'])delete process.env[key]});
 
 test('fallback order is seller photo, then collector cover',()=>{
  assert.deepEqual(FALLBACK_COVER_ORDER,['seller','community']);
@@ -76,22 +76,32 @@ test('seller front photo outranks collector covers; active beats most recent sol
  await engine.exec(`UPDATE ch_web.profiles SET visible=1 WHERE id='seller'`);
 });
 
-test('Metron direct display outranks both fallbacks; a pending Metron lookup keeps polling with the fallback shown',async()=>{
+test('catalog art off (default): no provider lookup runs and a gap shows no cover',async()=>{
  Object.assign(process.env,{METRON_API_TOKEN:'qa_token_'+'x'.repeat(30),COVER_DIRECT_DISPLAY:'metron'});
- let [resolved]=await resolveCoverBatch(db,[ISSUE]);
- assert.equal(resolved.status,'PENDING');assert.equal(resolved.url,communityPhotoUrl(uuid(2)),'fallback shown while Metron resolves');
- await engine.exec(`UPDATE ch_web.cover_cache SET status='CACHED',source_url='${METRON_IMAGE}',permission_expires_at=now()+interval '1 day' WHERE issue_id=${ISSUE} AND source_provider='METRON' AND source_cover_id='direct'`);
- [resolved]=await resolveCoverBatch(db,[ISSUE]);assert.equal(resolved.status,'CACHED');assert.equal(resolved.url,METRON_IMAGE);
- const [issue]=await catalogIssuesById(db,[ISSUE]);assert.equal(issue.cover,METRON_IMAGE);
- delete process.env.COVER_DIRECT_DISPLAY;
+ const [resolved]=await resolveCoverBatch(db,[OTHER]);
+ assert.equal(resolved.status,'DISABLED');assert.equal(resolved.url,null);
+ const queued=await engine.query<{n:number}>(`SELECT count(*)::int AS n FROM ch_web.cover_cache WHERE issue_id=${OTHER}`);assert.equal(queued.rows[0].n,0,'no Metron lookup was queued');
+ const [issue]=await catalogIssuesById(db,[OTHER]);assert.equal(issue.cover,undefined);
 });
 
-test('reviewed local /covers/ files stay first',async()=>{
+test('member photos outrank catalog art even when CATALOG_ART_COVERS=on',async()=>{
+ Object.assign(process.env,{CATALOG_ART_COVERS:'on',METRON_API_TOKEN:'qa_token_'+'x'.repeat(30),COVER_DIRECT_DISPLAY:'metron'});
+ await resolveCoverBatch(db,[ISSUE]);
+ await engine.exec(`UPDATE ch_web.cover_cache SET status='CACHED',source_url='${METRON_IMAGE}',permission_expires_at=now()+interval '1 day' WHERE issue_id=${ISSUE} AND source_provider='METRON' AND source_cover_id='direct'`);
+ const [resolved]=await resolveCoverBatch(db,[ISSUE]);assert.equal(resolved.status,'CACHED');assert.equal(resolved.url,communityPhotoUrl(uuid(2)));assert.equal(resolved.attribution,SELLER_PHOTO_CREDIT);
+ const [issue]=await catalogIssuesById(db,[ISSUE]);assert.equal(issue.cover,communityPhotoUrl(uuid(2)));
+ delete process.env.CATALOG_ART_COVERS;delete process.env.COVER_DIRECT_DISPLAY;
+});
+
+test('a seller can opt out; reviewed public-domain files fill gaps behind member photos',async()=>{
  await listing('planet','seller',PLANET,'active',[uuid(2)],now);
+ let [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,communityPhotoUrl(uuid(2)),'member photo first');
+ await engine.exec(`UPDATE ch_web.listings SET cover_opt_out=1 WHERE id='planet'`);
+ [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,'/covers/planet-12.jpg','opted-out photo is not a directory cover');
+ await engine.exec(`UPDATE ch_web.listings SET cover_opt_out=1 WHERE id='sold-old'`);
+ assert.equal(await isPublicCoverPhoto(db,uuid(1)),false,'an opted-out sold listing photo is not public');
  await community('c-planet',PLANET,9,'user-collector','approved',now);
- const [issue]=await catalogIssuesById(db,[PLANET]);
- assert.equal(issue.cover,'/covers/planet-12.jpg');
- const [resolved]=await resolveCoverBatch(db,[PLANET]);assert.equal(resolved.url,'/covers/planet-12.jpg');
+ [issue]=await catalogIssuesById(db,[PLANET]);assert.equal(issue.cover,communityPhotoUrl(uuid(9)),'a collector cover still outranks the local file');
 });
 
 test('submission validation: zod input, type/size/dimension checks, re-encode to WebP ≤1200px without EXIF',async()=>{
