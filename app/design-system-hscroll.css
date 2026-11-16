@@ -1,0 +1,9 @@
+/* Shared horizontal scroll row (components/h-scroll.tsx). Hidden scroll bar at rest; thin while scrolling or hovering; never arrow buttons. */
+.ch-hscroll{display:flex;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:none;scrollbar-color:transparent transparent}
+.ch-hscroll::-webkit-scrollbar{height:0;background:transparent}
+.ch-hscroll::-webkit-scrollbar-button{display:none;width:0;height:0}
+.ch-hscroll>*{scroll-snap-align:start;flex:none}
+@media (hover:hover) and (pointer:fine){.ch-hscroll:hover{scrollbar-width:thin;scrollbar-color:var(--ink,#20201f) transparent}.ch-hscroll:hover::-webkit-scrollbar{height:6px}}
+.ch-hscroll.is-scrolling{scrollbar-width:thin;scrollbar-color:var(--ink,#20201f) transparent}
+.ch-hscroll.is-scrolling::-webkit-scrollbar{height:6px}
+.ch-hscroll::-webkit-scrollbar-thumb{background:var(--ink,#20201f);border-radius:6px}

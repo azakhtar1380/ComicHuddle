@@ -1,0 +1,17 @@
+/* Profile details in the Edit profile form */
+.pd{display:grid;gap:14px;margin:6px 0;padding:12px 14px;border:3px solid var(--ink);background:var(--cream)}
+.pd legend{padding:0 6px;font:800 20px 'Barlow Condensed',sans-serif}
+.pd-field{display:grid;gap:6px;font-weight:700;font-size:14px}
+.pd-field small{font-weight:500;color:var(--muted)}
+.pd-field input{min-height:44px;padding:0 10px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:500}
+.pd-tags{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.pd-tags button{min-height:44px;padding:0 12px;border:2px solid var(--ink);background:#fff;font-weight:600;font-size:13px}
+.pd-tags button[aria-pressed="true"]{background:var(--yellow);box-shadow:2px 2px 0 var(--ink)}
+.pd-inline{display:flex;gap:8px}.pd-inline input{flex:1;min-width:0}
+.pd-chosen{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:6px 6px 6px 12px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:600}
+.pd-remove{display:grid;place-items:center;width:44px;height:44px}
+.pd-results{list-style:none;margin:0;padding:0;border:2px solid var(--ink);background:#fff;max-height:240px;overflow:auto}
+.pd-results button{display:grid;width:100%;min-height:44px;padding:6px 10px;text-align:left}
+.pd-results button:hover,.pd-results button:focus-visible{background:var(--yellow)}
+.pd-results small{color:var(--muted);font-weight:500}
+.pd-error{color:var(--red)}
