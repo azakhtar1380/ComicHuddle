@@ -128,7 +128,9 @@ before(async()=>{
  await engine.exec(`INSERT INTO ch_web.metron_identifier_lookups(lookup_key,supplement,status,issue_ids,candidates,total,expires_at) VALUES('7590000000000','','EXTERNAL','[]','[{"metronId":1007,"gcdId":126,"title":"x"},{"metronId":"bad","gcdId":1}]',1,now()+interval '1 day')`);
  for(const view of (await engine.query<{name:string}>(`SELECT schemaname||'.'||matviewname AS name FROM pg_matviews WHERE schemaname IN ('gcd','ch_web')`)).rows)await engine.exec('REFRESH MATERIALIZED VIEW '+view.name).catch(()=>undefined);
 });
-after(async()=>{await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_COVER_CDN_BASE','METRON_API_TOKEN','COVER_DIRECT_DISPLAY','COVER_CDN_BASE_URL'])delete process.env[key]});
+// These tests cover catalog art, which is off unless CATALOG_ART_COVERS=on (lib/cover-policy.ts).
+process.env.CATALOG_ART_COVERS='on';
+after(async()=>{delete process.env.CATALOG_ART_COVERS;await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_COVER_CDN_BASE','METRON_API_TOKEN','COVER_DIRECT_DISPLAY','COVER_CDN_BASE_URL'])delete process.env[key]});
 const indexRows=async()=>Object.fromEntries((await engine.query<{metron_id:number;issue_id:number|null;match_method:string|null}>('SELECT metron_id,issue_id,match_method FROM ch_web.metron_cover_index ORDER BY metron_id')).rows.map(r=>[r.metron_id,[r.issue_id===null?null:Number(r.issue_id),r.match_method]]));
 
 test('import is disabled without a valid https CDN base, and the read path fails soft without the table',async()=>{
@@ -157,7 +159,7 @@ test('import upserts the manifest, links exact ids first and sets only unique na
  assert.deepEqual((await indexRows())[1004],[4000000200,'name']);
 });
 
-test('priority: reviewed local > GCD/S3 cache > Metron CDN copy > Metron direct > seller photo / collector cover',async()=>{
+test('priority (art on): reviewed local > GCD/S3 cache > Metron CDN copy > Metron direct; listing photos never',async()=>{
  process.env.METRON_COVER_CDN_BASE=BASE;
  // CDN copy with srcSet and the Metron attribution.
  let [r]=await resolveCoverBatch(db,[4000000200]);
@@ -172,7 +174,7 @@ test('priority: reviewed local > GCD/S3 cache > Metron CDN copy > Metron direct 
  await engine.exec(`INSERT INTO ch_web.media(id,user_id,content_type,created_at) VALUES('00000000-0000-4000-8000-000000000001','user-seller','image/webp','${now}')`);
  for(const id of [4000000200,4000000300])await db.insert(listings).values({id:'l'+id,sellerId:'seller',bookId:'b'+id,issueId:id,title:'QA',grade:'VF',description:'',price:1000,shipping:0,photos:JSON.stringify(['00000000-0000-4000-8000-000000000001']),cert:'',status:'active',createdAt:now});
  assert.equal((await resolveCoverBatch(db,[4000000200]))[0].url,BASE+'/metron/1004/card.webp');
- [r]=await resolveCoverBatch(db,[4000000300]);assert.equal(r.attribution,SELLER_PHOTO_CREDIT,'ambiguous rows give no CDN cover; the seller fallback still shows');
+ [r]=await resolveCoverBatch(db,[4000000300]);assert.notEqual(r.attribution,SELLER_PHOTO_CREDIT,'ambiguous rows give no CDN cover, and listing photos are never directory covers');
  // CDN copy outranks Metron direct display; direct still fills issues without a copy.
  Object.assign(process.env,{METRON_API_TOKEN:'qa_token_'+'x'.repeat(30),COVER_DIRECT_DISPLAY:'metron'});
  await engine.exec(`INSERT INTO ch_web.enrichment_catalog_refs(issue_id,source_provider,source_id) VALUES(4000000200,'METRON',200),(4000000300,'METRON',300) ON CONFLICT DO NOTHING;

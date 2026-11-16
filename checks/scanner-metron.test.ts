@@ -33,7 +33,9 @@ before(async()=>{
  Object.assign(pool,{query,connect:async()=>({query,release(){}})});(globalThis as typeof globalThis&{comicHuddlePool:Pool}).comicHuddlePool=pool;await db.batch(seedStarterStatements(db,new Date().toISOString()));
  await engine.exec(`INSERT INTO gcd.gcd_publisher VALUES(78,'QA Publisher',0);INSERT INTO gcd.gcd_series VALUES(17,'Secret Wars',78,0);INSERT INTO gcd.gcd_issue(id,series_id,number,key_date,variant_name,deleted) VALUES(123,17,'1','1984-05-00','First printing',0),(124,17,'2','1984-06-00','First printing',0),(125,17,'3','1984-07-00','First printing',0)`);
 });
-after(async()=>{await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_API_TOKEN','COVER_DIRECT_DISPLAY'])delete process.env[key]});
+// These tests cover catalog art, which is off unless CATALOG_ART_COVERS=on (lib/cover-policy.ts).
+process.env.CATALOG_ART_COVERS='on';
+after(async()=>{delete process.env.CATALOG_ART_COVERS;await engine.close();delete(globalThis as typeof globalThis&{comicHuddlePool?:Pool}).comicHuddlePool;for(const key of ['METRON_API_TOKEN','COVER_DIRECT_DISPLAY'])delete process.env[key]});
 
 test('supplement mismatch falls back to a base-only record; exact supplement still wins',async()=>{
  await engine.exec(`INSERT INTO ch_web.directory_identifiers(issue_id,source,identifier,lookup_key,supplement,kind) VALUES(4000000123,'GCD','036000291452','0036000291452','','UPC'),(4000000124,'GCD','03600029145200211','0036000291452','00211','UPC')`);
@@ -73,7 +75,7 @@ test('unmapped Metron issue is returned as an external candidate; misses are neg
  const result=await lookupMetronIdentifier(db,code,{env,fetcher});
  assert.equal(result.status,'external');assert.equal(result.issues.length,0);assert.equal(result.external[0].title,'Modern Book');
  assert.equal(result.external[0].cover,null,'covers are withheld unless COVER_DIRECT_DISPLAY=metron');
- const shown=await lookupMetronIdentifier(db,code,{env:{...env,COVER_DIRECT_DISPLAY:'metron'},fetcher});
+ const shown=await lookupMetronIdentifier(db,code,{env:{...env,COVER_DIRECT_DISPLAY:'metron',CATALOG_ART_COVERS:'on'},fetcher});
  assert.equal(shown.cached,true);assert.equal(shown.external[0].cover,IMAGE);assert.equal(calls.length,1);
  const missCode=parseComicIdentifier('036000291452','00999')!;
  const missing=await lookupMetronIdentifier(db,missCode,{env,fetcher});assert.equal(missing.status,'not_found');
