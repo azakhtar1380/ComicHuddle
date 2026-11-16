@@ -31,7 +31,7 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
  },[]);
  useEffect(()=>{const abort=new AbortController();load(abort.signal);return()=>abort.abort()},[load]);
  const [characters,setCharacters]=useState<CharacterHit[]>([]);
- useEffect(()=>{const abort=new AbortController();fetch('/api/characters/browse?'+new URLSearchParams({sort:'popular',offset:'0',limit:'8'}),{signal:abort.signal}).then(r=>r.ok?r.json():null).then(body=>{if(Array.isArray(body?.characters))setCharacters((body.characters as CharacterHit[]).filter(hit=>hit.portraitUrl).slice(0,8))}).catch(()=>undefined);return()=>abort.abort()},[]);
+ useEffect(()=>{const abort=new AbortController();fetch('/api/characters/browse?'+new URLSearchParams({sort:'popular',offset:'0',limit:'8'}),{signal:abort.signal}).then(r=>r.ok?r.json():null).then(body=>{if(Array.isArray(body?.characters))setCharacters((body.characters as CharacterHit[]).slice(0,8))}).catch(()=>undefined);return()=>abort.abort()},[]);
  const search=(event:FormEvent)=>{event.preventDefault();const q=query.trim();window.location.assign('/?'+new URLSearchParams(q?{section:'Directory',q}:{section:'Directory'}))};
  const fresh=listings.filter(listing=>listing.status==='active'&&!listing.example).slice(0,4);
  const doors:{pose:HuddlesPose;title:string;body:string;cta:string;action:()=>void}[]=[
@@ -80,16 +80,9 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
    </button>)}</div>
   </section>
 
-  {characters.length>0&&<section className="ds-section home-chars" aria-labelledby="home-chars-title">
-   <div className="home-chars-head">
-    <div className="ds-section-head"><div><h2 id="home-chars-title">Every hero.<br/><span>Every villain.</span></h2><p>See where they first appeared and every issue they&apos;re in.</p></div><Link className="ds-link" href="/characters">Browse all characters <ArrowRight size={16}/></Link></div>
-    <HuddlesGuide pose="characters" size="md" tone="blue" className="home-chars-art"/>
-   </div>
-   <div className="home-chars-row cp-people">{characters.map(hit=><CharacterCard key={hit.characterId} hit={hit}/>)}</div>
-  </section>}
 
   <section className="ds-section" aria-labelledby="home-directory-title">
-   <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>See the whole directory <ArrowRight size={16}/></button></div>
+   <div className="ds-section-head"><div><h2 id="home-directory-title">A glimpse of the <span>directory</span></h2><p>Real issues from the directory. Tap one for the story, the characters and the credits.</p></div><button type="button" className="ds-link" onClick={()=>go('Directory')}>Explore all 2 million+ issues <ArrowRight size={16}/></button></div>
    {error?<ErrorState compact message="Couldn't load the directory. Try again." action={{label:'Try again',onClick:()=>{setError(false);setIssues(null);load()}}}/>
     :<div className="home-covers" aria-busy={issues===null}>{(issues||Array.from({length:6},()=>null)).slice(0,12).map((issue,index)=>issue?<div key={issue.id} className="home-cover-card"><button type="button" className="home-cover" onClick={()=>onOpenComic(String(issue.id))} aria-label={'Open '+issue.title+' #'+issue.number}>
      <span className="home-cover-art"><ResolvedComicCover issueId={issue.id} title={issue.title} issue={issue.number} publisher={issue.publisher} year={issue.year||undefined} src={issue.cover||null} credit={issue.coverCredit||undefined}/></span>
@@ -99,6 +92,14 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
      <button type="button" className="ds-btn ds-btn-secondary ds-btn-sm home-cover-collect" aria-label={'Add to collection: '+issue.title+' #'+issue.number} onClick={()=>{requestCollectOnOpen(issue.id);onOpenComic(String(issue.id))}}><Plus size={15} aria-hidden="true"/> Add to collection</button>
     </div>:<span key={index} className="home-cover home-skeleton" aria-hidden="true"/>)}</div>}
   </section>
+
+  {characters.length>0&&<section className="ds-section home-chars" aria-labelledby="home-chars-title">
+   <div className="home-chars-head">
+    <div className="ds-section-head"><div><h2 id="home-chars-title">Every hero.<br/><span>Every villain.</span></h2><p>See where they first appeared and every issue they&apos;re in.</p></div><Link className="ds-link" href="/characters">Browse all characters <ArrowRight size={16}/></Link></div>
+    <HuddlesGuide pose="characters" size="md" tone="blue" className="home-chars-art"/>
+   </div>
+   <div className="home-chars-row cp-people">{characters.map(hit=><CharacterCard key={hit.characterId} hit={hit}/>)}</div>
+  </section>}
 
   {fresh.length>0&&<section className="ds-section" aria-labelledby="home-fresh-title">
    <div className="ds-section-head"><h2 id="home-fresh-title">Fresh in the <span>marketplace</span></h2><button type="button" className="ds-link" onClick={()=>go('Marketplace')}>See every listing <ArrowRight size={16}/></button></div>
