@@ -30,7 +30,8 @@ export async function verifyEasyPostWebhook(env:CarrierEnv,body:Uint8Array,heade
  return constantEqual((await easyPostSignature(String(env.EASYPOST_WEBHOOK_SECRET),body)).toLowerCase(),header.trim().toLowerCase());
 }
 export type CarrierScan={message:string;location:string;at:string|null};
-export type CarrierUpdate={trackerId:string|null;trackingCode:string;status:'accepted'|'delivered'|'exception'|'pending';occurredAt:string|null;signedBy:string|null;rawStatus?:string;estDeliveryAt?:string|null;lastScan?:CarrierScan|null};
+export type TrackingCheckpoint={status:string;message:string;location:string;at:string};
+export type CarrierUpdate={trackerId:string|null;trackingCode:string;status:'accepted'|'delivered'|'exception'|'pending';occurredAt:string|null;signedBy:string|null;rawStatus?:string;estDeliveryAt?:string|null;lastScan?:CarrierScan|null;checkpoints?:TrackingCheckpoint[]};
 /** The latest carrier progress kept on an order for display. It is never used as delivery proof by itself. */
 export type CarrierSummary={trackerId:string|null;status:string;estDeliveryAt:string|null;lastScan:CarrierScan|null;updatedAt:string};
 const accepted=new Set(['in_transit','out_for_delivery','available_for_pickup']),failed=new Set(['return_to_sender','failure','error','cancelled']);
@@ -48,6 +49,7 @@ export function carrierUpdate(payload:unknown):CarrierUpdate|null{
  const match=[...details].reverse().find(detail=>detail.status===status),when=isoOrNull(match?.datetime);
  const last=details.at(-1),place=last?.tracking_location as Record<string,unknown>|undefined,location=[text(place?.city,60),text(place?.state,20)].filter(Boolean).join(', ');
  return {trackerId:typeof result.id==='string'?result.id:null,trackingCode:result.tracking_code,status:status==='delivered'?'delivered':accepted.has(status)?'accepted':failed.has(status)?'exception':'pending',occurredAt:when,signedBy:typeof result.signed_by==='string'&&result.signed_by.trim()?result.signed_by.trim().slice(0,80):null,
+  checkpoints:details.flatMap(detail=>{const at=isoOrNull(detail.datetime),where=detail.tracking_location as Record<string,unknown>|undefined;return at?[{status:String(detail.status||'unknown').slice(0,40),message:text(detail.message,160),location:[text(where?.city,60),text(where?.state,20)].filter(Boolean).join(', '),at}]:[]}).slice(-60),
   rawStatus:status in statusLabels?status:'unknown',estDeliveryAt:isoOrNull(result.est_delivery_date),lastScan:last?{message:text(last.message,160)||carrierStatusLabel(String(last.status||'unknown')),location,at:isoOrNull(last.datetime)}:null};
 }
 /** Polling backup for missed webhooks: reads the tracker straight from EasyPost's API (never from client input). */
@@ -58,4 +60,37 @@ export async function retrieveCarrierTracker(env:CarrierEnv,trackerId:string,fet
  const body=await response.json().catch(()=>null) as Record<string,unknown>|null;
  if(!body||body.id!==trackerId)throw Error('Carrier tracking response did not match.');
  return carrierUpdate({description:'tracker.updated',result:body});
+}
+
+// ---- Forward-only tracking progress (eBay-style bar) ----
+// Milestones are set once from the carrier's own checkpoint times and never overwritten; the furthest step
+// reached never moves back, so late, repeated or out-of-order webhooks can't rewind the bar.
+export type TrackingException={kind:'delay'|'failed_attempt'|'return_to_sender'|'lost';message:string;at:string};
+export type TrackingProgress={rank:number;labelCreatedAt:string|null;shippedAt:string|null;outForDeliveryAt:string|null;deliveredAt:string|null;
+ estDeliveryDate:string|null;exception:TrackingException|null;checkpoints:TrackingCheckpoint[]};
+const rankOf:Record<string,number>={pre_transit:1,in_transit:2,available_for_pickup:3,out_for_delivery:3,delivered:4};
+export const trackingRank=(status:string|undefined)=>status?rankOf[status]??0:0;
+const milestoneOf:Record<string,'labelCreatedAt'|'shippedAt'|'outForDeliveryAt'|'deliveredAt'>={pre_transit:'labelCreatedAt',in_transit:'shippedAt',out_for_delivery:'outForDeliveryAt',available_for_pickup:'outForDeliveryAt',delivered:'deliveredAt'};
+const exceptionOf:Record<string,TrackingException['kind']>={failure:'failed_attempt',error:'delay',return_to_sender:'return_to_sender',cancelled:'lost'};
+export const emptyTracking=():TrackingProgress=>({rank:0,labelCreatedAt:null,shippedAt:null,outForDeliveryAt:null,deliveredAt:null,estDeliveryDate:null,exception:null,checkpoints:[]});
+export function mergeTracking(previous:TrackingProgress|null|undefined,update:Pick<CarrierUpdate,'rawStatus'|'occurredAt'|'estDeliveryAt'|'checkpoints'|'lastScan'>):TrackingProgress{
+ const next:TrackingProgress={...emptyTracking(),...(previous||{}),checkpoints:[...(previous?.checkpoints||[])]};
+ const points=[...(update.checkpoints||[])];
+ if(!points.length&&update.rawStatus&&update.occurredAt)points.push({status:update.rawStatus,message:update.lastScan?.message||carrierStatusLabel(update.rawStatus),location:update.lastScan?.location||'',at:update.occurredAt});
+ const seen=new Set(next.checkpoints.map(point=>point.status+'|'+point.at+'|'+point.message));
+ for(const point of points.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))){
+  const key=point.status+'|'+point.at+'|'+point.message;if(!seen.has(key)){seen.add(key);next.checkpoints.push(point)}
+  const field=milestoneOf[point.status];
+  // Earliest carrier time wins; a set milestone is never replaced.
+  if(field&&(!next[field]||Date.parse(point.at)<Date.parse(next[field]!)&&!previous?.[field]))next[field]=point.at;
+  next.rank=Math.max(next.rank,rankOf[point.status]||0);
+  const problem=exceptionOf[point.status];
+  if(problem&&next.rank<4&&(!next.exception||Date.parse(point.at)>=Date.parse(next.exception.at)))next.exception={kind:problem,message:point.message||carrierStatusLabel(point.status),at:point.at};
+ }
+ if(update.rawStatus&&rankOf[update.rawStatus])next.rank=Math.max(next.rank,rankOf[update.rawStatus]);
+ // Progress after an exception (or delivery) clears it.
+ if(next.exception){const after=next.checkpoints.some(point=>(rankOf[point.status]||0)>0&&Date.parse(point.at)>Date.parse(next.exception!.at));if(after||next.rank>=4)next.exception=null}
+ if(update.estDeliveryAt&&next.rank<4)next.estDeliveryDate=update.estDeliveryAt;
+ next.checkpoints.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));if(next.checkpoints.length>60)next.checkpoints=next.checkpoints.slice(-60);
+ return next;
 }

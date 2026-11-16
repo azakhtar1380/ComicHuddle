@@ -16,7 +16,7 @@ import {sandboxSetup,stripeSandbox,stripeMode,stripePublishableKey,CHECKOUT_EXPI
 import {MAX_PLATFORM_FEE_BPS,estimatedStripeFeeCents,payoutLegs,platformFeeConfig,saleBreakdown,type PlatformFeeEnv} from './commerce-fees';
 import {recipientReady,stripeConnectV2,type StripeThinAccountEvent} from './stripe-connect-v2';
 import {pickupCode,pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,type ProtectionEnv} from './commerce-protection';
-import {carrierConfigured,carrierProblem,carrierStatusLabel,createCarrierTracker,retrieveCarrierTracker,type CarrierEnv,type CarrierFetch,type CarrierSummary,type CarrierUpdate} from './commerce-carrier';
+import {carrierConfigured,carrierProblem,carrierStatusLabel,createCarrierTracker,retrieveCarrierTracker,type CarrierEnv,type CarrierFetch,type CarrierSummary,type CarrierUpdate,mergeTracking,emptyTracking,trackingRank,type TrackingProgress} from './commerce-carrier';
 import {auctionTerms,ensureLocalAuctionSchema,markAuctionPaidStatement,wonAuctionPayable} from './marketplace-auction';
 /** Payment, protection and carrier settings all come from server configuration. */
 export type StripeSandboxEnv=StripeOnlyEnv&ProtectionEnv&CarrierEnv&PlatformFeeEnv&{COMMERCE_PAYOUTS_ENABLED?:unknown};
@@ -31,7 +31,7 @@ type TrackingSubmission={carrier:string;number:string;submittedAt:string;verifie
 /** A bought label lowers the seller payout by exactly its cost (commerceBuyLabel); nothing else may change it. */
 const labelCost=(value:{label?:{costCents?:unknown}}|null|undefined)=>{const c=value?.label?.costCents;return typeof c==='number'&&Number.isSafeInteger(c)&&c>0?c:0};
 /** Server-only order fields: the pickup code is stored only as a hash; the carrier tracker id binds webhooks. */
-type State=CommerceState&{label?:PurchasedLabel;trackingSubmission?:TrackingSubmission;paymentTimingVerified?:boolean;pickupCodeHash?:string;carrierTrackerId?:string;inboundTrackerId?:string;carrierStatus?:CarrierSummary};
+type State=CommerceState&{tracking?:TrackingProgress;label?:PurchasedLabel;trackingSubmission?:TrackingSubmission;paymentTimingVerified?:boolean;pickupCodeHash?:string;carrierTrackerId?:string;inboundTrackerId?:string;carrierStatus?:CarrierSummary};
 const now=()=>new Date().toISOString();
 const id=z.string().trim().min(1).max(100);
 const uuid=z.string().uuid();
@@ -124,6 +124,7 @@ export function commerceOrderDto(row:Row,userId:string){
   ...(row.status==='awaiting_payment'?{reservedUntil:reservationEndsAt(row)}:{}),
   ...(role!=='buyer'?{saleCents:snapshot.itemAmountCents+snapshot.shippingCents,platformFeeCents:snapshot.platformFeeCents,platformFeeBps:snapshot.platformFeeBps??0,sellerNetCents:state.order.sellerTransferCents,labelCostCents:state.label?.costCents??0,label:state.label?{carrier:state.label.carrier,service:state.label.service,trackingCode:state.label.trackingCode,url:state.label.labelUrl,costCents:state.label.costCents,createdAt:state.label.createdAt}:null,canBuyLabel:role==='seller'&&snapshot.fulfillment==='shipping'&&!!state.order.paidAt&&!state.label&&!shipment.trackingNumber&&!state.financial&&state.policy.tier!=='safepurchase'&&!['refunded','refund_pending','cancelled'].includes(row.status)}:{}),storeCreditCents:snapshot.storeCreditCents||0,itemAmountCents:snapshot.itemAmountCents,shippingCents:snapshot.shippingCents,inspectionFeeCents:snapshot.inspectionFeeCents||0,taxCents:0,totalCents:snapshot.totalCents,currency:'USD',createdAt:row.createdAt,updatedAt:row.updatedAt,paidAt:timingUnknown?null:state.order.paidAt,paymentConfirmed:!!state.order.paidAt,paymentTimingVerified:!timingUnknown,trackingDeadlineAt:timingUnknown?null:decision.trackingDeadlineAt,carrierDeadlineAt:timingUnknown?null:decision.carrierDeadlineAt,reviewUntil:timingUnknown?null:decision.releaseAt,tracking,issue:state.issue,refundRequested:!!state.issue||!!state.refundReason,refundStatus:state.financial?.kind==='refund'?(state.financial.confirmedAt?'refunded':'pending'):null,protectionReason:decision.reason,
   protection,pickup:state.pickup||null,inspection:inspection?{received:!!inspection.receivedAt,result:inspection.result,reasons:inspection.reasons,failedItems:inspection.failedItems,totalItems:inspection.totalItems,buyerChoice:inspection.buyerChoice,partialRefundCents:inspection.partialRefundCents,inboundTracking:inspection.inbound?{carrier:inspection.inbound.carrier,number:inspection.inbound.trackingNumber}:null}:null,
+  timeline:{paidAt:state.order.paidAt,labelCreatedAt:state.tracking?.labelCreatedAt||state.label?.createdAt||null,shippedAt:state.tracking?.shippedAt||shipment.acceptedAt||null,outForDeliveryAt:state.tracking?.outForDeliveryAt||null,deliveredAt:shipment.deliveredAt||state.tracking?.deliveredAt||null,readyForPickupAt:snapshot.fulfillment==='pickup'?state.order.paidAt:null,pickedUpAt:state.pickup?.confirmedAt||null,estDeliveryDate:shipment.deliveredAt?null:state.tracking?.estDeliveryDate||state.carrierStatus?.estDeliveryAt||null,exception:shipment.deliveredAt?null:state.tracking?.exception||null,checkpoints:(state.tracking?.checkpoints||[]).slice(-30).reverse()},
   carrierConfirmed:!!shipment.acceptedAt&&!state.pickup,deliveredAt:shipment.deliveredAt,signatureVerified:shipment.signatureVerified,
   canCancel:role==='buyer'&&decision.state.refundReason==='tracking_deadline'&&!state.financial&&!state.issue?.open,
   canConfirmPickup:role==='buyer'&&snapshot.fulfillment==='pickup'&&!!state.order.paidAt&&!state.pickup&&!state.financial&&(state.policy.tier!=='safepurchase'||status==='inspection_passed'),
@@ -432,7 +433,7 @@ export async function commerceBuyLabel(db:Db,userId:string,raw:Record<string,unk
  catch(error){throw new ApiRequestError(error instanceof LabelError?error.message:'The label couldn’t be created. Please try again.',422)}
  const net=state.order.sellerTransferCents-label.costCents;
  if(net<=0)throw new ApiRequestError('The label costs more than this sale pays you, so it wasn’t saved. Ship it yourself and add tracking.',409);
- const next={...state,order:{...state.order,sellerTransferCents:net},label} as State;
+ const next={...state,order:{...state.order,sellerTransferCents:net},label,tracking:{...(state.tracking||emptyTracking()),labelCreatedAt:state.tracking?.labelCreatedAt||label.createdAt,rank:Math.max(state.tracking?.rank??0,1)}} as State;
  let updated=await persist(db,row,next,'label_purchased',{note:'Seller bought a '+label.carrier+' '+label.service+' label for $'+(label.costCents/100).toFixed(2)+'. It comes out of the seller payout.',costCents:label.costCents});
  try{const tracked=await commerceSubmitTracking(db,userId,{action:'submit_tracking',orderId:row.id,carrier:label.carrier,trackingNumber:label.trackingCode},environment,fetcher);updated=(await db.select().from(commerceOrders).where(eq(commerceOrders.id,row.id)))[0];void tracked}
  catch{/* The label is saved; the seller can add the tracking number by hand if this step failed. */}
@@ -510,10 +511,15 @@ export async function commerceApplyCarrierUpdate(db:Db,update:CarrierUpdate){
    }
    }
   }catch(error){if(error instanceof ApiRequestError&&error.status===409)continue;throw error}
+  // Forward-only milestones and scan history for the progress bar (never rewinds on late/out-of-order webhooks).
+  const priorRank=state.tracking?.rank??0,tracking=mergeTracking(state.tracking,update);
+  if(JSON.stringify(tracking)!==JSON.stringify(state.tracking??null))state={...state,tracking};
   // Display-only progress (status, estimate, last scan); events above are the only delivery evidence.
+  // A late update for an earlier step (e.g. in_transit after out_for_delivery) never replaces the shown status.
+  const updateRank=trackingRank(update.rawStatus),backwards=!!state.carrierStatus&&update.status!=='exception'&&updateRank>0&&updateRank<priorRank;
   const summary:CarrierSummary={trackerId:update.trackerId??state.carrierStatus?.trackerId??null,status:update.rawStatus||'unknown',estDeliveryAt:update.estDeliveryAt??null,lastScan:update.lastScan??null,updatedAt:stamp};
   const sameSummary=!!state.carrierStatus&&JSON.stringify({...state.carrierStatus,updatedAt:''})===JSON.stringify({...summary,updatedAt:''});
-  if(!sameSummary)state={...state,carrierStatus:summary};
+  if(!sameSummary&&!backwards)state={...state,carrierStatus:summary};
   if(JSON.stringify(state)===before)continue;
   const next=evaluateCommercePolicy(state,stamp).state as State;
   try{await persist(db,row,next,'carrier_update',{note:update.status==='delivered'?'Carrier confirmed delivery'+(update.signedBy?' with a signature':'')+'.':update.status==='accepted'?'Carrier: '+carrierStatusLabel(update.rawStatus||'in_transit')+'.':update.status==='exception'?'Carrier reported a delivery problem; release is frozen while support reviews it.':'Carrier status: '+carrierStatusLabel(update.rawStatus||'unknown')+'.',trackerId:update.trackerId})}catch(error){if(error instanceof ApiRequestError&&error.status===409)continue;throw error}

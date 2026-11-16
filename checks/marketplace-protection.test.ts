@@ -482,3 +482,23 @@ test('in-app shipping label: bought once through EasyPost, cost comes out of the
  assert.equal((await commerceBuyLabel(db,seller.userId,{action:'buy_label',orderId,from},env,fetcher as never) as {duplicate?:boolean}).duplicate,true,'a second click never buys a second label');
  assert.equal(calls.filter(url=>url.endsWith('/buy')).length,1);
 });
+
+test('shipping: Pending after payment, Sold on carrier delivery; late and repeated webhooks never rewind the order',async()=>{
+ const db=getDb(),seller=await collector('fwdseller'),buyer=await collector('fwdbuyer');await onboard(seller);
+ const listing=await offer(seller,{price:4000,shipping:500}),orderId=await paid(buyer,listing.id),code='9400111899223197421111';
+ assert.equal((await listingRow(listing.id)).status,'pending');
+ await commerceSubmitTracking(db,seller.userId,{action:'submit_tracking',orderId,carrier:'USPS',trackingNumber:code});
+ const scan=(status:string,at:string)=>({trackerId:null,trackingCode:code,status:(status==='delivered'?'delivered':status==='pre_transit'?'pending':'accepted') as 'delivered'|'accepted'|'pending',occurredAt:at,signedBy:null,rawStatus:status,checkpoints:[{status,message:status,location:'Saint Paul, MN',at}]});
+ const t0=Date.now(),iso=(minutes:number)=>new Date(t0+minutes*60000).toISOString();
+ await commerceApplyCarrierUpdate(db,scan('in_transit',iso(1)));
+ await commerceApplyCarrierUpdate(db,scan('out_for_delivery',iso(2)));
+ await commerceApplyCarrierUpdate(db,scan('delivered',iso(3)));
+ assert.equal((await listingRow(listing.id)).status,'sold','delivery turns Pending into Sold');
+ const first=(await dto(orderId,buyer.userId) as {timeline:{deliveredAt:string;outForDeliveryAt:string;shippedAt:string}}).timeline;
+ await commerceApplyCarrierUpdate(db,scan('in_transit',iso(1)));await commerceApplyCarrierUpdate(db,scan('delivered',iso(3)));
+ await commerceApplyCarrierUpdate(db,{trackerId:null,trackingCode:'9999999999999999999999',status:'delivered',occurredAt:iso(4),signedBy:null});
+ const after=await dto(orderId,buyer.userId) as {status:string;timeline:{deliveredAt:string;outForDeliveryAt:string;shippedAt:string}};
+ assert.deepEqual(after.timeline.deliveredAt,first.deliveredAt,'delivery time never changes');assert.equal(after.timeline.outForDeliveryAt,first.outForDeliveryAt);
+ assert.notEqual(after.status,'in_transit','a late in_transit never moves the order backward');
+ assert.equal((await listingRow(listing.id)).status,'sold');
+});
