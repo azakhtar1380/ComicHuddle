@@ -3,6 +3,7 @@
 // migration through 024, and a synthetic in-memory Stripe behind a stubbed fetch.
 // No network, Stripe account, card, refund, transfer or payout is used.
 import {getPool} from '../db/postgres';
+import {applyPayoutEvent,payoutProblem,runManualPayouts,sellerTier,syncPayoutSchedule} from '../lib/seller-payouts';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {after,before,test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -59,6 +60,8 @@ async function fakeStripe(input:string|URL|Request,init:RequestInit={}){
   if(method==='POST'&&key)stripe.idem.set(route+key,structuredClone(value));
   return Response.json(value);
  }
+ if(method==='POST'&&/^\/v1\/accounts\/acct_[A-Za-z0-9]+$/.test(route)){stripe.requests.push({method,route,fields} as never);return Response.json({id:route.split('/')[3],object:'account',settings:{payouts:{schedule:{interval:fields['settings[payouts][schedule][interval]']}}}})}
+ if(method==='POST'&&route==='/v1/payouts'){stripe.requests.push({method,route,fields} as never);const k='payout'+key;const prior=stripe.idem.get(k);if(prior)return Response.json(prior);const po={id:'po_'+next(),object:'payout',amount:Number(fields.amount),currency:'usd',status:'pending',metadata:{order_id:fields['metadata[order_id]']}};stripe.idem.set(k,po);return Response.json(po)}
  if(method==='POST'&&route==='/v1/accounts')return Response.json({error:{message:'Accounts v1 creation is unavailable for this platform (synthetic)'}},{status:400});
  else if(method==='POST'&&route==='/v1/account_links')value={object:'account_link',expires_at:Math.floor(Date.now()/1000)+300,url:'https://connect.stripe.com/setup/'+next()};
  else if(method==='POST'&&route==='/v1/checkout/sessions'){
@@ -84,6 +87,7 @@ async function fakeStripe(input:string|URL|Request,init:RequestInit={}){
  }
  if(method==='POST'&&/^\/v1\/transfers\/tr_[A-Za-z0-9]+\/reversals$/.test(route)){
   const transfer=stripe.transfers.get(route.split('/')[3]);if(!transfer)return Response.json({error:{message:'not found'}},{status:404});
+  if((globalThis as {failReversals?:boolean}).failReversals)return Response.json({error:{message:'insufficient funds in the connected account'}},{status:400});
   transfer.reversed=true;value={id:'trr_'+next(),object:'transfer_reversal',amount:Number(fields.amount),currency:'usd',transfer:transfer.id};
  }
  if(!value)return Response.json({error:{message:'not found'}},{status:404});
@@ -109,7 +113,7 @@ let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
  const skip=new Set(['003_catalog_ingestion.sql','005_gcd_snapshot_import.sql']);
- for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_')||n.startsWith('046_')||n.startsWith('036_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -390,4 +394,54 @@ test('Stripe Dashboard readability: PaymentIntent description and statement suff
  const ref=row.id.replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase();
  assert.equal(fields['payment_intent_data[description]'],'ComicHuddle order '+ref+' · '+JSON.parse(row.snapshot).title);
  assert.equal(fields['payment_intent_data[statement_descriptor_suffix]'],'CH '+ref);assert.ok(fields['payment_intent_data[statement_descriptor_suffix]'].length<=22);
+});
+test('refund after the seller was paid: the transfer is reversed first; if Stripe refuses, the order is held and nothing is refunded',async t=>{
+ const db=getDb(),{orderId,buyer,seller}=await paidOrder(),env={...testEnv,COMMERCE_PAYOUTS_ENABLED:'true'};
+ await commerceSubmitTracking(db,seller.userId,{action:'submit_tracking',orderId,carrier:'USPS',trackingNumber:'9400111899223197425555'},env);
+ await commerceApplyCarrierUpdate(db,{trackerId:null,trackingCode:'9400111899223197425555',status:'delivered',occurredAt:null,signedBy:'Q BUYER'});
+ // Five days later: the buyer review window has ended.
+ t.mock.timers.enable({apis:['Date'],now:Date.now()+5*86400000});
+ const released=await commerceOwnerRelease(db,ownerAccountId,{action:'owner_release',orderId,requestId:crypto.randomUUID()},env);
+ assert.equal(released.order.status,'transferred','released to the seller after the review window');
+ await commerceRequestRefund(db,buyer.userId,{action:'request_refund',orderId,requestId:crypto.randomUUID(),reason:'Not as described'});
+ (globalThis as {failReversals?:boolean}).failReversals=true;
+ try{await assert.rejects(commerceOwnerRefund(db,ownerAccountId,{action:'owner_refund',orderId,requestId:crypto.randomUUID(),approveIssue:true},env),(e:{status?:number})=>e.status===502)}
+ finally{(globalThis as {failReversals?:boolean}).failReversals=false}
+ const held=JSON.parse((await orderRow(orderId)).state);
+ assert.equal(held.holdReason,'transfer_reversal_failed','held for manual review');assert.equal(held.financial.kind,'transfer','no refund was issued');
+ const intent=stripe.intents.get(JSON.parse((await orderRow(orderId)).state).order.paymentIntentId) as Obj|undefined;void intent;
+ assert.equal([...stripe.refunds.values()].filter(r=>(r as Obj).payment_intent===held.order.paymentIntentId).length,0,'the buyer was not refunded while the transfer is unresolved');
+});
+
+test('seller trust tiers, manual bank payouts 7 days after delivery, and payout.failed alerts',async()=>{
+ const {seller,orderId}=await paidOrder(),pool=getPool();
+ let tier=await sellerTier(seller.userId,1);assert.deepEqual([tier.tier,tier.schedule,tier.payoutDelayDays],['new','manual',7],'new sellers: manual payouts after 7 days');
+ // Five completed, problem-free orders make a trusted seller; one claim drops them back.
+ for(let i=0;i<5;i++)await pool.query("INSERT INTO ch_web.commerce_orders SELECT gen_random_uuid()::text,buyer_id,buyer_user_id,seller_id,seller_user_id,gen_random_uuid()::text,gen_random_uuid()::text,'transferred',version,sandbox,snapshot,state,NULL,NULL,charge_id,transfer_id,created_at,updated_at FROM ch_web.commerce_orders WHERE id=$1",[orderId]).catch(async()=>{
+  const cols=(await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='ch_web' AND table_name='commerce_orders' ORDER BY ordinal_position")).rows.map((r:{column_name:string})=>r.column_name);
+  const pick=cols.map((c:string)=>c==='id'||c==='listing_id'||c==='request_id'?'gen_random_uuid()::text':c==='status'?"'transferred'":c==='checkout_session_id'||c==='payment_intent_id'?'NULL':c).join(',');
+  await pool.query('INSERT INTO ch_web.commerce_orders('+cols.join(',')+') SELECT '+pick+' FROM ch_web.commerce_orders WHERE id=$1',[orderId]);
+ });
+ tier=await sellerTier(seller.userId,1);assert.deepEqual([tier.tier,tier.schedule],['trusted','daily'],'5+ completed orders and no problems: daily automatic payouts');
+ const processor=stripeSandbox(testEnv as never);
+ await syncPayoutSchedule(processor,seller.userId,1);
+ const schedule=stripe.requests.filter(r=>r.method==='POST'&&r.route.startsWith('/v1/accounts/acct_'));assert.equal((schedule.at(-1) as unknown as {fields:Record<string,string>}).fields['settings[payouts][schedule][interval]'],'daily');
+ await syncPayoutSchedule(processor,seller.userId,1);assert.equal(stripe.requests.filter(r=>r.method==='POST'&&r.route.startsWith('/v1/accounts/acct_')).length,schedule.length,'no Stripe call when the tier did not change');
+ await pool.query("UPDATE ch_web.commerce_orders SET state=jsonb_set(state::jsonb,'{dispute}','\"open\"')::text WHERE id=$1",[orderId]);
+ assert.equal((await sellerTier(seller.userId,1)).tier,'new','any dispute drops the seller back');
+ // Manual payout: the released order delivered 8 days ago gets exactly one bank payout, even when the job runs twice.
+ await pool.query("UPDATE ch_web.commerce_sellers SET state=(state::jsonb||'{\"payoutSchedule\":\"manual\"}')::text WHERE user_id=$1",[seller.userId]);
+ await pool.query("UPDATE ch_web.commerce_orders SET status='transferred',state=jsonb_set(jsonb_set(state::jsonb,'{dispute}','\"none\"'),'{shipment,deliveredAt}',to_jsonb($2::text))::text WHERE id=$1",[orderId,new Date(Date.now()-8*86400000).toISOString()]);
+ const first=await runManualPayouts(processor,1);assert.ok(first.some(r=>r.orderId===orderId&&r.result==='payout_created'));
+ const second=await runManualPayouts(processor,1);assert.ok(!second.some(r=>r.orderId===orderId),'never paid twice');
+ const row=(await pool.query('SELECT stripe_payout_id,status FROM ch_web.seller_payouts WHERE order_id=$1',[orderId])).rows[0];assert.match(row.stripe_payout_id,/^po_/);
+ // payout.failed: one alert for the seller, shown until a later payout succeeds.
+ const account=(await pool.query('SELECT stripe_account_id FROM ch_web.commerce_sellers WHERE user_id=$1',[seller.userId])).rows[0].stripe_account_id;
+ const failed={id:'evt_po_fail',type:'payout.failed',livemode:false,account,data:{object:{id:row.stripe_payout_id,amount:100,status:'failed',failure_message:'The bank account is closed.'}}};
+ await applyPayoutEvent(failed as never,1);await applyPayoutEvent(failed as never,1);
+ const alerts=(await pool.query("SELECT count(*)::int AS n FROM ch_web.notifications WHERE user_id=$1 AND kind='payout'",[seller.userId])).rows[0].n;
+ assert.equal(alerts,1,'a retried webhook never alerts twice');
+ assert.equal((await payoutProblem(seller.userId))?.message,'The bank account is closed.');
+ await applyPayoutEvent({...failed,id:'evt_po_paid',type:'payout.paid',data:{object:{...failed.data.object,status:'paid',failure_message:null}}} as never,1);
+ assert.equal(await payoutProblem(seller.userId),null,'cleared once a payout succeeds');
 });

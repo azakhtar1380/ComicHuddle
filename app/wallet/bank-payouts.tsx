@@ -7,7 +7,7 @@ import {useEffect,useState} from 'react';
 import {Landmark,ExternalLink,Clock,CheckCircle2} from 'lucide-react';
 
 type Order={id:string;title:string;role:string;status:string;sandbox:boolean;fulfillment?:'shipping'|'pickup';sellerNetCents?:number;fundsAvailableAt?:string|null;protection?:{tier?:string}|null};
-type Overview={mode:'test'|'live';sandbox:boolean;payoutsEnabled:boolean;setup?:{ready?:boolean};seller?:{registered:boolean;onboardingRequired:boolean;ready:boolean};orders:Order[];hasMoreOrders?:boolean};
+type Overview={mode:'test'|'live';sandbox:boolean;payoutsEnabled:boolean;setup?:{ready?:boolean};seller?:{registered:boolean;onboardingRequired:boolean;ready:boolean;tier?:{tier:'new'|'trusted';completedOrders:number;ordersToTrusted:number;payoutDelayDays:number|null}|null;payoutProblem?:{amountCents:number;message:string;at:string}|null};orders:Order[];hasMoreOrders?:boolean};
 const usd=(cents:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100);
 const day=(iso:string)=>new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const NOT_MONEY=new Set(['awaiting_payment','checkout_expired','cancelled','refunded','refund_pending','refund_eligible']);
@@ -48,6 +48,8 @@ export default function BankPayouts({mode}:{mode:'live'|'sandbox'}){
   const payoutReason=!data.payoutsEnabled?'Pay out now isn’t available yet. Seller payouts switch on once delivery tracking and payments are live; then money goes to your bank automatically on Stripe’s schedule.':'Payouts go to your bank automatically on Stripe’s schedule.';
   return <section className="cw2-payouts" aria-labelledby="cw2-payouts-title">
     <div className="ds-section-head"><div><h2 id="cw2-payouts-title">Bank <span>payouts.</span></h2><p>{test?'Test sales only. Test money never reaches a bank.':'Money from comics you sell through ComicHuddle checkout.'}</p></div></div>
+    {seller?.payoutProblem&&<p className="ds-error" role="alert"><b>Your last bank payout failed.</b> {seller.payoutProblem.message} Update your bank details in payment setup and we’ll try again.</p>}
+    {seller?.tier&&<p className="mpx-fine">{seller.tier.tier==='trusted'?'Trusted seller: automatic daily payouts to your bank.':'New seller: money reaches your bank '+(seller.tier.payoutDelayDays??7)+' days after delivery or pickup.'+(seller.tier.ordersToTrusted>0?' '+seller.tier.ordersToTrusted+' more completed order'+(seller.tier.ordersToTrusted===1?'':'s')+' without problems to get daily automatic payouts.':'')}</p>}
     <div className="cw2-cards">
       <article className="cw2-card"><h3><Clock size={16} aria-hidden="true"/> Pending</h3><strong>{usd(sum(pending))}</strong><p>{pending.length?`${pending.length} ${pending.length===1?'sale':'sales'} waiting on delivery, SafePurchase or a pickup code.`:'Nothing waiting.'}</p></article>
       <article className="cw2-card"><h3><CheckCircle2 size={16} aria-hidden="true"/> Ready to pay out</h3><strong>{usd(sum(ready))}</strong><p>{ready.length?'The buyer’s review window has ended.':'Nothing ready yet.'}</p></article>

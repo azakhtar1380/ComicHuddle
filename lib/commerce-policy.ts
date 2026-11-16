@@ -126,7 +126,11 @@ function fulfilmentStage(state:CommerceState):Omit<CommerceDecision,'state'|'ref
 }
 function decide(state:CommerceState,stamp:number):Omit<CommerceDecision,'state'>{
  const order=state.order,paid=time(order.paidAt),trackingAt=trackingDeadline(state,paid),trackingDeadlineAt=trackingAt===null?null:iso(trackingAt),carrierDeadlineAt=Number.isFinite(paid)&&state.policy.tier===undefined?iso(paid+72*hour):null;
- const delivered=time(state.shipment.deliveredAt),releaseAt=Number.isFinite(delivered)?iso(delivered+state.policy.reviewHours*hour):null;
+ // Release timing: shipped orders after verified delivery plus a review window of at least 3 days; a pickup
+ // confirmed with the buyer's PIN (seller) or at the Inspection Center (operator) releases at once, because the
+ // buyer inspected the comic at the handoff; the buyer's backup 'I picked it up' button keeps a 24-hour window.
+ const delivered=time(state.shipment.deliveredAt),pickupBy=state.pickup?.by,reviewHours=state.pickup?(pickupBy==='buyer'?24:0):state.policy.tier==='safepurchase'?state.policy.reviewHours:Math.max(state.policy.reviewHours,72);
+ const releaseAt=Number.isFinite(delivered)?iso(delivered+reviewHours*hour):null;
  const base={refundEligible:false,transferEligible:false,trackingDeadlineAt,carrierDeadlineAt,releaseAt};
  if(state.financial){const operation=state.financial;
   if(operation.confirmedAt)return {...base,status:operation.kind==='refund'?'refunded':'transferred',reason:state.holdReason||(state.issue?.open||state.dispute==='open'||state.dispute==='lost'?'terminal_issue_requires_manual_recovery':'financial_operation_completed')};

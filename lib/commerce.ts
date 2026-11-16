@@ -2,6 +2,7 @@ import {ensureSellerPhotos} from './seller-photos';
 import {and,desc,eq,inArray,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
 import {chooseShippingOption,parcelFor,quoteShippingRates,ShippingQuoteError} from './shipping-rates';
+import {applyPayoutEvent,payoutProblem,sellerTier,syncPayoutSchedule} from './seller-payouts';
 import {buyShippingLabel,labelAddressSchema,LabelError,type PurchasedLabel} from './shipping-labels';
 import {getDb} from '../db';
 import {commerceOrders,commerceEvents,commerceSellers,commerceMoneyRequests,listings,listingInventory,offers,profiles,collections,media} from '../db/schema';
@@ -173,7 +174,7 @@ export async function commerceOverview(db:Db,userId:string,environment:StripeSan
  // Opening Orders also polls EasyPost for this account's shipments (at most once per 10 minutes per order).
  const polled=await commerceRefreshCarrierStatus(db,environment,{orderIds:orders.map(row=>row.id),limit:5}).catch(()=>({updated:0}));
  if(polled.updated)orders=await db.select().from(commerceOrders).where(or(eq(commerceOrders.buyerUserId,userId),eq(commerceOrders.sellerUserId,userId))).orderBy(desc(commerceOrders.createdAt)).limit(101);
- return {...commerceSetup(environment),orders:await Promise.all(orders.slice(0,100).map(row=>participantDto(row,userId,environment))),hasMoreOrders:orders.length>100,seller:{registered:!!seller,onboardingRequired:!!seller&&!ready,ready}};
+ return {...commerceSetup(environment),orders:await Promise.all(orders.slice(0,100).map(row=>participantDto(row,userId,environment))),hasMoreOrders:orders.length>100,seller:{registered:!!seller,onboardingRequired:!!seller&&!ready,ready,...(seller?{tier:await sellerTier(userId,modeFlag(environment) as 0|1).catch(()=>null),payoutProblem:await payoutProblem(userId)}:{})}};
 }
 export async function commerceParticipant(db:Db,userId:string){
  const [profile]=await db.select().from(profiles).where(eq(profiles.userId,userId));
@@ -640,6 +641,8 @@ export async function commerceOwnerRelease(db:Db,userId:string,raw:Record<string
  try{await db.batch([check.start,db.update(commerceOrders).set({state:JSON.stringify(next),status:next.status,transferId:primary,version:row.version+1,updatedAt:stamp}).where(eq(commerceOrders.id,row.id)),db.update(commerceMoneyRequests).set({providerId:primary,status:'succeeded',updatedAt:stamp}).where(eq(commerceMoneyRequests.id,ledger.id)),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId:row.id,providerEventId:null,type:'transfer_confirmed',body:JSON.stringify({note:'Seller net transferred; ComicHuddle keeps the marketplace fee.',transfers:[payout.transfer&&{id:providerId(payout.transfer),amountCents:payout.legs.fromChargeCents,funding:'charge'},payout.topUp&&{id:providerId(payout.topUp),amountCents:payout.legs.platformTopUpCents,funding:'platform_balance_store_credit'}].filter(Boolean),platformFeeCents:snapshot.platformFeeCents}),createdAt:stamp}),check.finish])}
  catch(error){if(operationGuardFailed(error))throw new ApiRequestError('Transfer confirmation must be reconciled with the changed order.',409);throw error}
  row=(await db.select().from(commerceOrders).where(eq(commerceOrders.id,row.id)))[0];
+ // The release may change the seller's trust tier; keep their bank payout schedule in line (best effort).
+ try{await syncPayoutSchedule(processor,row.sellerUserId,row.sandbox===1?1:0)}catch{/* retried by the cron job */}
  return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),transfers:{fromChargeCents:payout.legs.fromChargeCents,platformTopUpCents:payout.legs.platformTopUpCents}};
 }
 /** Full refund after release: reverse every seller transfer for the order first, so the platform is whole. */
@@ -681,7 +684,15 @@ async function refundOrder(db:Db,userId:string,orderId:string,requestId:string,a
  // Post-release refunds are owner-only and need an approved issue; reverse the seller's transfer first.
  if(state.financial?.kind==='transfer'&&state.financial.confirmedAt){
   if(!allowOperator||!approveIssue)throw new ApiRequestError('This order was paid out to the seller. Support must approve the refund.',409);
-  row=await reverseReleasedTransfers(db,row,state,processor);state=stateOf(row);
+  // A reversal the processor refuses (seller balance gone, account closed…) never leaves money half-moved:
+  // the order is held for manual review and nothing is refunded until support settles it.
+  try{row=await reverseReleasedTransfers(db,row,state,processor);state=stateOf(row)}
+  catch(error){
+   if(error instanceof ApiRequestError&&error.status===409)throw error;
+   const held={...state,holdReason:'transfer_reversal_failed'} as State;
+   try{await persist(db,row,held,'transfer_reversal_failed',{note:'The seller transfer could not be reversed before the refund. Held for manual review.'})}catch{}
+   throw new ApiRequestError('The seller transfer couldn’t be reversed, so nothing was refunded. The order is on hold for manual review.',502);
+  }
  }
  const [held]=await db.select().from(commerceMoneyRequests).where(and(eq(commerceMoneyRequests.orderId,row.id),eq(commerceMoneyRequests.kind,'refund')));
  if(state.financial||held)exactRefundLedger(row,state,held);
@@ -842,7 +853,7 @@ export async function commerceApplyThinAccountEvent(db:Db,event:StripeThinAccoun
  if(event.livemode!==(mode==='live'))throw new ApiRequestError('Event is from the other payment mode.',400);
  return sellerAccountUpdated(db,event.accountId,stripeSandbox(environment),mode,environment);
 }
-export const COMMERCE_WEBHOOK_EVENTS=['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.async_payment_failed','checkout.session.expired','payment_intent.succeeded','refund.created','refund.updated','refund.failed','charge.refunded','charge.dispute.created','charge.dispute.updated','charge.dispute.closed','account.updated'] as const;
+export const COMMERCE_WEBHOOK_EVENTS=['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.async_payment_failed','checkout.session.expired','payment_intent.succeeded','refund.created','refund.updated','refund.failed','charge.refunded','charge.dispute.created','charge.dispute.updated','charge.dispute.closed','account.updated','payout.paid','payout.failed','payout.canceled','payout.updated'] as const;
 /** Only verified raw-body Stripe events reach here; all payment proof is re-retrieved. */
 export async function commerceApplyWebhook(db:Db,event:StripeVerifiedEvent,rawBody:Uint8Array,environment:StripeSandboxEnv){
  needReady(environment);const mode=modeOf(environment),sandbox=mode==='test';
@@ -852,6 +863,8 @@ export async function commerceApplyWebhook(db:Db,event:StripeVerifiedEvent,rawBo
  if(!(COMMERCE_WEBHOOK_EVENTS as readonly string[]).includes(event.type))return {received:true,sandbox,ignored:true};
  const processor=stripeSandbox(environment);
  if(event.type==='account.updated')return await sellerAccountUpdated(db,providerId(event.data.object),processor,mode,environment);
+ // Bank payouts from sellers' connected accounts (Connect events carry the account id).
+ if(event.type.startsWith('payout.')){const result=await applyPayoutEvent(event,sandbox?1:0);return {...result,sandbox}}
  // Checkout completes before a delayed payment settles; async_payment_succeeded/failed follows.
  if(event.type==='checkout.session.completed'&&event.data.object.payment_status==='unpaid')return {received:true,sandbox,pending:true};
  // The webhook application owns durable receipt dedupe; the kernel's last64 is not a ledger.

@@ -153,8 +153,13 @@ export async function initializeSellerListings(db:Db,me:Profile){
   db.delete(listingInventory).where(inArray(listingInventory.listingId,db.select({id:listings.id}).from(listings).where(and(ownedRows,eq(listings.status,'withdrawn')))))
  ]);
 }
+/** True once the seller's connected Stripe account is verified for charges and payouts (commerce_sellers.state.ready). */
+export async function sellerPayoutsReady(db:Db,userId:string){try{const r=await db.execute(sql`SELECT (state::jsonb->>'ready')='true' AS ready FROM ch_web.commerce_sellers WHERE user_id=${userId}`);return (r.rows[0] as {ready?:boolean}|undefined)?.ready===true}catch{return false}}
 export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>){
  const value=creationSchema.parse(raw),selected=value.bookIds||(value.bookId?[value.bookId]:[]);
+ // Every listing takes payment through checkout, so a seller must finish payment setup (Stripe charges + payouts
+ // enabled, synced from account.updated) before publishing. Switched on per deployment.
+ if(process.env.COMMERCE_LISTING_REQUIRES_PAYOUTS==='true'&&!await sellerPayoutsReady(db,me.userId))throw new ApiRequestError('Set up payment onboarding in Orders before you list. That’s how buyers pay you and how your money reaches your bank.',409);
  await ensureSellerPhotos(me.userId,value.photos);
  if(!selected.length||value.kind==='single'&&selected.length!==1)throw new ApiRequestError('Choose one owned copy for a single listing, or up to 1,000 copies for a collection.',400);
  if(value.bookIds&&value.bookId&&value.bookId!==selected[0])throw new ApiRequestError('Check the selected copies before publishing.',400);

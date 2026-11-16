@@ -210,7 +210,7 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
       configuredOrigin(options.origin ?? env.COMMERCE_PUBLIC_ORIGIN) !== origin)
       fail(current.ready ? 'sandbox_configuration_changed' : current.reason, 'Stripe payments are not ready. No payment was started.', 503);
   }
-  async function request(method: 'GET' | 'POST', route: string, fields?: Record<string, string>, key?: string): Promise<StripeObject> {
+  async function request(method: 'GET' | 'POST', route: string, fields?: Record<string, string>, key?: string, account?: string): Promise<StripeObject> {
     assertReady(); if (method === 'POST') idempotencyKey(key);
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -220,6 +220,7 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
           headers: {
             Authorization: 'Bearer ' + secretFor(env, mode),
             'Stripe-Version': STRIPE_SANDBOX_API_VERSION,
+            ...(account ? {'Stripe-Account': account} : {}),
             ...(method === 'POST' ? {'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': key!} : {}),
           },
           ...(method === 'POST' ? {body: new URLSearchParams(fields)} : {}),
@@ -484,6 +485,22 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         transfer.transfer_group !== 'ORDER_' + input.orderId || transfer.reversed !== false)
         fail('stripe_transfer_mismatch', 'Top-up transfer does not match this release.', 502);
       verifyOrderMetadata(transfer, input.orderId); return transfer;
+    },
+    /** Seller trust tier → bank payout timing on their connected account: manual (we pay out 7 days after
+     *  delivery/pickup) for new sellers, daily automatic payouts for trusted ones. */
+    async setPayoutSchedule(accountId: string, interval: 'manual' | 'daily', key: string) {
+      stripeId(accountId, 'acct_'); idempotencyKey(key);
+      const account = object(await request('POST', 'accounts/' + accountId, {'settings[payouts][schedule][interval]': interval}, key), 'account', false);
+      if (account.id !== accountId) fail('stripe_account_mismatch', 'Stripe updated a different account.', 502);
+      return account;
+    },
+    /** Bank payout from a seller's Stripe balance (manual tier). Created on the connected account itself. */
+    async createConnectedPayout(input: {accountId: string; amountCents: number; orderId: string}, key: string) {
+      stripeId(input.accountId, 'acct_'); localId(input.orderId); cents(input.amountCents); idempotencyKey(key);
+      const payout = object(await request('POST', 'payouts', {amount: String(input.amountCents), currency: 'usd', ...metadata(input.orderId)}, key, input.accountId), 'payout', false);
+      stripeId(payout.id, 'po_');
+      if (payout.amount !== input.amountCents || payout.currency !== 'usd') fail('stripe_payout_mismatch', 'Payout does not match this order.', 502);
+      return payout;
     },
     /** Pulls a seller transfer back to the platform before a refund (full refund after release). */
     async createTransferReversal(input: {transferId: string; amountCents: number; orderId: string}, key: string) {

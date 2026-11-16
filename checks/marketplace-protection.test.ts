@@ -85,7 +85,7 @@ let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
  const skip=new Set(['003_catalog_ingestion.sql','005_gcd_snapshot_import.sql']);
- for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_')||n.startsWith('046_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);return {...result,rowCount:result.affectedRows,command:'',rows:typeof config!=='string'&&config.rowMode==='array'?result.rows.map(row=>result.fields.map(field=>row[field.name])):result.rows}};
  Object.assign(pool,{query,connect:async()=>({query,release(){}})});
@@ -279,13 +279,14 @@ test('local pickup: 6-digit PIN shown only to the buyer; the seller enters it (o
  assert.equal((await listingRow(listing.id)).status,'pending','a wrong PIN changes nothing');
  await commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code:String(buyerView.pickupCode)});
  assert.equal((await listingRow(listing.id)).status,'sold','right PIN: picked up and the listing is sold');
- const done=await dto(orderId,seller.userId) as Obj&{pickup:{by:string;confirmedAt:string}};assert.equal(done.status,'picked_up');assert.equal(done.pickup.by,'seller');
- assert.equal(Date.parse(String(done.fundsAvailableAt))-Date.parse(done.pickup.confirmedAt),72*hour,'Funds available 72h after pickup');
+ const done=await dto(orderId,seller.userId) as Obj&{pickup:{by:string;confirmedAt:string}};assert.equal(done.status,'release_eligible','PIN at the handoff: the buyer inspected it, so it releases at once');assert.equal(done.pickup.by,'seller');
+ assert.equal(Date.parse(String(done.fundsAvailableAt))-Date.parse(done.pickup.confirmedAt),0,'Funds available right after a PIN pickup');
  const model=orderProgress(done as never);assert.equal(model.complete,4);assert.equal(model.steps[3].label,'Picked up');
  assert.equal((await commerceConfirmPickup(db,buyer.userId,{action:'confirm_pickup',orderId})).duplicate,true,'Idempotent');
  // Buyer tap path on a second pickup order; never allowed for shipped orders.
  const other=await offer(seller,{price:2500,fulfillment:'both'}),pickupOrder=await paid(buyer,other.id,testEnv,{fulfillment:'pickup'});
- assert.equal((await commerceConfirmPickup(db,buyer.userId,{action:'confirm_pickup',orderId:pickupOrder})).order.status,'picked_up');
+ const tapped=(await commerceConfirmPickup(db,buyer.userId,{action:'confirm_pickup',orderId:pickupOrder})).order as Obj&{pickup:{confirmedAt:string}};assert.equal(tapped.status,'picked_up','the buyer backup button keeps a review window');
+ const tappedSeller=await dto(pickupOrder,seller.userId) as Obj&{pickup:{confirmedAt:string}};assert.equal(Date.parse(String(tappedSeller.fundsAvailableAt))-Date.parse(tappedSeller.pickup.confirmedAt),24*hour,'24-hour window after the backup button');
  const shipped=await offer(seller,{price:2500,fulfillment:'both'}),shippedOrder=await paid(buyer,shipped.id);
  await rejects(commerceConfirmPickup(db,buyer.userId,{action:'confirm_pickup',orderId:shippedOrder}),409,/carrier/);
 });
@@ -369,7 +370,7 @@ test('SafePurchase pickup over the threshold: hand-off at the Inspection Center,
  await rejects(commerceConfirmPickup(db,buyer.userId,{action:'confirm_pickup',orderId}),409);
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'receive'},spEnv);
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'decide',result:'passed',requestId:crypto.randomUUID()},spEnv);
- assert.equal((await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'handoff',code},spEnv)).order.status,'picked_up');
+ assert.equal((await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'handoff',code},spEnv)).order.status,'release_eligible','admin PIN handoff at the Inspection Center releases at once');
  const waived=await offer(seller,{price:70000,fulfillment:'pickup'}),waivedOrder=await paid(buyer,waived.id,spEnv,{fulfillment:'pickup',waiveSafePurchase:true});
  const view=await dto(waivedOrder,buyer.userId,spEnv) as Obj;assert.deepEqual([(view.protection as Obj).tier,(view.protection as Obj).waived,view.status],['standard',true,'awaiting_pickup']);
 });
@@ -501,4 +502,16 @@ test('shipping: Pending after payment, Sold on carrier delivery; late and repeat
  assert.deepEqual(after.timeline.deliveredAt,first.deliveredAt,'delivery time never changes');assert.equal(after.timeline.outForDeliveryAt,first.outForDeliveryAt);
  assert.notEqual(after.status,'in_transit','a late in_transit never moves the order backward');
  assert.equal((await listingRow(listing.id)).status,'sold');
+});
+
+test('payment setup gate: a seller without verified charges and payouts cannot publish (when switched on)',async()=>{
+ const seller=await collector('gateseller');
+ process.env.COMMERCE_LISTING_REQUIRES_PAYOUTS='true';
+ try{
+  await rejects(offer(seller,{price:3000}),409,/payment onboarding/);
+  await onboard(seller);
+  const record=(await getPool().query("SELECT state::jsonb->>'ready' AS ready FROM ch_web.commerce_sellers WHERE user_id=$1",[seller.userId])).rows[0];
+  if(record?.ready==='true'){const listing=await offer(seller,{price:3000});assert.equal(listing.status,'active','verified sellers can list')}
+  else await rejects(offer(seller,{price:3000}),409,/payment onboarding/);
+ }finally{delete process.env.COMMERCE_LISTING_REQUIRES_PAYOUTS}
 });
