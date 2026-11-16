@@ -557,3 +557,7 @@
  .mpx-actions>.mpx-cart-slot{flex:1 1 100%}
 }
 .mpx-cart-slot .cart-add,.mpx-cart-slot .cart-add .ds-btn{width:100%}
+/* Collection detail with one (or no) seller photo: show the set's covers stacked, like the card. */
+.mpx-gallery-stack .mp-cover-stack{transform:scale(1.6);transform-origin:center}
+@media(max-width:760px){.mpx-gallery-stack .mp-cover-stack{transform:scale(1.25)}}
+.mpx-sold-note{margin:0 0 14px;padding:12px 14px;border-left:4px solid var(--red);background:var(--cream);border-radius:0 10px 10px 0;font-size:14px;line-height:1.5}

@@ -44,3 +44,18 @@ export async function markNotificationsRead(userId: string, ids?: string[]) {
     else await getPool().query('UPDATE ch_web.notifications SET read_at=now() WHERE user_id=$1 AND read_at IS NULL', [userId]);
   } catch { /* ignore */ }
 }
+
+/** Fixed id for the payment-setup reminder. It is computed on every read, never stored, so it stays
+ * until the seller finishes Stripe onboarding (marking it read has no lasting effect). */
+export const PAYOUT_SETUP_REMINDER_ID = '00000000-0000-4000-8000-00000000c0de';
+/** Sellers (anyone with a listing) whose payment onboarding isn't finished get a pinned reminder. */
+export async function payoutSetupReminder(userId: string): Promise<NotificationRow | null> {
+  try {
+    const result = await getPool().query<{listed: boolean; ready: boolean}>(
+      `SELECT EXISTS(SELECT 1 FROM ch_web.listings l JOIN ch_web.profiles p ON p.id=l.seller_id WHERE p.user_id=$1 AND l.status IN ('active','ended','sold','auction_won')) AS listed,
+       COALESCE((SELECT (s.state::jsonb->>'ready')='true' FROM ch_web.commerce_sellers s WHERE s.user_id=$1),false) AS ready`, [userId]);
+    const row = result.rows[0];
+    if (!row?.listed || row.ready) return null;
+    return {id: PAYOUT_SETUP_REMINDER_ID, kind: 'payout', title: 'Set up payment onboarding', body: 'Finish your Stripe setup so buyers can pay you and your money reaches your bank.', href: '/?section=Orders', createdAt: new Date().toISOString(), read: false};
+  } catch { return null; }
+}

@@ -9,7 +9,7 @@ export const metadata:Metadata={title:'Your Cart | ComicHuddle',description:'Com
 export default function CartPage(){
  return <div className="cart-page">
   <a className="skip-link" href="#main-content">Skip to content</a>
-  <SiteHeader section="Marketplace" standalone/>
+  <SiteHeader section="Cart" standalone/>
   <main id="main-content" className="cart-main">
    <header className="cart-head"><h1>Your cart</h1><p>Grouped by seller. Each seller ships their comics separately.</p></header>
    <CartView/>

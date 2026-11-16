@@ -5,7 +5,7 @@ import {z} from 'zod';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../lib/api-security';
-import {listNotifications,markNotificationsRead} from '../../../lib/notifications';
+import {listNotifications,markNotificationsRead,payoutSetupReminder} from '../../../lib/notifications';
 
 function fail(error:unknown){
  if(error instanceof ApiRequestError)return privateJson({error:error.message},error.status);
@@ -15,7 +15,9 @@ function fail(error:unknown){
 export async function GET(req:Request){try{
  const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in to see notifications.',items:[],unread:0},401);
  const raw=new URL(req.url).searchParams.get('limit'),limit=raw&&/^\d{1,2}$/.test(raw)?Math.min(Math.max(Number(raw),1),50):30;
- return privateJson(await listNotifications(user.userId,limit));
+ const [list,reminder]=await Promise.all([listNotifications(user.userId,limit),payoutSetupReminder(user.userId)]);
+ // The payment-setup reminder is pinned on top and counts as unread until onboarding is done.
+ return privateJson(reminder?{items:[reminder,...list.items].slice(0,limit),unread:list.unread+1}:list);
 }catch(error){return fail(error)}}
 
 const markSchema=z.object({action:z.literal('mark_read').optional(),ids:z.array(z.string().uuid()).min(1).max(100).optional()}).strict();

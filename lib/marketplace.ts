@@ -32,7 +32,7 @@ const fulfillmentSchema=z.enum(['shipping','pickup','both']);
 const citySchema=z.string().trim().max(80).refine(v=>!v||/^[\p{L}][\p{L}\p{M} .'-]*$/u.test(v),'Use a city name only, without a street address or ZIP code.');
 const conditionSchema=z.object({mode:z.enum(['Raw','CGC']),grade:z.string().refine(s=>grades.includes(s)),label:z.enum(['Raw','Universal','Signature Series','Qualified','Restored','Conserved']),printing:z.enum(['First printing','Second printing','Third printing','Later printing','Facsimile','Reprint']),language:z.string().max(40).optional(),signatureStatus:z.string().max(50).optional(),restorationStatus:z.string().max(50).optional(),certificationNumber:z.string().max(40).optional()}).strict().refine(v=>(v.mode==='Raw')===(v.label==='Raw'),'Raw condition must use the Raw label.');
 const creationSchema=z.object({
- action:z.literal('listing'),safePurchaseOptIn:z.boolean().default(false),coverOptOut:z.boolean().default(false),locationZip:z.string().regex(/^\d{5}$/).optional(),kind:z.enum(['single','collection']).default('single'),saleType:z.enum(['fixed','auction']).default('fixed'),
+ action:z.literal('listing'),safePurchaseOptIn:z.boolean().default(false),coverOptOut:z.boolean().default(true),locationZip:z.string().regex(/^\d{5}$/).optional(),kind:z.enum(['single','collection']).default('single'),saleType:z.enum(['fixed','auction']).default('fixed'),
  bookId:bookId.optional(),bookIds:z.array(bookId).min(1).max(1000).refine(ids=>new Set(ids).size===ids.length).optional(),
  conditions:z.record(bookId,conditionSchema).refine(v=>Object.keys(v).length<=1000).default({}),title:z.string().trim().min(1).max(200).optional(),
  description:z.string().trim().min(1).max(2000),price:cents,shipping:z.number().int().min(0).max(100000),

@@ -44,8 +44,8 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
   <section className="home-hero" aria-labelledby="home-title">
    <div className="home-hero-copy">
     <p className="ds-eyebrow">The comic book marketplace &amp; collector community</p>
-    <h1 id="home-title" className="ds-title home-title">Buy, sell &amp; collect<br/><span>comic books.</span></h1>
-    <p className="ds-lede">Look up any issue in our comic directory, keep track of the comics you own, and buy, sell or trade with other collectors. Free to join.</p>
+    <h1 id="home-title" className="ds-title home-title">Buy, sell, refine &amp; collect<br/><span>comic books.</span></h1>
+    <p className="ds-lede">Look up any issue in our comic directory, keep track of the comics you own, buy, sell or trade with other collectors, and find pros to press and clean your books. Free to join.</p>
     <form className="home-search" role="search" onSubmit={search}>
      <Search size={22} aria-hidden="true"/>
      <input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search any comic, character or creator…" aria-label="Search any comic, character or creator" enterKeyHint="search" maxLength={120}/>
