@@ -9,6 +9,7 @@ import {previewRulesVersion} from '../../../lib/community';
 import {ApiRequestError,enforceWriteLimits,isRestricted,privateJson,readBytes} from '../../../lib/api-security';
 import {normalizeSellerPhoto} from '../../../lib/seller-photos';
 import {isPublicCoverPhoto} from '../../../lib/community-covers';
+import {isAdmin} from '../../../lib/admin';
 const json=(error:string,status:number)=>privateJson({error},status);
 
 export async function POST(req:Request){try{
@@ -94,6 +95,8 @@ export async function GET(req:Request){try{
  }
  // Anything guests may see as a catalog cover is also visible to signed-in viewers.
  if(!shared)shared=await isPublicCoverPhoto(db,id);
+ // Admins review member cover photos, including ones waiting for approval or hidden by reports.
+ if(!shared&&isAdmin(user))shared=(await db.execute(sql`SELECT 1 FROM ch_web.community_covers WHERE media_id=${id} LIMIT 1`)).rows.length>0;
  if(!shared)return json('Photo not found.',404);
  return photoResponse(req,id,asset.contentType);
 }catch{return json('Photo could not be loaded. Please retry.',500)}}

@@ -92,6 +92,7 @@ main .home section{padding-left:0;padding-right:0}
 .home-chip:hover{transform:translateY(-2px);box-shadow:0 4px 0 var(--ink);background:var(--yellow)}
 .home-chip:active{transform:translateY(0);box-shadow:0 1px 0 var(--ink)}
 .home-chip svg{color:var(--red)}
+button.home-chip{cursor:pointer}
 .home-hero .ds-actions{margin-bottom:14px}
 .home-meet{display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--ink-2);text-decoration:none}
 .home-meet img{border-radius:50%}

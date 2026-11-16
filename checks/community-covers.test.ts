@@ -12,7 +12,7 @@ import {listings,media,profiles} from '../db/schema';
 import {seedStarterStatements,catalogIssuesById} from '../lib/catalog-store';
 import {resolveCoverBatch} from '../lib/cover-cache';
 import {COMMUNITY_COVER_CREDIT,SELLER_PHOTO_CREDIT,communityPhotoUrl,coverMediaId} from '../lib/cover-cache-types';
-import {FALLBACK_COVER_ORDER,communityCoverReport,communityCoverSubmission,communitySubmissionsToday,fallbackCovers,initialCommunityCoverStatus,isPublicCoverPhoto,normalizeCommunityCover,pickFallbackCover,reportCommunityCover} from '../lib/community-covers';
+import {FALLBACK_COVER_ORDER,communityCoverReport,communityCoverSubmission,communitySubmissionsToday,fallbackCovers,initialCommunityCoverStatus,isPublicCoverPhoto,normalizeCommunityCover,pickFallbackCover,reportCommunityCover,adminCoverQueue,adminModerateCover,removeSellerCoverForIssue} from '../lib/community-covers';
 
 let engine:PGlite;const pool=new Pool(),db=getDb();
 const ISSUE=4000000123,PLANET=4000001400,OTHER=4000000124;
@@ -129,15 +129,40 @@ test('submission validation: zod input, type/size/dimension checks, re-encode to
  assert.equal(initialCommunityCoverStatus({}),'approved');assert.equal(initialCommunityCoverStatus({COMMUNITY_COVERS_REVIEW:'manual'}),'pending');
 });
 
-test('daily submission count and Report image hide the cover after one signed-in report',async()=>{
+test('reports go to admins; a photo hides itself only after 3 different members report it',async()=>{
  assert.equal(await communitySubmissionsToday(db,'user-collector'),1,'only the submission created today counts');
  await engine.exec(`DELETE FROM ch_web.listings`);
  assert.equal((await resolveCoverBatch(db,[ISSUE]))[0].url,communityPhotoUrl(uuid(5)));
- assert.deepEqual(await reportCommunityCover(db,'user-seller',{mediaId:uuid(5)}),{hidden:true});
- await reportCommunityCover(db,'user-seller',{mediaId:uuid(5)});
+ assert.deepEqual(await reportCommunityCover(db,'r1',{mediaId:uuid(5)}),{hidden:false},'one report does not remove a photo');
+ await reportCommunityCover(db,'r1',{mediaId:uuid(5)});
+ assert.deepEqual(await reportCommunityCover(db,'r2',{mediaId:uuid(5)}),{hidden:false});
+ assert.equal((await resolveCoverBatch(db,[ISSUE]))[0].url,communityPhotoUrl(uuid(5)),'still live with two reports');
+ assert.equal((await adminCoverQueue(db,'review')).find(row=>row.mediaId===uuid(5))?.reportCount,2,'reported photos are in the admin queue');
+ assert.deepEqual(await reportCommunityCover(db,'r3',{mediaId:uuid(5)}),{hidden:true});
  const row=(await engine.query<{status:string;report_count:number}>(`SELECT status,report_count FROM ch_web.community_covers WHERE id='c-new'`)).rows[0];
- assert.deepEqual(row,{status:'hidden',report_count:1},'one report per reporter');
+ assert.deepEqual(row,{status:'hidden',report_count:3},'one report per reporter');
  assert.equal((await resolveCoverBatch(db,[ISSUE]))[0].url,communityPhotoUrl(uuid(4)),'the next most recent approved cover takes over');
- assert.equal(await isPublicCoverPhoto(db,uuid(5)),false,'a reported cover is no longer public');
+ assert.equal(await isPublicCoverPhoto(db,uuid(5)),false,'a hidden cover is no longer public');
  await assert.rejects(reportCommunityCover(db,'user-seller',{mediaId:uuid(99)}),/not found/);
+ // An admin keeps it: live again, reports cleared from the queue.
+ assert.deepEqual(await adminModerateCover(db,'approve',uuid(5)),{kind:'community',issueId:ISSUE});
+ assert.equal((await resolveCoverBatch(db,[ISSUE]))[0].url,communityPhotoUrl(uuid(5)));
+ assert.equal((await adminCoverQueue(db,'review')).some(row=>row.mediaId===uuid(5)),false);
+ // An admin removes it: the older collector photo shows.
+ await adminModerateCover(db,'remove',uuid(5));
+ assert.equal((await resolveCoverBatch(db,[ISSUE]))[0].url,communityPhotoUrl(uuid(4)));
+ assert.equal(await isPublicCoverPhoto(db,uuid(5)),false);
+ assert.equal((await adminCoverQueue(db,'recent')).find(row=>row.mediaId===uuid(5))?.status,'rejected');
+ await assert.rejects(adminModerateCover(db,'remove',uuid(99)),/not found/);
+});
+
+test('admin removal of a seller photo keeps the listing but takes the photo out of the directory',async()=>{
+ await listing('admin-seller','seller',OTHER,'active',[uuid(2)],'2026-05-01T00:00:00Z');
+ assert.equal((await fallbackCovers(db,[OTHER])).get(OTHER)?.origin,'seller');
+ assert.equal(await removeSellerCoverForIssue(db,OTHER),uuid(2));
+ assert.equal((await fallbackCovers(db,[OTHER])).has(OTHER),false);
+ const [kept]=(await engine.query<{status:string;cover_opt_out:number}>(`SELECT status,cover_opt_out::int FROM ch_web.listings WHERE id='admin-seller'`)).rows;
+ assert.deepEqual(kept,{status:'active',cover_opt_out:1});
+ assert.equal(await removeSellerCoverForIssue(db,OTHER),null);
+ await engine.exec(`DELETE FROM ch_web.listings WHERE id='admin-seller'`);
 });

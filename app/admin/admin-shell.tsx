@@ -16,7 +16,7 @@ export async function adminPageUser(){
   return user;
 }
 
-const links=[{href:'/admin',label:'Overview'},{href:'/admin/safepurchase',label:'SafePurchase'},{href:'/admin/audit',label:'Audit log'}];
+const links=[{href:'/admin',label:'Overview'},{href:'/admin/safepurchase',label:'SafePurchase'},{href:'/admin/covers',label:'Cover photos'},{href:'/admin/audit',label:'Audit log'}];
 export default function AdminShell({current,title,accent,lede,founder,children}:{current:string;title:string;accent?:string;lede?:string;founder:boolean;children:ReactNode}){
   return <div className="adm-page">
     <a className="skip-link" href="#main-content">Skip to content</a>

@@ -65,3 +65,9 @@ a.adm-card:hover{border-color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
 .adm-more ul{margin:8px 0 0;padding-left:18px;display:grid;gap:4px}
 .adm-more small{color:var(--muted)}
 @media(max-width:640px){.adm-facts{grid-template-columns:1fr}.adm-panel{padding:14px 16px 40px}}
+/* Cover photos (/admin/covers) */
+.adm-cover-grid{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.adm-cover{display:flex;flex-direction:column;gap:8px;padding:10px;border:1.5px solid var(--ink);border-radius:var(--radius-sm,8px);background:var(--paper,#fff)}
+.adm-cover img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:4px;background:var(--cream,#f4efe4)}
+.adm-cover strong{display:block;font-size:15px}.adm-cover small{display:block;font-size:12px;opacity:.8}
+.adm-cover .adm-actions{display:flex;gap:8px;flex-wrap:wrap}

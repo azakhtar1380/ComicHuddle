@@ -16,6 +16,7 @@ export default async function AdminHome(){
     {!auditReady&&<p className="adm-warn" role="note">Database migration 040 (audit log and SafePurchase updates) isn’t applied yet. Admin actions are refused until it is.</p>}
     <div className="adm-cards">
       <Link className="adm-card" href="/admin/safepurchase"><h2>SafePurchase</h2><p>Every SafePurchase order, its current step, and the receive → check → ship updates.</p></Link>
+      <Link className="adm-card" href="/admin/covers"><h2>Cover photos</h2><p>Approve suggested cover photos and remove ones that shouldn’t be shown.</p></Link>
       <Link className="adm-card" href="/admin/audit"><h2>Audit log</h2><p>Who did what, and when.</p></Link>
       <a className="adm-card" href="#verified-businesses"><h2>Verified businesses</h2><p>Grant or remove the business verified tick.</p></a>
     </div>

@@ -2,7 +2,7 @@
 // Home: hero with search, what you can do, a glimpse of the directory, fresh listings (real only),
 // SafePurchase (only when live), rewards, and a join band.
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
-import {ArrowRight,KeyRound,Layers,Plus,Search,Tag,Users,X} from 'lucide-react';
+import {Archive,ArrowRight,BookOpen,Plus,Search,Store,Users,Wallet,Wrench,X} from 'lucide-react';
 import ListingCardActions from '../components/cards/listing-card-actions';
 import {requestCollectOnOpen} from '../components/cards/collect-intent';
 import Link from 'next/link';
@@ -43,7 +43,7 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
  return <div className="home ds-wrap">
   <section className="home-hero" aria-labelledby="home-title">
    <div className="home-hero-copy">
-    <p className="ds-eyebrow">Get started · It&apos;s free</p>
+    <p className="ds-eyebrow">Free for every collector</p>
     <h1 id="home-title" className="ds-title home-title">Find it. Bag it.<br/><span>Brag about it.</span></h1>
     <p className="ds-lede">Track every comic you own, hunt down the ones you don&apos;t, and trade with collectors who get it.</p>
     <form className="home-search" role="search" onSubmit={search}>
@@ -52,15 +52,17 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
      {query&&<button type="button" className="home-search-clear" aria-label="Clear search" onClick={()=>setQuery('')}><X size={18}/></button>}
      <button type="submit" className="ds-btn ds-btn-dark">Search</button>
     </form>
-    <div className="home-hunt" role="group" aria-labelledby="home-hunt-title">
-     <p id="home-hunt-title" className="home-hunt-title">What are you hunting?</p>
+    <nav className="home-hunt" aria-labelledby="home-hunt-title">
+     <p id="home-hunt-title" className="home-hunt-title">Get started</p>
      <div className="home-hunt-chips">
-      <Link className="home-chip" href="/?section=Directory&focus=search"><KeyRound size={18} aria-hidden="true"/> A key issue</Link>
-      <Link className="home-chip" href="/characters"><Users size={18} aria-hidden="true"/> A character</Link>
-      <Link className="home-chip" href="/?section=Directory&view=series"><Layers size={18} aria-hidden="true"/> A full run</Link>
-      <Link className="home-chip" href="/?section=Marketplace&sell=single"><Tag size={18} aria-hidden="true"/> Something to sell</Link>
+      <button type="button" className="home-chip" onClick={()=>go('Directory')}><BookOpen size={18} aria-hidden="true"/> Directory</button>
+      <Link className="home-chip" href="/characters"><Users size={18} aria-hidden="true"/> Characters</Link>
+      <button type="button" className="home-chip" onClick={()=>go('Marketplace')}><Store size={18} aria-hidden="true"/> Marketplace</button>
+      <button type="button" className="home-chip" onClick={()=>go('Pressing')}><Wrench size={18} aria-hidden="true"/> Comic Workshop</button>
+      <button type="button" className="home-chip" onClick={()=>go('Wallet')}><Wallet size={18} aria-hidden="true"/> Wallet</button>
+      <button type="button" className="home-chip" onClick={()=>go('Collection')}><Archive size={18} aria-hidden="true"/> My Collection</button>
      </div>
-    </div>
+    </nav>
     <div className="ds-actions home-hero-actions">
      <button type="button" className="ds-btn ds-btn-primary" onClick={onStartCollection}><span className="home-long">{signedIn?'Add your next comic':'Start your collection'}</span><span className="home-short">{signedIn?'Add a comic':'Start collecting'}</span> <ArrowRight size={18}/></button>
      <button type="button" className="ds-btn ds-btn-primary" onClick={()=>go('Marketplace')}><span className="home-long">Browse the marketplace</span><span className="home-short">Marketplace</span> <ArrowRight size={18}/></button>

@@ -92,11 +92,56 @@ export async function communitySubmissionsToday(db:CatalogDb,userId:string){
  return Number(rows.rows[0]?.n||0);
 }
 
-/** Any signed-in user may report; the cover is hidden at once until an operator reviews it. */
+/** Reports flag a cover for the admins' review queue. Only admins remove photos; as a safety net against
+ * offensive images, a cover is hidden automatically once this many different members have reported it. */
+export const COMMUNITY_COVER_AUTO_HIDE_REPORTS=3;
 export async function reportCommunityCover(db:CatalogDb,userId:string,input:z.infer<typeof communityCoverReport>){
  const [cover]=(await db.execute(sql`SELECT id,status FROM ch_web.community_covers WHERE media_id=${input.mediaId}`)).rows as {id:string;status:string}[];
  if(!cover)throw new ApiRequestError('That cover photo was not found.',404);
  const inserted=await db.execute(sql`INSERT INTO ch_web.community_cover_reports(cover_id,reporter_user_id,reason) VALUES(${cover.id},${userId},${input.reason||''}) ON CONFLICT DO NOTHING RETURNING cover_id`);
- await db.execute(sql`UPDATE ch_web.community_covers SET status=CASE WHEN status='approved' THEN 'hidden' ELSE status END,report_count=report_count+${inserted.rows.length},updated_at=now() WHERE id=${cover.id}`);
- return {hidden:true};
+ const added=inserted.rows.length;
+ const [row]=(await db.execute(sql`UPDATE ch_web.community_covers SET report_count=report_count+${added},
+  status=CASE WHEN status='approved' AND report_count+${added}>=${COMMUNITY_COVER_AUTO_HIDE_REPORTS} THEN 'hidden' ELSE status END,updated_at=now() WHERE id=${cover.id} RETURNING status`)).rows as {status:string}[];
+ return {hidden:row?.status==='hidden'};
 }
+
+// ---- Admin moderation (callers must have passed requireAdmin) ----
+export const adminCoverAction=z.object({action:z.enum(['approve','remove']),mediaId}).strict();
+export type AdminCoverResult={kind:'community'|'seller';issueId:number};
+
+/** approve: a pending/hidden collector photo goes live. remove: a collector photo is rejected, or a
+ * seller's listing photo is taken out of the directory (the photo stays on the listing). */
+export async function adminModerateCover(db:CatalogDb,action:'approve'|'remove',id:string):Promise<AdminCoverResult>{
+ if(!mediaId.safeParse(id).success)throw new ApiRequestError('That cover photo was not found.',404);
+ const status=action==='approve'?'approved':'rejected';
+ // Approving a reported photo means "keep it": its open reports are cleared from the review queue.
+ const [community]=(await db.execute(sql`UPDATE ch_web.community_covers SET status=${status},report_count=CASE WHEN ${status}='approved' THEN 0 ELSE report_count END,reviewed_at=now(),updated_at=now() WHERE media_id=${id} RETURNING issue_id`)).rows as {issue_id:unknown}[];
+ if(community)return {kind:'community',issueId:Number(community.issue_id)};
+ if(action==='remove'){
+  const [listing]=(await db.execute(sql`UPDATE ch_web.listings l SET cover_opt_out=1 WHERE l.issue_id IS NOT NULL AND ${frontPhoto}=${id} RETURNING l.issue_id`)).rows as {issue_id:unknown}[];
+  if(listing)return {kind:'seller',issueId:Number(listing.issue_id)};
+ }
+ throw new ApiRequestError('That cover photo was not found.',404);
+}
+
+/** When an admin replaces a seller's photo, that listing's photo leaves the directory. Returns its media id. */
+export async function removeSellerCoverForIssue(db:CatalogDb,issueId:number){
+ const id=(await sellerPhotoRows(db,[issueId])).get(issueId);
+ if(id)await adminModerateCover(db,'remove',id);
+ return id||null;
+}
+
+export type AdminCoverRow={mediaId:string;issueId:number;title:string;status:string;reportCount:number;uploader:string;createdAt:string;url:string};
+/** review: waiting for approval, hidden by reports, or live with open reports. recent: the latest uploads. */
+export async function adminCoverQueue(db:CatalogDb,view:'review'|'recent'):Promise<AdminCoverRow[]>{
+ const filter=view==='review'?sql`(c.status IN ('pending','hidden') OR (c.status='approved' AND c.report_count>0))`:sql`TRUE`;
+ const rows=(await db.execute(sql`SELECT c.issue_id,c.media_id,c.status,c.report_count,c.created_at,p.name AS uploader FROM ch_web.community_covers c
+  LEFT JOIN ch_web.profiles p ON p.user_id=c.user_id WHERE ${filter} ORDER BY c.created_at DESC,c.id LIMIT 100`)).rows as Record<string,unknown>[];
+ // Loaded lazily: catalog-store imports the cover modules, so a static import would be circular.
+ const {catalogIssuesById}=await import('./catalog-store');
+ const issues=new Map((await catalogIssuesById(db,[...new Set(rows.map(row=>Number(row.issue_id)))]).catch(()=>[])).map(issue=>[issue.id,issue]));
+ return rows.map(row=>{const issue=issues.get(Number(row.issue_id)),id=String(row.media_id);return {mediaId:id,issueId:Number(row.issue_id),
+  title:issue?issue.title+(issue.number?' #'+issue.number:''):'Issue '+row.issue_id,status:String(row.status),reportCount:Number(row.report_count||0),
+  uploader:String(row.uploader||'A member'),createdAt:new Date(String(row.created_at)).toISOString(),url:'/api/media?id='+id}});
+}
+
