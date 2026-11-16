@@ -19,6 +19,9 @@ import {MAX_PLATFORM_FEE_BPS,estimatedStripeFeeCents,payoutLegs,platformFeeConfi
 import {recipientReady,stripeConnectV2,type StripeThinAccountEvent} from './stripe-connect-v2';
 import {pickupCode,pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,type ProtectionEnv} from './commerce-protection';
 import {carrierConfigured,carrierProblem,carrierStatusLabel,createCarrierTracker,retrieveCarrierTracker,type CarrierEnv,type CarrierFetch,type CarrierSummary,type CarrierUpdate,mergeTracking,emptyTracking,trackingRank,type TrackingProgress} from './commerce-carrier';
+import {usAddressSchema} from './us-address';
+import {applySavedCardEvent,chargeableCard,needSavedCardToBid} from './saved-cards';
+import {notify} from './notifications';
 import {auctionTerms,ensureLocalAuctionSchema,markAuctionPaidStatement,wonAuctionPayable} from './marketplace-auction';
 /** Payment, protection and carrier settings all come from server configuration. */
 export type StripeSandboxEnv=StripeOnlyEnv&ProtectionEnv&CarrierEnv&PlatformFeeEnv&{COMMERCE_PAYOUTS_ENABLED?:unknown};
@@ -38,8 +41,7 @@ const now=()=>new Date().toISOString();
 const id=z.string().trim().min(1).max(100);
 const uuid=z.string().uuid();
 const line=(max:number)=>z.string().trim().min(1).max(max).refine(s=>!/[\u0000-\u001f\u007f]/.test(s));
-const states=new Set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split(' '));
-const addressSchema=z.object({name:line(100),line1:line(160),line2:z.string().trim().max(160).default(''),city:line(100),state:z.string().refine(v=>states.has(v)),postalCode:z.string().regex(/^\d{5}(?:-\d{4})?$/),country:z.literal('US')}).strict();
+const addressSchema=usAddressSchema;
 export const commerceCheckoutSchema=z.object({action:z.literal('checkout'),listingId:id,requestId:uuid,sandboxAcknowledged:z.literal(true),fulfillment:z.enum(['shipping','pickup']).default('shipping'),shippingAddress:addressSchema.optional(),shippingService:z.string().trim().max(80).optional(),storeCreditCents:z.number().int().min(0).max(100000000).default(0),checkoutUiMode:z.enum(['hosted_page','elements']).default('hosted_page'),safePurchaseOptIn:z.boolean().default(false),waiveSafePurchase:z.boolean().default(false)}).strict().superRefine((value,ctx)=>{if(value.fulfillment==='shipping'&&!value.shippingAddress)ctx.addIssue({code:z.ZodIssueCode.custom,path:['shippingAddress'],message:'Enter a USA shipping address.'})});
 export const commerceTrackingSchema=z.object({action:z.literal('submit_tracking'),orderId:id,carrier:z.enum(['USPS','UPS','FedEx','DHL']),trackingNumber:z.string().trim().min(6).max(60).regex(/^[A-Za-z0-9 -]+$/)}).strict();
 export const commerceRefundSchema=z.object({action:z.literal('request_refund'),orderId:id,requestId:uuid,reason:line(200),claimType:z.enum(['not_received','not_as_described','other']).default('other'),photoIds:z.array(z.string().uuid()).max(6).default([])}).strict();
@@ -59,7 +61,7 @@ export const commerceSweepSchema=z.object({action:z.literal('owner_sweep'),sandb
 export const commerceReconcileSchema=z.object({action:z.literal('owner_reconcile'),orderId:id}).strict();
 
 type ProtectionSnapshot={tier:'standard'|'safepurchase';overThreshold:boolean;safePurchaseRequested:boolean;comingSoon:boolean;waived:boolean;signatureRequired:boolean;insured:boolean;releaseHoldHours:number;handlingBusinessDays:number|null;claimDays:number};
-type Snapshot={shippingService?:string;shippingServiceId?:string;storeCreditCents?:number;checkoutUiMode?:'hosted_page'|'elements';title:string;kind:'single'|'collection';fulfillment:'shipping'|'pickup';itemCount:number;items:ReturnType<typeof listingItems>;photoIds:string[];itemAmountCents:number;shippingCents:number;taxCents:0;totalCents:number;currency:'USD';sellerTransferCents:number;platformFeeCents:number;platformFeeBps?:number;inspectionFeeCents?:number;shippingAddress?:z.infer<typeof addressSchema>;policyVersion:string;protection?:ProtectionSnapshot;auction?:{winningCents:number}};
+type Snapshot={shippingService?:string;shippingServiceId?:string;storeCreditCents?:number;checkoutUiMode?:'hosted_page'|'elements';title:string;kind:'single'|'collection';fulfillment:'shipping'|'pickup';itemCount:number;items:ReturnType<typeof listingItems>;photoIds:string[];itemAmountCents:number;shippingCents:number;taxCents:0;totalCents:number;currency:'USD';sellerTransferCents:number;platformFeeCents:number;platformFeeBps?:number;inspectionFeeCents?:number;shippingAddress?:z.infer<typeof addressSchema>;policyVersion:string;protection?:ProtectionSnapshot;auction?:{winningCents:number};autoCharge?:boolean};
 function stateOf(row:Row):State{
  let value:State;try{value=JSON.parse(row.state)}catch{throw new ApiRequestError('Order requires operator reconciliation.',409)}
  const snapshot=snapshotOf(row);
@@ -201,7 +203,13 @@ async function boundSeller(db:Db,seller:Profile,processor:Processor,environment:
  return record.stripeAccountId;
 }
 export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
- const input=commerceCheckoutSchema.parse(raw);if(environment.COMMERCE_NEW_CHECKOUT_PAUSED==='true')throw new ApiRequestError('Online checkout is temporarily paused, and nothing was charged. Your existing orders and refunds remain available in Orders.',503);needReady(environment);if(input.checkoutUiMode==='elements'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid publishable key for the current payment mode. No payment was started.',503);const processor=stripeSandbox(environment),flag=modeFlag(environment),live=flag===0;
+ const input=commerceCheckoutSchema.parse(raw);if(environment.COMMERCE_NEW_CHECKOUT_PAUSED==='true')throw new ApiRequestError('Online checkout is temporarily paused, and nothing was charged. Your existing orders and refunds remain available in Orders.',503);needReady(environment);if(input.checkoutUiMode==='elements'&&!commerceSetup(environment).paymentElementEnabled)throw new ApiRequestError('Stripe Payment Element needs a valid publishable key for the current payment mode. No payment was started.',503);const processor=stripeSandbox(environment);
+ const row=await reserveCheckoutOrder(db,profile,input,environment,processor);
+ return continuePayment(db,row,profile,email,environment,processor);
+}
+/** Creates (or finds again) the reserved, unpaid order. Auction auto-charge uses it too, then charges the saved card. */
+async function reserveCheckoutOrder(db:Db,profile:Profile,input:z.infer<typeof commerceCheckoutSchema>,environment:StripeSandboxEnv,processor:Processor,options:{autoCharge?:boolean}={}):Promise<Row>{
+ const flag=modeFlag(environment),live=flag===0;
  let [previous]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.buyerUserId,profile.userId),eq(commerceOrders.requestId,input.requestId)));
  // Re-opening checkout (new tab, reloaded dialog) resumes this buyer's own open reservation instead of failing.
  if(!previous){const [own]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.buyerUserId,profile.userId),eq(commerceOrders.listingId,input.listingId),eq(commerceOrders.status,'awaiting_payment')));if(own){const snapshot=snapshotOf(own);if(snapshot.fulfillment!==input.fulfillment||JSON.stringify(snapshot.shippingAddress??null)!==JSON.stringify(input.shippingAddress??null)||(snapshot.storeCreditCents??0)!==input.storeCreditCents||(snapshot.checkoutUiMode??'hosted_page')!==input.checkoutUiMode)throw new ApiRequestError('You already have a checkout in progress for this listing with different details. Finish or let it expire from Orders before changing them.',409);previous=own}}
@@ -234,14 +242,14 @@ export async function commerceCheckout(db:Db,profile:Profile,email:string,raw:Re
   if(plan.tier==='safepurchase')state.inspection=emptyInspection(items.length);
   const photos=z.array(z.string().uuid()).max(6).parse(JSON.parse(listing.photos)),policy=plan.policy;
   const protection:ProtectionSnapshot={tier:plan.tier,overThreshold:plan.overThreshold,safePurchaseRequested:plan.safePurchaseRequested,comingSoon:plan.comingSoon,waived:plan.waived,signatureRequired:policy.requiresSignature,insured:policy.insured===true,releaseHoldHours:policy.reviewHours,handlingBusinessDays:policy.handlingBusinessDays??null,claimDays:policy.claimDays??30};
-  const snapshot:Snapshot={storeCreditCents:input.storeCreditCents,checkoutUiMode:input.checkoutUiMode,title:listing.title,kind:listing.kind==='collection'?'collection':'single',fulfillment:input.fulfillment,itemCount:items.length,items,photoIds:[...new Set([...photos,...items.flatMap(copy=>copy.photoId?[copy.photoId]:[])])],itemAmountCents:itemAmount,shippingCents:shippingAmount,...(shippingQuote?.service?{shippingService:shippingQuote.service,shippingServiceId:shippingQuote.serviceId}:{}),taxCents:0,totalCents:total,currency:'USD',sellerTransferCents:gross,platformFeeCents:sale.feeCents,platformFeeBps:sale.feeBps,...(plan.feeCents?{inspectionFeeCents:plan.feeCents}:{}),...(input.fulfillment==='shipping'?{shippingAddress:input.shippingAddress}:{}),policyVersion:state.policy.version,protection,...(wonAuction?{auction:{winningCents:itemAmount}}:{})};
+  const snapshot:Snapshot={storeCreditCents:input.storeCreditCents,checkoutUiMode:input.checkoutUiMode,title:listing.title,kind:listing.kind==='collection'?'collection':'single',fulfillment:input.fulfillment,itemCount:items.length,items,photoIds:[...new Set([...photos,...items.flatMap(copy=>copy.photoId?[copy.photoId]:[])])],itemAmountCents:itemAmount,shippingCents:shippingAmount,...(shippingQuote?.service?{shippingService:shippingQuote.service,shippingServiceId:shippingQuote.serviceId}:{}),taxCents:0,totalCents:total,currency:'USD',sellerTransferCents:gross,platformFeeCents:sale.feeCents,platformFeeBps:sale.feeBps,...(plan.feeCents?{inspectionFeeCents:plan.feeCents}:{}),...(input.fulfillment==='shipping'?{shippingAddress:input.shippingAddress}:{}),policyVersion:state.policy.version,protection,...(wonAuction?{auction:{winningCents:itemAmount}}:{}),...(options.autoCharge?{autoCharge:true}:{})};
   const listingState=wonAuction?sql`l.status = 'auction_won' AND l.sale_type = 'auction' AND l.leader_id = ${profile.id} AND l.current_bid = ${itemAmount} AND EXISTS (SELECT 1 FROM ch_web.marketplace_auction_terms t WHERE t.listing_id = l.id AND t.result = 'awaiting_payment' AND t.winner_id = ${profile.id} AND t.winning_cents = ${itemAmount} AND t.payment_due_at > ${new Date().toISOString()})`:sql`l.status = 'active' AND l.sale_type = 'fixed'`;
   const reservation=conditionalGuard(db,sql`EXISTS (SELECT 1 FROM listings l JOIN profiles seller ON seller.id = l.seller_id JOIN profiles buyer ON buyer.id = ${profile.id} JOIN collections c ON c.user_id = seller.user_id WHERE l.id = ${listing.id} AND ${listingState} AND l.fulfillment IN (${sql.join(allowedListingFulfillment[input.fulfillment].map(value=>sql`${value}`),sql`, `)}) AND l.fulfillment = ${listing.fulfillment} AND l.price = ${listing.price} AND l.shipping = ${listing.shipping} AND l.items = ${listing.items} AND l.photos = ${listing.photos} AND l.vault_revision = ${listing.vaultRevision} AND c.revision = ${source.revision} AND l.usa_attested_at != '' AND seller.id != buyer.id AND buyer.user_id = ${profile.userId} AND seller.visible = 1 AND buyer.visible = 1 AND seller.moderated = 0 AND buyer.moderated = 0 AND seller.deletion_started_at IS NULL AND buyer.deletion_started_at IS NULL AND seller.rules_version = ${previewRulesVersion} AND buyer.rules_version = ${previewRulesVersion} AND seller.rules_accepted_at != '' AND buyer.rules_accepted_at != '' AND NOT EXISTS (SELECT 1 FROM account_restrictions r WHERE r.scope = 'account' AND r.user_id IN (seller.user_id,buyer.user_id)) AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.from_id = buyer.id AND b.to_id = seller.id) OR (b.from_id = seller.id AND b.to_id = buyer.id))) AND NOT EXISTS (SELECT 1 FROM commerce_orders o WHERE o.listing_id = ${listing.id} AND o.status NOT IN ('cancelled','refunded','checkout_expired')) AND NOT EXISTS (SELECT 1 FROM json_each(${selected}) copy WHERE copy.value NOT IN (SELECT json_extract(owned.value,'$.id') FROM collections c, json_each(c.data,'$.books') owned WHERE c.user_id = ${seller.userId}) OR NOT EXISTS (SELECT 1 FROM listing_inventory reserved WHERE reserved.seller_id = ${seller.id} AND reserved.listing_id = ${listing.id} AND reserved.book_id = copy.value)) AND NOT EXISTS (SELECT 1 FROM json_each(${JSON.stringify(snapshot.photoIds)}) photo WHERE NOT EXISTS (SELECT 1 FROM media m WHERE m.id = photo.value AND m.user_id = ${seller.userId})) AND EXISTS (SELECT 1 FROM commerce_sellers s WHERE s.profile_id = ${seller.id} AND s.user_id = ${seller.userId} AND s.stripe_account_id = ${sellerAccountId})`);
   try{await db.batch([reservation.start,db.insert(commerceOrders).values({id:orderId,buyerId:profile.id,buyerUserId:profile.userId,sellerId:seller.id,sellerUserId:seller.userId,listingId:listing.id,requestId:input.requestId,status:state.status,version:0,sandbox:flag,snapshot:JSON.stringify(snapshot),state:JSON.stringify(state),checkoutSessionId:null,paymentIntentId:null,chargeId:null,transferId:null,createdAt:stamp,updatedAt:stamp}),db.execute(sql`SELECT ch_web.reserve_store_credit(${orderId},${profile.userId},${walletMode(flag)},${input.storeCreditCents})`),db.update(listings).set({status:'checkout_reserved'}).where(eq(listings.id,listing.id)),db.update(offers).set({status:'closed'}).where(and(eq(offers.listingId,listing.id),eq(offers.status,'pending'))),db.insert(commerceEvents).values({id:crypto.randomUUID(),orderId,providerEventId:null,type:'checkout_reserved',body:JSON.stringify({note:(live?'Live order.':'Test-mode order.')+' No payment is confirmed yet. Protection: '+plan.tier+(plan.comingSoon?' (SafePurchase inspection coming soon)':'')+'. Tax and platform fee are zero in this order.'}),createdAt:stamp}),reservation.finish])}
   catch(error){if(operationGuardFailed(error)||/commerce_(?:order_request|open_listing)_unique|UNIQUE constraint failed: commerce_orders/.test(String((error as Error)?.cause||error)))throw new ApiRequestError('This listing was reserved or changed. Refresh and try again.',409);throw error}
   row=(await db.select().from(commerceOrders).where(eq(commerceOrders.id,orderId)))[0];
  }
- return continuePayment(db,row,profile,email,environment,processor);
+ return row;
 }
 // --- Buyer: resume or cancel an unpaid checkout ----------------------------------------------
 export const commerceResumeSchema=z.object({action:z.literal('resume_payment'),orderId:id}).strict();
@@ -253,6 +261,7 @@ async function buyerUnpaidOrder(db:Db,userId:string,orderId:string,environment:S
  if(row.buyerUserId!==userId)throw new ApiRequestError('Only the buyer can pay for or cancel this checkout.',403);
  needMode(row,environment);stateOf(row);
  if(row.status!=='awaiting_payment')throw new ApiRequestError('This order is no longer waiting for payment.',409);
+ if(snapshotOf(row).autoCharge)throw new ApiRequestError('We’re charging your saved card for this auction. Check Orders in a few minutes.',409);
  return row;
 }
 /** Re-opens the order's existing session (or creates it, within the original window and expiry). Never a second order. */
@@ -281,6 +290,7 @@ export async function commerceCancelCheckout(db:Db,userId:string,raw:Record<stri
 async function continuePayment(db:Db,row:Row,profile:Profile,email:string,environment:StripeSandboxEnv,processor:Processor){
  const live=modeOf(environment)==='live';
  stateOf(row);
+ if(snapshotOf(row).autoCharge&&row.status==='awaiting_payment')throw new ApiRequestError('We’re charging your saved card for this auction. Check Orders in a few minutes.',409);
  if(row.status!=='awaiting_payment')return {sandbox:row.sandbox===1,order:commerceOrderDto(row,profile.userId),checkoutUrl:null,note:'This checkout is no longer open. A redirect is never proof of payment.'};
  // Retry identity is not a permit to restart commerce with a newly ineligible peer.
  const [currentSeller]=await db.select().from(profiles).where(eq(profiles.id,row.sellerId));
@@ -761,12 +771,19 @@ async function processorRow(db:Db,event:StripeVerifiedEvent){
 }
 async function recordPaid(db:Db,row:Row,event:StripeVerifiedEvent,processor:Processor,fingerprint:string,environment:StripeSandboxEnv){
  const data=event.data.object,snapshot=snapshotOf(row);let sessionId=row.checkoutSessionId;
+ let intentId:string|undefined;
+ if(snapshot.autoCharge){
+  intentId=event.type==='payment_intent.succeeded'?providerId(data):undefined;
+  if(!intentId||sessionId||row.paymentIntentId&&row.paymentIntentId!==intentId)throw new ApiRequestError('Paid intent does not match this auction order.',409);
+ }else{
  if(event.type.startsWith('checkout.session.')){
   const eventSession=providerId(data);if(!eventSession||sessionId&&sessionId!==eventSession)throw new ApiRequestError('Checkout session does not match this order.',409);sessionId=eventSession;
  }
  if(!sessionId)throw new ApiRequestError('Checkout session binding is not yet recorded. Retry this signed event.',409);
- const binding={orderId:row.id,amountCents:snapshot.totalCents,...(row.paymentIntentId?{paymentIntentId:row.paymentIntentId}:{})},session=await processor.retrieveCheckout(sessionId,binding),intentId=providerId(session.payment_intent);
+ const binding={orderId:row.id,amountCents:snapshot.totalCents,...(row.paymentIntentId?{paymentIntentId:row.paymentIntentId}:{})},session=await processor.retrieveCheckout(sessionId,binding);intentId=providerId(session.payment_intent);
  if(!intentId||event.type==='payment_intent.succeeded'&&providerId(data)!==intentId)throw new ApiRequestError('Paid intent does not match this checkout.',409);
+ }
+ if(!intentId)throw new ApiRequestError('Paid intent is not confirmed.',409);
  const intent=await processor.retrievePaymentIntent(intentId,{orderId:row.id,amountCents:snapshot.totalCents,paymentIntentId:intentId}),chargeId=providerId(intent.latest_charge);
  if(!chargeId)throw new ApiRequestError('Paid charge is not confirmed.',409);
  const charge=await processor.retrieveCharge(chargeId,{orderId:row.id,amountCents:snapshot.totalCents,paymentIntentId:intentId});
@@ -865,6 +882,8 @@ export async function commerceApplyWebhook(db:Db,event:StripeVerifiedEvent,rawBo
  const processor=stripeSandbox(environment);
  // Support ComicHuddle payments go to the platform itself; they are never marketplace orders.
  {const support=await applySupportEvent(event,sandbox?1:0);if(support)return {...support,sandbox}}
+ // Saved cards for auctions: Checkout in setup mode. Confirmed by re-retrieving the session from Stripe.
+ {const saved=await applySavedCardEvent(processor,event,sandbox?1:0);if(saved)return {...saved,sandbox}}
  if(event.type==='account.updated')return await sellerAccountUpdated(db,providerId(event.data.object),processor,mode,environment);
  // Bank payouts from sellers' connected accounts (Connect events carry the account id).
  if(event.type.startsWith('payout.')){const result=await applyPayoutEvent(event,sandbox?1:0);return {...result,sandbox}}
@@ -1033,3 +1052,80 @@ export async function commercePickupExpirySweep(db:Db,userId:string,raw:Record<s
  return {sandbox:modeOf(environment)==='test',results,scheduled:false,note:'Manual owner sweep: unused pickup codes older than '+pickupCodeDays(environment)+' days are refunded. No background scheduler is installed.'};
 }
 // --- end offers (round 4) ---
+
+// --- Auctions: charge the winner's saved card --------------------------------------------------
+// Bidders save a card and address before their first bid (lib/saved-cards.ts). When an auction ends, this charges
+// the winner off-session: it reserves the order exactly like checkout (same guards, fee and shipping quote, marked
+// autoCharge), then creates a PaymentIntent on the saved card with the order's idempotency key. A decline or a
+// card that needs the cardholder releases the reservation, notifies the winner, and leaves the normal 48-hour
+// payment window. Safe to run twice: a lease stops parallel runs, Stripe idempotency covers retries, and only
+// winners still awaiting payment are picked.
+type AutoChargeDue={listing_id:string;winner_id:string;user_id:string;payment_due_at:string};
+const clipTitle=(value:string)=>value.length>60?value.slice(0,59)+'…':value;
+const centralDay=(iso:string)=>new Date(iso).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' Central';
+export async function commerceChargeAuctionWinners(db:Db,environment:StripeSandboxEnv,options:{limit?:number;listingIds?:string[]}={}){
+ if(!sandboxSetup(environment).ready||environment.COMMERCE_NEW_CHECKOUT_PAUSED==='true')return {charged:0,skipped:'payments_not_ready'};
+ await ensureLocalAuctionSchema(db);
+ const stamp=now(),limit=Math.min(Math.max(options.limit??25,1),100),only=options.listingIds?.filter(Boolean)||[];
+ const due=await db.execute(sql`SELECT t.listing_id,t.winner_id,p.user_id,t.payment_due_at FROM ch_web.marketplace_auction_terms t JOIN listings l ON l.id = t.listing_id JOIN profiles p ON p.id = t.winner_id WHERE t.result = 'awaiting_payment' AND l.status IN ('auction_won','checkout_reserved') AND t.payment_due_at > ${stamp} AND NOT EXISTS (SELECT 1 FROM ch_web.auction_auto_charges a WHERE a.listing_id = t.listing_id AND a.status IN ('charged','failed')) ${only.length?sql`AND t.listing_id IN (${sql.join(only.map(value=>sql`${value}`),sql`, `)})`:sql``} ORDER BY t.resolved_at LIMIT ${limit}`);
+ const results:{listingId:string;result:string;reason?:string;orderId?:string}[]=[];
+ for(const item of due.rows as AutoChargeDue[]){
+  try{results.push({listingId:item.listing_id,...await chargeAuctionWinner(db,item,environment)})}
+  catch(error){results.push({listingId:item.listing_id,result:'retry',reason:error instanceof Error?error.message.slice(0,120):'error'})}
+ }
+ return {charged:results.filter(result=>result.result==='charged').length,results};
+}
+async function chargeAuctionWinner(db:Db,item:AutoChargeDue,environment:StripeSandboxEnv):Promise<{result:string;reason?:string;orderId?:string}>{
+ const flag=modeFlag(environment) as 0|1,stamp=now();
+ await db.execute(sql`INSERT INTO ch_web.auction_auto_charges(listing_id,winner_user_id,request_id) VALUES(${item.listing_id},${item.user_id},${crypto.randomUUID()}) ON CONFLICT (listing_id) DO NOTHING`);
+ const lease=await db.execute(sql`UPDATE ch_web.auction_auto_charges SET lease_until = ${new Date(Date.now()+120000).toISOString()}, attempts = attempts + 1, updated_at = ${stamp} WHERE listing_id = ${item.listing_id} AND status IN ('started','skipped') AND (lease_until IS NULL OR lease_until < ${stamp}) RETURNING request_id`);
+ const claim=(lease.rows as {request_id:string}[])[0];if(!claim)return {result:'busy'};
+ const finish=async(status:'started'|'charged'|'failed'|'skipped',reason:string,orderId:string|null=null)=>{await db.execute(sql`UPDATE ch_web.auction_auto_charges SET status = ${status}, reason = ${reason.slice(0,200)}, order_id = COALESCE(${orderId},order_id), lease_until = NULL, updated_at = ${now()} WHERE listing_id = ${item.listing_id}`)};
+ const [listing]=await db.select().from(listings).where(eq(listings.id,item.listing_id));
+ if(!listing){await finish('skipped','listing_missing');return {result:'skipped',reason:'listing_missing'}}
+ const fulfillment:'shipping'|'pickup'=listing.fulfillment==='pickup'?'pickup':'shipping';
+ const card=await chargeableCard(item.user_id,flag).catch(()=>null);
+ if(!card||fulfillment==='shipping'&&!card.address){await finish('skipped','no_saved_card');return {result:'skipped',reason:'no_saved_card'}}
+ const [profile]=await db.select().from(profiles).where(eq(profiles.id,item.winner_id));
+ if(!profile||profile.userId!==item.user_id){await finish('skipped','winner_unavailable');return {result:'skipped',reason:'winner_unavailable'}}
+ // The winner already opened checkout themselves: leave that one alone.
+ const [open]=await db.select().from(commerceOrders).where(and(eq(commerceOrders.listingId,listing.id),sql`${commerceOrders.status} NOT IN ('cancelled','refunded','checkout_expired')`));
+ if(open&&open.requestId!==claim.request_id){await finish('skipped','buyer_checkout_open');return {result:'skipped',reason:'buyer_checkout_open'}}
+ const processor=stripeSandbox(environment);
+ let row:Row;
+ try{row=await reserveCheckoutOrder(db,profile,{action:'checkout',listingId:listing.id,requestId:claim.request_id,sandboxAcknowledged:true,fulfillment,...(fulfillment==='shipping'?{shippingAddress:card.address!}:{}),storeCreditCents:0,checkoutUiMode:'hosted_page',safePurchaseOptIn:false,waiveSafePurchase:false},environment,processor,{autoCharge:true})}
+ catch(error){if(!(error instanceof ApiRequestError))throw error;await finish('skipped',error.message);return {result:'skipped',reason:error.message}}
+ const snapshot=snapshotOf(row),title=clipTitle(snapshot.title);
+ if(row.status!=='awaiting_payment'){await finish('charged','already_paid',row.id);return {result:'charged',orderId:row.id}}
+ let intent:ObjectRecord;
+ try{intent=await processor.createOffSessionPayment({orderId:row.id,amountCents:snapshot.totalCents,customerId:card.customerId,paymentMethodId:card.paymentMethodId,title:snapshot.title},'comichuddle_autocharge_'+row.id)}
+ catch(error){
+  const declined=error instanceof StripeSandboxError&&error.status===402;
+  // Not confirmed either way (timeout, Stripe outage): the next run retries with the same idempotency key.
+  // After 20 hours the hold is released so the winner can still pay inside their window.
+  if(!declined&&Date.now()-Date.parse(row.createdAt)<20*3600000){await finish('started','retry: '+(error instanceof Error?error.message:'processor'),row.id);return {result:'retry',orderId:row.id}}
+  await releaseCheckout(db,row,null,null,'cancelled',declined?'The winner’s saved card was declined or needs their confirmation. They can still pay from the listing inside the payment window.':'The automatic charge could not be confirmed. The winner can still pay from the listing inside the payment window.','');
+  await finish('failed',declined?'card_declined':'processor_unavailable',row.id);
+  await notify({userId:item.user_id,kind:'order',title:'Pay for your auction win: '+title,body:(declined?'Your card ending '+card.last4+' was declined or needs your confirmation, so it wasn’t charged.':'We couldn’t charge your saved card.')+' Pay from the listing by '+centralDay(item.payment_due_at)+' to keep it.',href:'/?section=Marketplace&listing='+encodeURIComponent(listing.id)});
+  return {result:'failed',reason:declined?'card_declined':'processor_unavailable',orderId:row.id};
+ }
+ // Card payments settle at once. Anything else is recorded by the signed payment_intent.succeeded webhook.
+ if(intent.status==='succeeded'){
+  // Same proof as the webhook: recordPaid re-retrieves the intent and charge from Stripe and checks them against the order.
+  const event={id:'autocharge_'+String(intent.id),object:'event',type:'payment_intent.succeeded',livemode:modeOf(environment)==='live',created:intent.created,data:{object:intent}} as unknown as StripeVerifiedEvent;
+  try{await recordPaid(db,row,event,processor,'autocharge:'+String(intent.id),environment)}
+  catch(error){if(!(error instanceof ApiRequestError&&error.status===409))throw error} // the signed webhook got there first
+ }
+ await finish('charged',intent.status==='succeeded'?'':'processing',row.id);
+ await notify({userId:item.user_id,kind:'order',title:'Charged for your auction win: '+title,body:'Your saved card ending '+card.last4+' was charged $'+(snapshot.totalCents/100).toFixed(2)+(snapshot.fulfillment==='shipping'?', including shipping.':'.')+' Track it in Orders.',href:'/?section=Orders&role=buyer'});
+ return {result:'charged',orderId:row.id};
+}
+/** Bidding rule: a saved card and shipping address before a binding bid, while online payments are on.
+ *  AUCTION_SAVED_CARD_REQUIRED=false turns it off (winners then pay in the 48-hour window as before). */
+export function savedCardRequiredForBids(environment:StripeSandboxEnv&{AUCTION_SAVED_CARD_REQUIRED?:unknown}){return sandboxSetup(environment).ready&&environment.COMMERCE_NEW_CHECKOUT_PAUSED!=='true'&&String(environment.AUCTION_SAVED_CARD_REQUIRED??'').trim()!=='false'}
+export async function commerceBidCardGate(db:Db,profile:Profile,raw:Record<string,unknown>,environment:StripeSandboxEnv){
+ if(!savedCardRequiredForBids(environment))return;
+ const listingId=typeof raw.listingId==='string'?raw.listingId.trim():'';if(!listingId)return;
+ if(!(await auctionTerms(db,[listingId])).get(listingId))return; // nonbinding previews take no card
+ await needSavedCardToBid(profile.userId,modeFlag(environment) as 0|1);
+}

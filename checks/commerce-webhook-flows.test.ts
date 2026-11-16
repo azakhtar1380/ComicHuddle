@@ -4,6 +4,7 @@
 // No network, Stripe account, card, refund, transfer or payout is used.
 import {getPool} from '../db/postgres';
 import {startSupportCheckout,supportPaymentsForOwner,supportReceipts,supportStatus} from '../lib/support-payments';
+import {chargeableCard,startSaveCard,savedCardView} from '../lib/saved-cards';
 import {applyPayoutEvent,payoutProblem,runManualPayouts,sellerTier,syncPayoutSchedule} from '../lib/seller-payouts';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {after,before,test} from 'node:test';
@@ -19,7 +20,7 @@ import {emptyVault} from '../lib/vault';
 import {previewRulesVersion} from '../lib/community';
 import {createListing} from '../lib/marketplace';
 import {ownerAccountId} from '../lib/owner';
-import {commerceApplyCarrierUpdate,commerceApplyThinAccountEvent,commerceApplyWebhook,commerceCheckout,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceOwnerRelease,commerceOwnerRevenue,commerceRequestRefund,commerceSubmitTracking,createSellerPayout,commerceResumePayment,commerceCancelCheckout} from '../lib/commerce';
+import {commerceApplyCarrierUpdate,commerceApplyThinAccountEvent,commerceApplyWebhook,commerceCheckout,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceOwnerRelease,commerceOwnerRevenue,commerceRequestRefund,commerceSubmitTracking,createSellerPayout,commerceResumePayment,commerceCancelCheckout,commerceBidCardGate,commerceChargeAuctionWinners} from '../lib/commerce';
 import {commerceEvents} from '../db/schema';
 import {stripeSandbox} from '../lib/stripe-sandbox';
 import {orderProgress} from '../lib/marketplace-order-progress';
@@ -60,6 +61,18 @@ async function fakeStripe(input:string|URL|Request,init:RequestInit={}){
   if(!value)return Response.json({error:{code:'not_found'}},{status:404});
   if(method==='POST'&&key)stripe.idem.set(route+key,structuredClone(value));
   return Response.json(value);
+ }
+ // Saved cards (setup-mode Checkout) and off-session auction charges.
+ if(method==='POST'&&route==='/v1/customers'){const prior=key&&stripe.idem.get(route+key);if(prior)return Response.json(prior);value={id:'cus_'+next(),object:'customer',livemode,metadata:{user_id:fields['metadata[user_id]'],profile_id:fields['metadata[profile_id]']}};stripe.idem.set(route+key,structuredClone(value));return Response.json(value)}
+ if(method==='POST'&&route==='/v1/checkout/sessions'&&fields.mode==='setup'){const sid='cs_'+(livemode?'live':'test')+'_'+next();value={id:sid,object:'checkout.session',livemode,mode:'setup',customer:fields.customer,client_reference_id:fields.client_reference_id,metadata:{purpose:fields['metadata[purpose]'],user_id:fields['metadata[user_id]']},status:'open',url:'https://checkout.stripe.com/c/pay/'+sid,setup_intent:null,success_url:fields.success_url};stripe.sessions.set(sid,value);stripe.idem.set(route+key,structuredClone(value));return Response.json(value)}
+ if(method==='POST'&&/^\/v1\/payment_methods\/pm_[A-Za-z0-9]+\/detach$/.test(route)){stripe.requests.push({method,route,detach:true} as never);return Response.json({id:route.split('/')[3],object:'payment_method',customer:null})}
+ if(method==='POST'&&route==='/v1/payment_intents'){
+  if((globalThis as {declineCards?:boolean}).declineCards)return Response.json({error:{code:'card_declined',type:'card_error'}},{status:402});
+  const amount=Number(fields.amount),pi='pi_'+next(),ch='ch_'+next(),orderId=fields['metadata[order_id]'];
+  assert.equal(fields.off_session,'true');assert.equal(fields.confirm,'true');assert.equal(fields.transfer_group,'ORDER_'+orderId);
+  stripe.charges.set(ch,{id:ch,object:'charge',livemode,amount,amount_captured:amount,amount_refunded:0,paid:true,captured:true,currency:'usd',status:'succeeded',payment_intent:pi,disputed:false,refunded:false,metadata:{}});
+  value={id:pi,object:'payment_intent',livemode,created:Math.floor(Date.now()/1000),currency:'usd',amount,amount_received:amount,customer:fields.customer,payment_method:fields.payment_method,metadata:{order_id:orderId,orderId:fields['metadata[orderId]'],purpose:fields['metadata[purpose]']},transfer_group:fields.transfer_group,status:'succeeded',latest_charge:ch,transfer_data:null,application_fee_amount:null};
+  stripe.intents.set(pi,value);stripe.idem.set(route+key,structuredClone(value));return Response.json(value);
  }
  if(method==='POST'&&/^\/v1\/accounts\/acct_[A-Za-z0-9]+$/.test(route)){stripe.requests.push({method,route,fields} as never);return Response.json({id:route.split('/')[3],object:'account',settings:{payouts:{schedule:{interval:fields['settings[payouts][schedule][interval]']}}}})}
  if(method==='POST'&&route==='/v1/payouts'){stripe.requests.push({method,route,fields} as never);const k='payout'+key;const prior=stripe.idem.get(k);if(prior)return Response.json(prior);const po={id:'po_'+next(),object:'payout',amount:Number(fields.amount),currency:'usd',status:'pending',metadata:{order_id:fields['metadata[order_id]']}};stripe.idem.set(k,po);return Response.json(po)}
@@ -114,7 +127,7 @@ let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
  const skip=new Set(['003_catalog_ingestion.sql','005_gcd_snapshot_import.sql']);
- for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_')||n.startsWith('046_')||n.startsWith('047_')||n.startsWith('036_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of readdirSync('db/postgres-migrations').filter(n=>n.endsWith('.sql')&&!skip.has(n)&&(n<'025'||n.startsWith('026_')||n.startsWith('042_')||n.startsWith('043_')||n.startsWith('044_')||n.startsWith('045_')||n.startsWith('046_')||n.startsWith('047_')||n.startsWith('048_')||n.startsWith('036_'))).sort())await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -471,4 +484,65 @@ test('Support ComicHuddle: platform payment, confirmed only by the signed webhoo
  assert.equal(JSON.stringify((await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema='ch_web' AND table_name LIKE '%wallet%' OR table_name LIKE '%reward%' OR table_name LIKE '%credit%'")).rows),walletBefore);
  const ledgers=(await pool.query("SELECT count(*)::int AS n FROM information_schema.columns WHERE table_schema='ch_web' AND column_name='support_payment_id'")).rows[0].n;
  assert.equal(ledgers,0,'no wallet, points or credit table references support payments');
+});
+
+// ---- Saved cards and automatic charging of auction winners ----
+async function wonAuction(){
+ const fixture=await setup(),db=getDb(),stamp=new Date().toISOString(),ended=new Date(Date.now()-60000).toISOString(),due=new Date(Date.now()+48*3600000).toISOString();
+ await db.update(listings).set({saleType:'auction',status:'auction_won',leaderId:fixture.buyer.id,currentBid:fixture.listing.price,bidCount:1,endAt:ended}).where(eq(listings.id,fixture.listing.id));
+ await getPool().query("INSERT INTO ch_web.marketplace_auction_terms(listing_id,reserve_cents,result,winner_id,winning_cents,resolved_at,payment_due_at,created_at) VALUES($1,NULL,'awaiting_payment',$2,$3,$4,$5,$4)",[fixture.listing.id,fixture.buyer.id,fixture.listing.price,stamp,due]);
+ return fixture;
+}
+async function saveCard(buyer:Profile){
+ const processor=stripeSandbox(testEnv as never),started=await startSaveCard(processor,{userId:buyer.userId,profileId:buyer.id,email:'buyer@example.test',sandbox:1,raw:{action:'save_card',shippingAddress:address,returnTo:'/?section=Marketplace'}});
+ assert.match(started.url,/^https:\/\/checkout\.stripe\.com\//);
+ const sid=(await getPool().query('SELECT setup_session_id FROM ch_web.buyer_saved_cards WHERE user_id=$1',[buyer.userId])).rows[0].setup_session_id as string,session=stripe.sessions.get(sid)!;
+ assert.equal(session.mode,'setup');assert.match(String(session.success_url),/card_session=\{CHECKOUT_SESSION_ID\}/);
+ assert.equal(await chargeableCard(buyer.userId,1),null,'nothing counts as saved before Stripe confirms the setup');
+ Object.assign(session,{status:'complete',setup_intent:{id:'seti_'+next(),object:'setup_intent',status:'succeeded',payment_method:{id:'pm_'+next(),object:'payment_method',type:'card',customer:session.customer,card:{brand:'visa',last4:'4242',exp_month:12,exp_year:2031}}}});
+ const result=await deliver('checkout.session.completed',session);assert.equal((result as {savedCard?:string}).savedCard,'saved');
+ assert.equal((await deliver('checkout.session.completed',session) as {savedCard?:string}).savedCard,'duplicate','a repeated webhook changes nothing');
+}
+test('auctions: a saved card is required to bid, and the winner is charged automatically, exactly once',async()=>{
+ const {buyer,listing}=await wonAuction(),db=getDb();
+ await assert.rejects(commerceBidCardGate(db,buyer,{listingId:listing.id},testEnv),(e:{status?:number})=>e.status===428,'no saved card: binding bids are refused');
+ await commerceBidCardGate(db,buyer,{listingId:listing.id},{...testEnv,AUCTION_SAVED_CARD_REQUIRED:'false'});
+ await saveCard(buyer);
+ const view=await savedCardView(buyer.userId,1);assert.equal(view?.last4,'4242');assert.equal(view?.address?.postalCode,'55401');assert.ok(!('stripe_customer_id' in (view||{})),'the buyer view never carries Stripe IDs');
+ await commerceBidCardGate(db,buyer,{listingId:listing.id},testEnv);
+ const first=await commerceChargeAuctionWinners(db,testEnv);
+ assert.equal(first.charged,1,JSON.stringify(first));
+ const orderId=first.results![0].orderId!,order=await orderRow(orderId),snapshot=JSON.parse(order.snapshot);
+ assert.equal(snapshot.autoCharge,true);assert.equal(snapshot.itemAmountCents,listing.price);assert.equal(snapshot.shippingAddress.postalCode,'55401');assert.equal(snapshot.totalCents,listing.price+listing.shipping);
+ assert.ok(order.paymentIntentId&&order.chargeId,'paid: bound to the server-verified intent and charge');assert.equal(order.checkoutSessionId,null);
+ assert.equal((await listingRow(listing.id)).status,'pending','paid auction listing shows Pending until delivery');
+ assert.equal((await getPool().query('SELECT result FROM ch_web.marketplace_auction_terms WHERE listing_id=$1',[listing.id])).rows[0].result,'paid');
+ // The signed webhook arriving afterwards is a harmless duplicate.
+ await deliver('payment_intent.succeeded',stripe.intents.get(order.paymentIntentId!)!);
+ {const after=await orderRow(orderId);assert.equal(after.status,order.status,'no second payment change');assert.equal(after.chargeId,order.chargeId);assert.equal(after.paymentIntentId,order.paymentIntentId)}
+ const again=await commerceChargeAuctionWinners(db,testEnv);assert.equal(again.charged,0);
+ assert.equal(stripe.requests.filter(r=>r.method==='POST'&&r.route==='/v1/payment_intents').length,1,'one charge, ever');
+ const note=(await getPool().query("SELECT title FROM ch_web.notifications WHERE user_id=$1 AND title LIKE 'Charged for your auction win%'",[buyer.userId])).rows;assert.equal(note.length,1);
+});
+test('auctions: a declined saved card releases the hold, tells the winner, and they can still pay within 48 hours',async()=>{
+ const {buyer,listing}=await wonAuction(),db=getDb();await saveCard(buyer);
+ (globalThis as {declineCards?:boolean}).declineCards=true;
+ try{
+  const result=await commerceChargeAuctionWinners(db,testEnv);
+  const mine=result.results!.find(r=>r.listingId===listing.id)!;assert.equal(mine.result,'failed');assert.equal(mine.reason,'card_declined');
+  assert.equal((await orderRow(mine.orderId!)).status,'cancelled');
+  assert.equal((await listingRow(listing.id)).status,'auction_won','back to the winner’s 48-hour window');
+  const again=await commerceChargeAuctionWinners(db,testEnv);assert.ok(!again.results!.some(r=>r.listingId===listing.id),'a declined card is not retried automatically');
+ }finally{(globalThis as {declineCards?:boolean}).declineCards=false}
+ const note=(await getPool().query("SELECT body FROM ch_web.notifications WHERE user_id=$1 AND title LIKE 'Pay for your auction win%'",[buyer.userId])).rows;
+ assert.equal(note.length,1);assert.match(String(note[0].body),/ending 4242/);
+ const manual=await checkout(buyer,listing.id);assert.ok(manual.checkoutUrl,'the winner can still pay through normal checkout');
+});
+test('auctions: a winner without a saved card is left to the 48-hour window; nothing is charged',async()=>{
+ const {buyer,listing}=await wonAuction(),before=stripe.requests.filter(r=>r.route==='/v1/payment_intents').length;
+ const result=await commerceChargeAuctionWinners(getDb(),testEnv,{listingIds:[listing.id]});
+ assert.equal(result.results![0].result,'skipped');assert.equal(result.results![0].reason,'no_saved_card');
+ assert.equal(stripe.requests.filter(r=>r.route==='/v1/payment_intents').length,before);
+ assert.equal((await listingRow(listing.id)).status,'auction_won');
+ const manual=await checkout(buyer,listing.id);assert.ok(manual.checkoutUrl);
 });

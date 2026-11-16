@@ -13,6 +13,7 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 | 045 | `045_listing_package.sql` | Optional package `weight_oz`, `length_in`, `width_in`, `height_in`. |
 | 046 | `046_seller_payouts.sql` | `seller_payouts`: bank payouts and `payout.*` events. |
 | 047 | `047_support_payments.sql` | `support_payments`: Support ComicHuddle payments. |
+| 048 | `048_saved_cards.sql` | `buyer_saved_cards` (Stripe customer and card IDs, brand, last 4 digits, expiry, shipping address) and `auction_auto_charges` (one row per won auction). |
 
 ## Settings (Vercel environment variables)
 
@@ -22,6 +23,7 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 | `CRON_SECRET` | preview ✓ / production ? | Protects `/api/cron/commerce`. Vercel runs scheduled jobs on **production deployments only**. |
 | `COMMERCE_LISTING_REQUIRES_PAYOUTS` | **new**, not set | Set to `true` to block publishing until the seller's Stripe payouts are verified. Turn it on once sellers can finish onboarding. |
 | `COMMERCE_PAYOUTS_ENABLED` | not set (off) | When `true`, the daily job releases transfers after the review window and makes the manual payouts for new sellers. |
+| `AUCTION_SAVED_CARD_REQUIRED` | not set (on) | Binding bids need a saved card and address while online payments are on. Set to `false` to let people bid without one; winners then pay in the 48-hour window. |
 | `COMICHUDDLE_ADMIN_EMAILS` | preview ✓ | Your account. Production needs it too. |
 | `METRON_COVER_CDN_BASE` | preview, **remove it** | Leftover from the paused cover import, so the enrichment job stops trying. Claude's attempt to remove it was blocked by a permission prompt. Run `vercel env rm METRON_COVER_CDN_BASE preview`. |
 
@@ -87,18 +89,20 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 - Confirmed only by the signed webhook. Never wallet balance, points or credit.
 - Owner view on `/admin`; receipts in Orders.
 
-## Not built yet (needs your decision)
+## Saved cards and automatic auction charges
 
-**Saved card before bidding, and charging the winner automatically.** This needs:
-- a saved shipping address as well as a card, because a shipped auction can't be charged without knowing where it ships;
-- a second way to create paid orders, alongside Checkout.
-
-Proposed plan:
-1. A "Save card and address" step using Stripe Checkout in setup mode, plus our own address form.
-2. When an auction closes, create the order with the winner's saved address and an off-session PaymentIntent.
-3. If that fails or needs authentication, notify the winner and fall back to the existing 48-hour payment window.
-
-Until then, winners pay within 48 hours, as today.
+- **Before the first binding bid**, the bidder saves a shipping address and a card. The card is typed on Stripe's page (Checkout in setup mode), and nothing is charged. ComicHuddle stores only Stripe's IDs, the card brand, last 4 digits, expiry and the address.
+- A card counts as saved only after Stripe confirms the setup. The signed `checkout.session.completed` webhook confirms it, and so does the buyer's return to the site (the server re-reads the session from Stripe).
+- Bidders manage the card and address in the **Wallet** (change, address only, or remove). Replacing a card removes the old one from Stripe.
+- **When an auction ends**, the winner's card is charged automatically:
+  - The order is reserved exactly like checkout, with the same fee, shipping quote and guards. Shipping uses the cheapest carrier rate to the saved address. Pickup-only listings are charged without shipping.
+  - The charge is an off-session PaymentIntent tied to the order, and the payment is recorded only after the intent and charge are re-read from Stripe.
+  - It runs right after someone browses the marketplace, and in the daily job as a backup. A lease and Stripe's per-order idempotency key mean it can never charge twice.
+- **Declined, or the card needs the cardholder:** the hold is released, the winner is notified (card ending, deadline), and they pay through normal checkout within the 48-hour window. A declined card isn't retried automatically.
+- **Stripe unreachable:** the same charge is retried with the same key. After 20 hours the hold is released and the winner is told to pay.
+- **Winner without a saved card**, for example after setting `AUCTION_SAVED_CARD_REQUIRED=false` or removing the card: nothing is charged, and the 48-hour window applies as before.
+- **"Ship or pickup" listings** are charged with shipping to the saved address. A winner who wants pickup can message the seller, and the seller can refund the shipping.
+- No new Stripe webhook events are needed: `checkout.session.completed` and `payment_intent.succeeded` are already on the platform endpoint.
 
 ## Payment test sheet: rows that changed
 
@@ -115,6 +119,9 @@ Until then, winners pay within 48 hours, as today.
 | Late tracking webhook | Could overwrite status | **Never moves backward** |
 | Offers | Shown as expired | Also **saved** as EXPIRED by the daily job |
 | Auction last-minute bid | Fixed end | **+2 minutes** |
+| First auction bid | Bid right away | **Save a card and address first** (Stripe test card 4242 4242 4242 4242); nothing is charged |
+| Auction ends with a saved card | Winner pays within 48h | **Charged automatically** (item + shipping); order paid, listing Pending; buyer notified |
+| Auction winner card declined (test card 4000 0000 0000 0341) | n/a | Hold released, winner notified, **48h window** to pay through checkout |
 | Support ComicHuddle | n/a | New rows: $1 minimum and $500 maximum refused outside that range, Stripe test checkout, paid only after the webhook, receipt in Orders, owner view |
 | Payout failed | n/a | Seller notified once; alert in Orders and Wallet |
 | Refund after transfer, reversal refused | n/a | Order held for manual review; **no refund** issued |

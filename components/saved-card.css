@@ -1,0 +1,12 @@
+.scard{display:grid;gap:10px;margin:16px 0;padding:18px;border:2px solid var(--ink);border-radius:var(--radius-md,16px);background:var(--paper,#fff)}
+.scard-title{display:flex;align-items:center;gap:8px;margin:0;font:800 20px/1.1 var(--font-display,'Barlow Condensed',Impact,sans-serif);text-transform:uppercase;color:var(--ink)}
+.scard-intro p{margin:0;line-height:1.5}
+.scard-card{margin:0;font-size:16px}
+.scard-address{display:flex;gap:6px;align-items:flex-start;margin:0;color:var(--ink-2,var(--muted))}
+.scard-muted{margin:0;font-size:13.5px;line-height:1.5;color:var(--muted)}
+.scard-form{display:grid;gap:10px}
+.scard-form+.scard-form{padding-top:12px;border-top:1px dashed var(--line,#ccc)}
+.scard-fields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.scard-fields .scard-wide{grid-column:1/-1}
+.scard-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+@media (max-width:560px){.scard{padding:14px}.scard-fields{grid-template-columns:1fr 1fr}.scard-fields label:first-of-type:not(.scard-wide){grid-column:1/-1}}

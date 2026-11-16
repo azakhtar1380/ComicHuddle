@@ -4,6 +4,7 @@ import {useEffect,useRef,useState} from 'react';
 import {RefreshCw,ArrowDownLeft,ArrowUpRight,Package,Info} from 'lucide-react';
 import {EmptyState,ErrorState,LoadingState} from '../components/states';
 import BankPayouts from './wallet/bank-payouts';
+import {SavedCardPanel} from '../components/saved-card';
 import './wallet/wallet.css';
 type Balance={points:number;pointsDebt:number;availableCreditCents:number;reservedCreditCents:number};
 type Rewards={balances:Record<'live'|'sandbox',Balance>;history:{id:string;kind:string;points_delta:number|string;credit_delta:number|string;created_at:string}[]};
@@ -57,6 +58,7 @@ export default function CollectorWallet({showInfoLink=true}:{showInfoLink?:boole
    {conversionError&&<p role="alert" className="ds-error">{conversionError}</p>}
   </div>}
   <BankPayouts mode={mode}/>
+  <SavedCardPanel heading="Card for auctions" intro={<p>Auction bids need a saved card and shipping address. If you win, we charge it automatically.</p>}/>
   <p className="cw2-note">{test?'Test sales are for trying out checkout. They aren’t real money and can’t be withdrawn.':'Money from comics you sell through checkout shows here once payment clears. Cash sales and books you mark sold yourself don’t count. Withdrawals aren’t available yet.'}</p>
 
   {data&&<div className="cw2-history">

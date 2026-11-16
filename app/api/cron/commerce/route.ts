@@ -1,6 +1,6 @@
 // Commerce background job (Vercel Cron, daily on the Hobby plan; hourly needs Pro. Authorization: Bearer $CRON_SECRET). Every step is safe to run twice:
 // each one only acts on rows still in the state it changes, and money steps use per-order idempotency keys.
-//  1. close ended auctions          2. save EXPIRED on overdue offers
+//  1. close ended auctions, then charge winners' saved cards (decline → 48-hour window)   2. save EXPIRED on overdue offers
 //  3. poll carriers (Pending → Sold on delivery happens in the database trigger, migration 043)
 //  4. refund pickup PINs unused for 7 days     5. owner sweep (deadlines, refunds owed)
 //  6. release seller transfers after the review window — only when COMMERCE_PAYOUTS_ENABLED=true
@@ -10,7 +10,7 @@ import {createHash,timingSafeEqual} from 'node:crypto';
 import {and,eq} from 'drizzle-orm';
 import {getDb} from '../../../../db';
 import {commerceOrders} from '../../../../db/schema';
-import {commerceOwnerRelease,commerceOwnerSweep,commercePickupExpirySweep,commerceRefreshCarrierStatus,type StripeSandboxEnv} from '../../../../lib/commerce';
+import {commerceChargeAuctionWinners,commerceOwnerRelease,commerceOwnerSweep,commercePickupExpirySweep,commerceRefreshCarrierStatus,type StripeSandboxEnv} from '../../../../lib/commerce';
 import {resolveEndedAuctions} from '../../../../lib/marketplace-auction';
 import {expireOffers} from '../../../../lib/offers';
 import {ownerAccountId} from '../../../../lib/owner';
@@ -33,6 +33,7 @@ export async function GET(request:Request){
  if(!authorized(request))return Response.json({error:'Unauthorized'},{status:401,headers:{'Cache-Control':'no-store'}});
  const db=getDb(),environment=env as unknown as StripeSandboxEnv,results:Record<string,unknown>={},started=Date.now();
  await step('auctions',results,()=>resolveEndedAuctions(db as never,50));
+ await step('auctionCharges',results,()=>commerceChargeAuctionWinners(db,environment,{limit:50}));
  await step('offers',results,()=>expireOffers());
  await step('carriers',results,()=>commerceRefreshCarrierStatus(db,environment,{limit:25}));
  const mode=stripeMode(environment as never);

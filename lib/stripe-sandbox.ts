@@ -229,6 +229,8 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         if (!response.ok) {
           await response.body?.cancel();
           const transient = response.status === 429 || response.status >= 500;
+          // 402: the card was declined or needs the cardholder (off-session charges). Callers fall back safely.
+          if (response.status === 402) fail('stripe_payment_declined', 'The card was declined or needs the cardholder to confirm it.', 402);
           fail('stripe_provider_error', 'Stripe could not complete this sandbox request. Reconcile before retrying.',
             response.status === 409 ? 409 : transient ? 503 : 502, transient);
         }
@@ -485,6 +487,73 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         transfer.transfer_group !== 'ORDER_' + input.orderId || transfer.reversed !== false)
         fail('stripe_transfer_mismatch', 'Top-up transfer does not match this release.', 502);
       verifyOrderMetadata(transfer, input.orderId); return transfer;
+    },
+    /** Saved cards for auctions: a Stripe Customer per user and mode, so a card can be charged when they win. */
+    async createCustomer(input: {userId: string; profileId: string; email?: string}, key: string) {
+      assertReady(); localId(input.userId, 'User ID'); localId(input.profileId, 'Profile ID'); idempotencyKey(key);
+      const fields: Record<string, string> = {'metadata[user_id]': input.userId, 'metadata[profile_id]': input.profileId, description: 'ComicHuddle collector'};
+      if (input.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email) && input.email.length <= 254) fields.email = input.email;
+      const customer = object(await request('POST', 'customers', fields, key), 'customer', false);
+      stripeId(customer.id, 'cus_');
+      if (!isObject(customer.metadata) || customer.metadata.user_id !== input.userId) fail('stripe_customer_mismatch', 'Stripe customer does not match this account.', 502);
+      return customer;
+    },
+    /** Stripe Checkout in setup mode: the buyer enters a card on Stripe's page; nothing is charged. */
+    async createSetupCheckout(input: {customerId: string; userId: string; successUrl: string; cancelUrl: string}, key: string) {
+      assertReady(); stripeId(input.customerId, 'cus_'); localId(input.userId, 'User ID'); idempotencyKey(key);
+      const fields: Record<string, string> = {
+        mode: 'setup', ui_mode: 'hosted_page', currency: 'usd', customer: input.customerId, client_reference_id: input.userId,
+        'payment_method_types[0]': 'card',
+        success_url: returnUrl(new URL(input.successUrl, origin!).href, origin!), cancel_url: returnUrl(new URL(input.cancelUrl, origin!).href, origin!),
+        'metadata[purpose]': 'saved_card', 'metadata[user_id]': input.userId,
+        'setup_intent_data[metadata][purpose]': 'saved_card', 'setup_intent_data[metadata][user_id]': input.userId,
+      };
+      const session = object(await request('POST', 'checkout/sessions', fields, key), 'checkout.session');
+      stripeId(session.id, sessionPrefix); providerUrl(session.url, 'checkout.stripe.com');
+      if (session.mode !== 'setup' || session.client_reference_id !== input.userId || objectId(session.customer) !== input.customerId)
+        fail('stripe_order_mismatch', 'Card setup does not match this account.', 502);
+      return session;
+    },
+    /** Server-side proof that a setup session finished: the card it saved, for this user and customer only. */
+    async retrieveSavedCard(sessionId: string, binding: {userId: string; customerId: string}) {
+      stripeId(sessionId, sessionPrefix); localId(binding.userId, 'User ID'); stripeId(binding.customerId, 'cus_');
+      const session = object(await request('GET', 'checkout/sessions/' + sessionId + '?expand[]=setup_intent.payment_method'), 'checkout.session');
+      const meta = isObject(session.metadata) ? session.metadata : {};
+      if (session.id !== sessionId || session.mode !== 'setup' || session.client_reference_id !== binding.userId ||
+        objectId(session.customer) !== binding.customerId || meta.purpose !== 'saved_card' || meta.user_id !== binding.userId)
+        fail('stripe_order_mismatch', 'Card setup does not match this account.', 502);
+      if (session.status !== 'complete') fail('stripe_payment_unconfirmed', 'The card has not been saved yet.', 409);
+      const intent = isObject(session.setup_intent) ? session.setup_intent : null;
+      const method = intent && isObject(intent.payment_method) ? intent.payment_method : null;
+      const card = method && isObject(method.card) ? method.card : null;
+      if (!intent || intent.status !== 'succeeded' || !method || !card || method.type !== 'card' || objectId(method.customer) !== binding.customerId)
+        return fail('stripe_payment_unconfirmed', 'The card has not been saved yet.', 409);
+      stripeId(method.id, 'pm_');
+      const brand = typeof card.brand === 'string' ? card.brand.slice(0, 20) : 'card';
+      const last4 = typeof card.last4 === 'string' && /^\d{4}$/.test(card.last4) ? card.last4 : '';
+      const exp = Number.isInteger(card.exp_month) && Number.isInteger(card.exp_year) ? String(card.exp_month).padStart(2, '0') + '/' + String(card.exp_year).slice(-2) : '';
+      return {paymentMethodId: method.id as string, brand, last4, exp};
+    },
+    async detachPaymentMethod(paymentMethodId: string, key: string) {
+      stripeId(paymentMethodId, 'pm_'); idempotencyKey(key);
+      return object(await request('POST', 'payment_methods/' + paymentMethodId + '/detach', {}, key), 'payment_method', false);
+    },
+    /** Charges a won auction to the winner's saved card without them present. Same order binding as Checkout:
+     *  transfer group and order metadata, no automatic transfer (the seller is paid after delivery). */
+    async createOffSessionPayment(input: {orderId: string; amountCents: number; customerId: string; paymentMethodId: string; title: string}, key: string) {
+      assertReady(); localId(input.orderId); cents(input.amountCents, 50); stripeId(input.customerId, 'cus_'); stripeId(input.paymentMethodId, 'pm_'); idempotencyKey(key);
+      const intent = object(await request('POST', 'payment_intents', {
+        amount: String(input.amountCents), currency: 'usd', customer: input.customerId, payment_method: input.paymentMethodId,
+        'payment_method_types[0]': 'card', off_session: 'true', confirm: 'true',
+        transfer_group: 'ORDER_' + input.orderId, ...metadata(input.orderId), 'metadata[purpose]': 'auction_autocharge',
+        description: ('ComicHuddle auction ' + orderReference(input.orderId) + ' · ' + input.title).slice(0, 500),
+        statement_descriptor_suffix: 'CH ' + orderReference(input.orderId),
+      }, key), 'payment_intent');
+      stripeId(intent.id, 'pi_');
+      if (intent.amount !== input.amountCents || intent.currency !== 'usd' || intent.transfer_group !== 'ORDER_' + input.orderId || objectId(intent.customer) !== input.customerId)
+        fail('stripe_order_mismatch', 'Payment does not match this order.', 502);
+      verifyOrderMetadata(intent, input.orderId);
+      return intent;
     },
     /** Support ComicHuddle: a one-time payment to the platform account itself (no Connect, no transfer group). */
     async createSupportCheckout(input: {supportId: string; amountCents: number; successUrl: string; cancelUrl: string; email?: string}, key: string) {

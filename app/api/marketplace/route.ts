@@ -7,10 +7,16 @@ import {locationFilters} from '../../../lib/location-search';
 import {marketplaceDirectory} from '../../../lib/marketplace-directory';
 import {bidHistory,markAuctionUnpaid,resolveEndedAuctions} from '../../../lib/marketplace-auction';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../lib/api-security';
+import {after} from 'next/server';
+import {env} from '../../../lib/runtime-env';
+import {commerceChargeAuctionWinners,type StripeSandboxEnv} from '../../../lib/commerce';
 export const dynamic='force-dynamic';
+// Auctions end lazily as people browse; right after the response, charge any winner with a saved card (lib/commerce.ts).
+const chargeWinnersLater=(db:ReturnType<typeof getDb>)=>{try{after(()=>commerceChargeAuctionWinners(db,env as unknown as StripeSandboxEnv,{limit:5}).then(()=>undefined,()=>undefined))}catch{}};
 // Signed-out visitors may browse active listings through the public projection only.
 export async function GET(request:Request){try{
  const user=await getChatGPTUser(),db=getDb(),url=new URL(request.url);
+ chargeWinnersLater(db);
  const [viewer]=user?await db.select().from(profiles).where(eq(profiles.userId,user.userId)):[];
  const bids=url.searchParams.get('bids');
  if(bids!==null){if(!/^[A-Za-z0-9_-]{1,100}$/.test(bids))throw new ApiRequestError('Choose a valid auction.',400);await resolveEndedAuctions(db).catch(()=>[]);return privateJson({bids:await bidHistory(db,bids,viewer?.id)})}
