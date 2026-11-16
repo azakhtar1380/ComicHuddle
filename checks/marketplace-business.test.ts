@@ -1,4 +1,5 @@
 import {prepareListingEdit} from '../lib/listing-edit';
+import {deleteDraft,listDrafts,readDraft,writeDraft} from '../lib/listing-drafts';
 import {getPool} from '../db/postgres';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {after,before,test} from 'node:test';
@@ -23,7 +24,7 @@ import {createCommerceState,applyCommerceEvent,type CommerceState} from '../lib/
 let engine:PGlite;const pool=new Pool();
 before(async()=>{
  engine=new PGlite();await nativeGcdFixture(engine);await engine.exec('CREATE SCHEMA ch_web;BEGIN;');
- for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql','024_commerce_live_mode.sql','026_binding_auctions.sql','042_listing_cover_opt_out.sql','043_pending_listings.sql','044_calculated_shipping.sql','045_listing_package.sql','046_seller_payouts.sql','047_support_payments.sql','048_saved_cards.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
+ for(const name of ['001_original_comichuddle.sql','002_runtime.sql','004_catalog_cover_references.sql','006_marketplace_wallet_safepurchase.sql','007_us_postal_centroids.sql','008_safepurchase_retention.sql','009_wallet_history_mode.sql','010_native_gcd_directory.sql','011_collector_rewards.sql','012_sourced_fmv.sql','013_native_directory_join.sql','014_preserve_incomplete_snapshot.sql','015_native_readiness_gate.sql','016_fast_catalog_fallback.sql','017_full_native_directory.sql','018_market_pulse_history.sql','019_native_read_state.sql','020_native_predicate_statistics.sql','021_catalog_recognition.sql','022_coordinated_enrichment.sql','023_launch_stabilization.sql','024_commerce_live_mode.sql','026_binding_auctions.sql','042_listing_cover_opt_out.sql','043_pending_listings.sql','044_calculated_shipping.sql','045_listing_package.sql','046_seller_payouts.sql','047_support_payments.sql','048_saved_cards.sql','049_listing_drafts.sql'])await engine.exec(readFileSync('db/postgres-migrations/'+name,'utf8'));
  await engine.exec('COMMIT;SET search_path TO ch_web,public;');
  const query=async(config:string|{text:string;rowMode?:string},values:unknown[]=[])=>{
   const result=await engine.query<Record<string,unknown>>(typeof config==='string'?config:config.text,values);
@@ -179,6 +180,17 @@ test('editing unpublishes into a private exact-copy draft atomically and preserv
  const row=(await pool.query('SELECT data FROM ch_web.collector_listing_drafts WHERE user_id=$1',[seller.userId])).rows[0];
  assert.deepEqual(row.data.rows.flatMap((item:{copyIds:string[]})=>item.copyIds),JSON.parse(listing.items).map((item:{bookId:string})=>item.bookId));
  assert.equal((await getDb().select().from(listings).where(eq(listings.id,listing.id)))[0].status,'withdrawn');
- const next=await offer(seller);await assert.rejects(prepareListingEdit(getDb(),seller.userId,next.id));
- assert.equal((await getDb().select().from(listings).where(eq(listings.id,next.id)))[0].status,'active');
+ // Several drafts: the first edit's draft moves to the Drafts list, so a second edit is allowed and both are kept.
+ const next=await offer(seller,{title:'Second edit'});await prepareListingEdit(getDb(),seller.userId,next.id);
+ assert.equal((await getDb().select().from(listings).where(eq(listings.id,next.id)))[0].status,'withdrawn');
+ const drafts=await listDrafts(getDb(),seller.userId);assert.equal(drafts.length,2);assert.ok(drafts.some(d=>d.title==='Exact copy edit'));assert.ok(drafts.some(d=>d.title==='Second edit'));
+ const latest=await readDraft(getDb(),seller.userId,'latest');assert.equal(latest.draft?.title,'Second edit','latest opens the newest draft');
+ // New drafts: unknown id is empty; saving twice with a stale revision is refused; another seller can't read or delete it.
+ const id=crypto.randomUUID(),fresh=await readDraft(getDb(),seller.userId,id);assert.equal(fresh.draft,null);assert.equal(fresh.id,id);
+ const draft={...latest.draft!,title:'Brand new'},first=await writeDraft(getDb(),seller.userId,{draftId:id,baseRevision:null,draft});assert.ok(first);
+ assert.equal(await writeDraft(getDb(),seller.userId,{draftId:id,baseRevision:null,draft}),null,'same id twice without a revision is a conflict');
+ assert.equal(await writeDraft(getDb(),other.userId,{draftId:id,baseRevision:first!.revision,draft}),null,'another seller cannot overwrite it');
+ assert.equal((await readDraft(getDb(),other.userId,id)).draft,null,'nor read it');
+ await deleteDraft(getDb(),other.userId,id,null);assert.equal((await listDrafts(getDb(),seller.userId)).length,3);
+ await deleteDraft(getDb(),seller.userId,id,null);assert.equal((await listDrafts(getDb(),seller.userId)).length,2);
 });

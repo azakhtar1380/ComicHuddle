@@ -52,7 +52,7 @@ export function useCollectorNetwork(signedIn:boolean,notify:(s:string)=>void){
   void fetch('/api/social?kind=account',{credentials:'same-origin',cache:'no-store',signal:controller.signal}).then(async response=>{if(!response.ok)throw Error('Couldn’t load your profile.');return response.json() as Promise<{me:CollectorProfile|null}>}).then(account=>{if(current()){setData(previous=>({...previous,me:account.me}));setReady(true);setError('')}}).catch(()=>undefined).finally(()=>{clearTimeout(timer);if(current())void refresh()});
   return()=>{clearTimeout(timer);controller.abort();networkRequest.current++};
  },[signedIn,refresh]);
- async function act(action:Record<string,unknown>):Promise<ActionResult|null>{
+ async function act(action:Record<string,unknown>,options:{rethrow?:boolean}={}):Promise<ActionResult|null>{
   if(busyRef.current)return null;busyRef.current=true;setBusy(true);setActionError('');const session=networkSession.current,current=()=>networkMounted.current&&networkSignedIn.current&&session===networkSession.current,controller=new AbortController(),timer=setTimeout(()=>controller.abort(),40000);
   try{
    const r=await fetch('/api/social',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(action),signal:controller.signal});const d=await r.json() as ActionResult&{error?:string};if(!r.ok)throw Error(d.error||'Couldn’t save that. Try again.');if(!current())return null;
@@ -62,7 +62,7 @@ export function useCollectorNetwork(signedIn:boolean,notify:(s:string)=>void){
     setReady(true);setError('');void refresh();return d;
    }
    await refresh();return current()?d:null;
-  }catch(e){if(current()){const message=controller.signal.aborted?'We’re not sure that saved. Your choices are still here. Check before trying again.':e instanceof Error&&e.message?e.message:'Couldn’t save that. Try again.';setActionError(message);notify(message)}return null}
+  }catch(e){if(current()){const message=controller.signal.aborted?'We’re not sure that saved. Your choices are still here. Check before trying again.':e instanceof Error&&e.message?e.message:'Couldn’t save that. Try again.';if(options.rethrow)throw Error(message);setActionError(message);notify(message)}return null}
   finally{clearTimeout(timer);busyRef.current=false;if(networkMounted.current)setBusy(false)}
  }
  return {data,ready,error,busy,actionError,clearActionError,refresh,act};

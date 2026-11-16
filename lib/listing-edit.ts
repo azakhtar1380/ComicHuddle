@@ -9,9 +9,11 @@ import {listingItems,closeListingStatements} from './marketplace';
 import {emptyListingDraft,listingDraftSchema} from './listing-draft';
 import {conditionalGuard,operationGuardFailed} from './operation-guard';
 import {ensureSellerPhotos} from './seller-photos';
+import {adoptLegacyDraft} from './listing-drafts';
 /** Editing an unsold fixed-price listing first unpublishes it into a private
  * draft. Purchased snapshots and accepted auction history are never rewritten. */
 export async function prepareListingEdit(db:ReturnType<typeof getDb>,userId:string,listingId:string){
+ await adoptLegacyDraft(db,userId).catch(()=>undefined); // an older saved draft moves to the Drafts list, so it never blocks editing
  const [seller]=await db.select().from(profiles).where(eq(profiles.userId,userId));
  if(!seller||seller.moderated||seller.deletionStartedAt||seller.rulesVersion!==previewRulesVersion||!seller.rulesAcceptedAt||await isRestricted(db,userId))throw new ApiRequestError('An active collector profile is required.',403);
  const [row]=await db.select().from(listings).where(and(eq(listings.id,listingId),eq(listings.sellerId,seller.id)));

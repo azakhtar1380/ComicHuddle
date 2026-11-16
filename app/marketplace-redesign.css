@@ -572,3 +572,8 @@
 .mpx-package{margin-top:8px}.mpx-package summary{cursor:pointer;font-weight:700}
 .mpx-package-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 @media(max-width:560px){.mpx-package-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Payment setup callout: stands out in test mode and while payouts aren't set up yet. */
+.mpx-setup.is-test,.mpx-setup.needs-payouts{padding:16px 18px;border:2px solid var(--ink);background:#fff1b8;box-shadow:0 4px 0 var(--ink)}
+.mpx-setup.is-test>svg,.mpx-setup.needs-payouts>svg{color:var(--ink)}
+.mpx-setup.is-test>p,.mpx-setup.needs-payouts>p{font-size:16px;color:var(--ink)}
+.mpx-setup.is-test strong{font-weight:800}

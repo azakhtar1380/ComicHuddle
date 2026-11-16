@@ -27,11 +27,11 @@ export function useSafePurchaseSetup(){
   return setup;
 }
 
-export default function SafePurchaseBadge({priceCents,sellerOptIn=false,always=false,compact=false,link=true,setup:given}:{priceCents?:number|null;sellerOptIn?:boolean;always?:boolean;compact?:boolean;link?:boolean;setup?:SafePurchaseSetup|null}){
+export default function SafePurchaseBadge({priceCents,sellerOptIn=false,always=false,compact=false,link=true,setup:given,onlyWhenEnabled=false,label}:{priceCents?:number|null;sellerOptIn?:boolean;always?:boolean;compact?:boolean;link?:boolean;setup?:SafePurchaseSetup|null;onlyWhenEnabled?:boolean;label?:string}){
   const loaded=useSafePurchaseSetup(),setup=given===undefined?loaded:given;
-  if(!setup)return null;
+  if(!setup||onlyWhenEnabled&&!setup.enabled)return null;
   if(!always&&!sellerOptIn&&!safePurchaseRecommended(priceCents??null,setup.thresholdCents))return null;
-  const text=setup.enabled?'SafePurchase':'SafePurchase coming soon';
+  const text=setup.enabled?label||'SafePurchase':'SafePurchase coming soon';
   const hint=setup.enabled?'We check this comic before it ships to you. Tap to learn how SafePurchase works.':'SafePurchase inspection isn’t open yet. This order would get Standard Protection.';
   const body=<><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.2 4 5.2v6.1c0 5 3.4 9.3 8 10.5 4.6-1.2 8-5.5 8-10.5V5.2l-8-3Z" fill="currentColor"/><path d="m8.2 12.1 2.6 2.6 5-5.2" fill="none" stroke="var(--sp-badge-tick,#fff)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>{!compact&&<span>{text}</span>}</>;
   const className='ch-sp-badge'+(setup.enabled?'':' is-soon')+(compact?' is-compact':'');
