@@ -408,7 +408,7 @@ export async function commerceConfirmPickupCode(db:Db,userId:string,raw:Record<s
 async function listingShipping(listing:typeof listings.$inferSelect,input:{shippingAddress?:{postalCode:string};shippingService?:string},environment:StripeSandboxEnv):Promise<{cents:number;service:string|null}>{
  if(listing.shippingCalculated!==1)return {cents:listing.shipping,service:null};
  try{
-  const options=await quoteShippingRates(environment,listing.locationZip,input.shippingAddress?.postalCode||'',parcelFor({kind:listing.kind,itemCount:listing.itemCount,cert:listing.cert,items:JSON.parse(listing.items||'[]')}));
+  const options=await quoteShippingRates(environment,listing.locationZip,input.shippingAddress?.postalCode||'',parcelFor({...listing,items:JSON.parse(listing.items||'[]')}));
   const chosen=chooseShippingOption(options,input.shippingService);return {cents:chosen.cents,service:chosen.carrier+' '+chosen.service};
  }catch(error){throw new ApiRequestError(error instanceof ShippingQuoteError?error.message:'Shipping couldn’t be calculated. Please try again.',422)}
 }

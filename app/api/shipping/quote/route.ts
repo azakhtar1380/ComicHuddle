@@ -20,7 +20,7 @@ export async function GET(req:Request){
   if(!listing)return privateJson({error:'That listing isn’t available.'},404);
   if(listing.fulfillment==='pickup')return privateJson({error:'This comic is local pickup only.'},409);
   if(listing.shippingCalculated!==1)return privateJson({options:[{id:'flat',carrier:'',service:listing.shipping?'Shipping':'Free shipping',cents:listing.shipping,days:null}],flat:true});
-  const parcel=parcelFor({kind:listing.kind,itemCount:listing.itemCount,cert:listing.cert,items:JSON.parse(listing.items||'[]')});
+  const parcel=parcelFor({...listing,items:JSON.parse(listing.items||'[]')});
   const options=await quoteShippingRates({EASYPOST_API_KEY:process.env.EASYPOST_API_KEY},listing.locationZip,zip,parcel);
   return privateJson({options,package:parcel.label,from:[listing.locationCity,listing.locationState].filter(Boolean).join(', ')});
  }catch(error){

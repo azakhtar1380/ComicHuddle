@@ -8,7 +8,13 @@ export type ShippingOption={id:string;carrier:string;service:string;cents:number
 
 /** Package sized to what is being sold: a bagged-and-boarded comic in a mailer, a graded slab in a box, or a
  * box for a collection (about 6 oz per comic plus packing, capped at 70 lb). */
-export function parcelFor(listing:{kind:string;itemCount:number;cert?:string|null;items?:unknown}):Parcel{
+export function parcelFor(listing:{kind:string;itemCount:number;cert?:string|null;items?:unknown;weightOz?:number|null;lengthIn?:number|null;widthIn?:number|null;heightIn?:number|null}):Parcel{
+ // The seller's own weight and box size win when given; otherwise size it from what is sold.
+ if(listing.weightOz&&listing.lengthIn&&listing.widthIn&&listing.heightIn)return {length:listing.lengthIn,width:listing.widthIn,height:listing.heightIn,weightOz:listing.weightOz,label:'Your package'};
+ const auto=autoParcel(listing);
+ return listing.weightOz?{...auto,weightOz:listing.weightOz}:auto;
+}
+function autoParcel(listing:{kind:string;itemCount:number;cert?:string|null;items?:unknown}):Parcel{
  const items=Array.isArray(listing.items)?listing.items as {condition?:{mode?:string}|null}[]:[];
  const graded=!!(listing.cert&&String(listing.cert).trim())||items.some(item=>item?.condition?.mode==='graded'||item?.condition?.mode==='CGC');
  const count=Math.max(1,Math.min(Number(listing.itemCount)||1,500));

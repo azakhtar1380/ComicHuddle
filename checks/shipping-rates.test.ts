@@ -19,6 +19,8 @@ test('package is sized to what is sold',()=>{
  assert.equal(parcelFor({kind:'single',itemCount:1,cert:'1234567001'}).label,'Graded slab in a box');
  const box=parcelFor({kind:'collection',itemCount:30});assert.equal(box.label,'30 comics in a box');assert.equal(box.weightOz,16+30*6);
  assert.ok(parcelFor({kind:'collection',itemCount:500}).weightOz<=1120,'capped at 70 lb');
+ assert.deepEqual(parcelFor({kind:'single',itemCount:1,weightOz:20,lengthIn:14,widthIn:11,heightIn:3}),{length:14,width:11,height:3,weightOz:20,label:'Your package'},'the seller’s full package wins');
+ assert.equal(parcelFor({kind:'single',itemCount:1,weightOz:30}).weightOz,30,'a weight alone overrides the estimate');
 });
 
 test('live rates: cheapest first, Media Mail, premium overnight and unknown carriers hidden, ZIPs sent',async()=>{
