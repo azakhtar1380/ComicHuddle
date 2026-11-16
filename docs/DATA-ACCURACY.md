@@ -28,6 +28,20 @@ There are 2+ million issues, so nobody can check every comic by hand. The site t
 
 Other findings:
 - Where Wikidata and a Metron description both name an issue (33 characters), they agree every time.
-- About 200 characters exist twice: a Wikidata-only record next to the Metron one (for example "Mysterio" and "Mysterio (Beck)"). Merging them needs its own careful pass.
+- About 200 characters existed twice: a Wikidata-only record next to the Metron one (for example "Mysterio" and "Mysterio (Beck)"). See below.
+
+## Duplicate characters (merged November 16, 2026)
+
+150 duplicate pairs were checked by hand and merged into one page each (`lib/character-merges.ts`; apply now with `scripts/apply-character-merges.ts`, and every character import re-applies it).
+- The old page link opens the merged character, and nothing is deleted.
+- When Wikidata's first appearance for the pair is right, it moves to the merged page (Kierrok now shows X-Men #96 instead of a 1986 reprint). When it is wrong or doubtful (Mysterio, Proteus, Baron Zemo and others marked `keepFact:false`), it is left behind.
+- A merge is skipped automatically if either record has changed since it was checked.
+
+Deliberately **not** merged, because a matching name isn't the same character:
+- Alternate versions: the "Days of Future Past" X-Men (Storm, Colossus, Magneto, Kate Pryde…), and Limbo Storm and Nightcrawler.
+- Legacy names: Robin.
+- Wrong name matches: "Anthony Scarola" and Donald Trump, D&D gods and Narnia's Aslan.
+
+Left for the owner to decide: see the list in the November 16 conversation. To merge one, add its line to `lib/character-merges.ts`.
 
 Run the audit again any time: `scripts/audit-first-appearances.ts`. To correct a famous character, add or fix their line in `lib/first-appearance-reference.ts`, then run `scripts/apply-first-appearance-reference.ts`. The next character import also applies it.

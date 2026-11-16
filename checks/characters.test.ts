@@ -10,9 +10,10 @@ import {Pool} from 'pg';
 import {nativeGcdFixture} from './native-gcd-fixture';
 import {getDb} from '../db';
 import {seedStarterStatements,searchSharedCatalog} from '../lib/catalog-store';
-import {buildProfile,characterQuery,characterSearchParams,characterSearchText,firstAppearanceFromDesc,issueProfile,normalizeCharacterText,parseCharacterDetail,parseIssueDetail,parseIssueListPage,profileIssueId,sameIssueRef,searchCharacters,wikidataCharacterId,type FactRow} from '../lib/characters';
+import {buildProfile,characterPage,characterQuery,characterSearchParams,characterSearchText,firstAppearanceFromDesc,issueProfile,normalizeCharacterText,parseCharacterDetail,parseIssueDetail,parseIssueListPage,profileIssueId,sameIssueRef,searchCharacters,wikidataCharacterId,type FactRow} from '../lib/characters';
 import {groupFacts,matchFactByName,matchFactViaMetron,parseSparqlJson,splitIssueLabel,type WikidataFact} from '../lib/characters-wikidata';
 import {finalizeCharacters,importCharacterDetails,importCharacterList,importIssueLists,linkMetronIssues,matchWikidataFacts,metronFirstAppearance,metronNameIndex,storeWikidataFacts,type HarvestedIssue} from '../lib/characters-import';
+import {applyCharacterMerges,CHARACTER_MERGES} from '../lib/character-merges';
 import {allowedMetronPath,metronBudgetLimits,reserveMetronCalls} from '../lib/metron-api-budget';
 
 test('character text normalization and search text',()=>{
@@ -191,6 +192,30 @@ test('import, profile with on-demand enrichment, search and the catalog characte
  assert.deepEqual(combined.issues.map(i=>i.id),[4000005068]);
  const none=await searchSharedCatalog(db,{q:'',limit:10,offset:0,character:424242});
  assert.equal(none.total,0);
+});
+
+test('hand-checked character merges: one page per character, guarded, wrong facts left behind',async()=>{
+ // Real list: unique Wikidata items, look-alike alternate versions never listed.
+ assert.equal(new Set(CHARACTER_MERGES.map(m=>m.qid)).size,CHARACTER_MERGES.length);
+ assert.ok(!CHARACTER_MERGES.some(m=>m.name==='Robin'||m.name==='Kate Pryde'||m.name==='Storm'),'legacy names and alternate versions are not merged');
+ assert.equal(CHARACTER_MERGES.find(m=>m.qid==='Q1004568')?.into,'Jim Hammond','the 1939 Human Torch is not Johnny Storm');
+ await engine.exec(`INSERT INTO ch_web.characters(character_id,metron_id,name,search_text) VALUES(70,70,'Kierrok','|kierrok|'),(71,71,'Mysterio (Beck)','|mysterio beck|'),(72,72,'Somebody Else','|somebody else|')
+  ON CONFLICT DO NOTHING;
+  INSERT INTO ch_web.characters(character_id,wikidata_qid,name,search_text) VALUES(-170,'Q170','Kierrok','|kierrok|'),(-171,'Q171','Mysterio','|mysterio|'),(-172,'Q172','Changed','|changed|');
+  INSERT INTO ch_web.character_first_appearances(character_id,source,source_ref,issue_id,series,number,year,match_method) VALUES
+   (-170,'wikidata','Q9',4000000725,'Batman','2',1940,'wikidata_gcd_id'),(-171,'wikidata','Q9',4000000724,'Batman','1',1940,'wikidata_gcd_id')`);
+ const list=[{qid:'Q170',name:'Kierrok',metronId:70,into:'Kierrok'},{qid:'Q171',name:'Mysterio',metronId:71,into:'Mysterio (Beck)',keepFact:false as const},{qid:'Q172',name:'Changed',metronId:72,into:'Changed Name'},{qid:'Q173',name:'Gone',metronId:73,into:'Gone'}];
+ const first=await applyCharacterMerges(db,list);
+ assert.deepEqual([first.merged,first.already,first.skipped.length],[2,0,2],'a renamed or missing record is never merged');
+ const rows=(await engine.query<{character_id:number;merged_into:number|null}>('SELECT character_id,merged_into FROM ch_web.characters WHERE character_id IN (-170,-171,-172) ORDER BY character_id DESC')).rows;
+ assert.deepEqual(rows.map(r=>r.merged_into),[70,71,null]);
+ assert.equal((await engine.query("SELECT 1 FROM ch_web.character_first_appearances WHERE character_id=70 AND source='wikidata' AND issue_id=4000000725")).rows.length,1,'a correct first appearance moves to the surviving page');
+ assert.equal((await engine.query("SELECT 1 FROM ch_web.character_first_appearances WHERE character_id=71")).rows.length,0,'a doubtful one is left behind');
+ assert.equal((await engine.query("SELECT wikidata_qid FROM ch_web.characters WHERE character_id=70")).rows[0]?.wikidata_qid,'Q170');
+ assert.equal((await characterPage(db,-170))?.characterId,70,'the old page link opens the merged character');
+ assert.deepEqual((await searchCharacters(db,'kierrok',8)).map(r=>r.characterId),[70],'search shows one result');
+ const again=await applyCharacterMerges(db,list);
+ assert.deepEqual([again.merged,again.already],[0,2],'safe to rerun');
 });
 
 test('shared Metron budget: caller ceiling, shared ceiling and minute window',async()=>{

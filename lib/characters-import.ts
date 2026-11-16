@@ -3,6 +3,7 @@
 // then derives character_issues, merges Wikidata-only characters into their Metron twins and
 // recomputes which first-appearance facts are shown. Idempotent; safe to re-run.
 import {applyFirstAppearanceReference} from './characters-reference';
+import {applyCharacterMerges,MERGE_FACT_EXCLUDED_QIDS} from './character-merges';
 import {createReadStream,existsSync} from 'node:fs';
 import {createInterface} from 'node:readline';
 import {sql} from 'drizzle-orm';
@@ -135,10 +136,11 @@ export async function storeWikidataFacts(db:CatalogDb,facts:WikidataFact[],match
    SELECT x.id,x.qid,x.name,ARRAY(SELECT jsonb_array_elements_text(x.aliases)),x.search,x.description,x.sitelinks,now()
    FROM jsonb_to_recordset(${json}::jsonb) AS x(id integer,qid text,name text,aliases jsonb,search text,description text,sitelinks integer)
    ON CONFLICT(character_id) DO UPDATE SET name=excluded.name,aliases=excluded.aliases,search_text=excluded.search_text,description=excluded.description,sitelinks=excluded.sitelinks,updated_at=now()`);
-  // The fact is stored on the Wikidata row and, once merged, on its Metron twin.
+  // The fact is stored on the Wikidata row and, once merged, on its Metron twin (except hand-checked merges whose
+  // Wikidata first appearance is wrong: lib/character-merges.ts keepFact:false).
   await db.execute(sql`INSERT INTO ch_web.character_first_appearances AS f(character_id,source,source_ref,issue_id,metron_issue_id,series,number,year,match_method,updated_at)
-   SELECT COALESCE(c.merged_into,x.id),'wikidata',x.ref,x.issue_id,x.metron_issue_id,x.series,x.number,x.year,x.method,now()
-   FROM jsonb_to_recordset(${json}::jsonb) AS x(id integer,ref text,issue_id bigint,metron_issue_id integer,series text,number text,year integer,method text)
+   SELECT CASE WHEN x.qid=ANY(${'{'+MERGE_FACT_EXCLUDED_QIDS.join(',')+'}'}::text[]) THEN x.id ELSE COALESCE(c.merged_into,x.id) END,'wikidata',x.ref,x.issue_id,x.metron_issue_id,x.series,x.number,x.year,x.method,now()
+   FROM jsonb_to_recordset(${json}::jsonb) AS x(id integer,qid text,ref text,issue_id bigint,metron_issue_id integer,series text,number text,year integer,method text)
    JOIN ch_web.characters c ON c.character_id=x.id
    ON CONFLICT(character_id,source) DO UPDATE SET source_ref=excluded.source_ref,issue_id=excluded.issue_id,metron_issue_id=excluded.metron_issue_id,series=excluded.series,number=excluded.number,year=excluded.year,match_method=excluded.match_method,updated_at=now()`);
  }
@@ -222,6 +224,8 @@ export async function finalizeCharacters(db:CatalogDb,log:Log=()=>undefined){
    ON CONFLICT(character_id,source) DO UPDATE SET source_ref=excluded.source_ref,issue_id=excluded.issue_id,metron_issue_id=excluded.metron_issue_id,series=excluded.series,number=excluded.number,year=excluded.year,match_method=excluded.match_method,updated_at=now() RETURNING 1),
   twins AS (UPDATE ch_web.characters m SET wikidata_qid=w.wikidata_qid,sitelinks=w.sitelinks,updated_at=now() FROM uniq u JOIN ch_web.characters w ON w.character_id=u.w WHERE m.character_id=u.m RETURNING 1)
   UPDATE ch_web.characters w SET merged_into=u.m,updated_at=now() FROM uniq u WHERE w.character_id=u.w`);
+ // Hand-checked merges (same character, different names or not caught above).
+ {const merges=await applyCharacterMerges(db);log(`hand-checked merges: ${merges.merged} new, ${merges.already} already merged${merges.skipped.length?'; skipped: '+merges.skipped.join(', '):''}`)}
  // Shown facts: Metron ties / description conflicts hidden; when a character has two facts on different
  // issues the earlier year wins; a little-known Wikidata-only character sharing its name with a
  // well-known one (an alternate version) is hidden when its fact points at a different issue.
