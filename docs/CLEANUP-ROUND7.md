@@ -39,3 +39,20 @@ The remaining open task is mostly React's development-mode work (`jsxDEV`, prop 
 
 ## 7. Notifications panel
 Under 640px the bell always opens the bottom sheet (full width, max 85vh, grab handle, Notifications, Mark all read, close; body scroll locked). On desktop the dropdown is anchored under the bell with `position:fixed`, kept 12px inside the window, above the header. Filter chips scroll sideways inside the panel (shared hidden-scroll-bar row). Titles wrap, bodies clamp to 2 lines, time on its own line; the unread dot and trophy icon share one 28px slot. Escape, outside tap and the close button close it and focus returns to the bell. Test: `e2e/14-notifications.spec.ts`.
+
+## 8. Account panel
+- "Get verified" is a normal row, first under "You": BadgeCheck, label, and a pill on the right (Not verified / Pending / Verified; a fixed-size shimmer while the status loads). Not verified opens the verification sheet ($10 fee first); pending or verified opens /verified. Business accounts go to My Profile (business details).
+- "Profile & showcase" is now "My profile" and opens My Profile (so does "View my profile").
+- The drawer slides with transform only (220ms ease-out, `will-change: transform`), the backdrop fades; the full-screen blur is gone (it repainted every frame). Reduced motion: fade only. Scroll lock pads the page by the scroll bar's width, so nothing jumps sideways (shared in `lib/dialog-focus.ts`, so every dialog benefits).
+- The drawer's open state moved out of the app shell into `lib/drawer-store.tsx`: opening it re-renders only the drawer and the two buttons that show its state, not the whole page.
+- Focus is trapped, Escape and the backdrop close it, focus returns to the account button.
+
+Measured like section 6 (dev server, CPU 4× slower, 5 opens, median):
+
+| | Before | After | Target |
+|---|---|---|---|
+| Click → panel painted | 223 ms | 100 ms | |
+| Longest main-thread task while opening | 193–259 ms | 86–88 ms (first open 130 ms) | ≤50 ms |
+| Layout shift while opening | 0 | 0 | 0 |
+
+Most of the remaining task is React development-mode work in the panel's first render; re-measure on the QA deployment. Test: `e2e/15-account-panel.spec.ts`.

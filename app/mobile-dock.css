@@ -135,3 +135,15 @@
 .am-drawer .mm,.am-drawer .ap{clear:both}
 .am-drawer .ap{clear:none}
 .am-drawer .ap-who{padding-right:44px}
+
+/* Account / More drawer (cleanup round): slide with transform only, fade the backdrop, no blur (a full-screen
+   blur repaints every frame), contents are rendered before the slide starts. */
+.overlay.drawer-overlay{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(22,22,18,.55);animation:ap-fade .22s ease-out}
+.drawer-overlay .account-drawer{will-change:transform;animation:ap-slide .22s ease-out}
+@media (max-width:760px){.drawer-overlay .account-drawer.am-drawer{animation:ap-rise .22s ease-out}}
+@keyframes ap-fade{from{opacity:0}to{opacity:1}}
+@keyframes ap-slide{from{transform:translateX(100%)}to{transform:none}}
+@keyframes ap-rise{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.drawer-overlay .account-drawer,.drawer-overlay .account-drawer.am-drawer{animation:ap-fade .18s ease-out;will-change:auto}}
+.ap-wallet small{min-height:1.3em}
+.ap-wallet-loading{color:var(--muted)}

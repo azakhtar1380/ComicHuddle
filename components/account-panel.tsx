@@ -70,13 +70,13 @@ export default function AccountPanel(props: AccountPanelProps) {
         <h2>{name}{isAdmin && <> <AdminBadge founder={isFounder} size={18} showLabel /></>}</h2>
         {handle ? <p>@{handle}</p> : <p>No public profile yet</p>}
         <p className="ap-meta">{[location, memberSince && memberSince > 1990 && memberSince <= new Date().getFullYear() ? 'Collector since ' + memberSince : null].filter(Boolean).join(' · ')}</p>
-        <button type="button" className="ds-link" onClick={() => onNavigate('Collectors')}>{hasProfile ? 'View my profile' : 'Create my profile'}</button>
+        <button type="button" className="ds-link" onClick={() => onNavigate('My Profile')}>{hasProfile ? 'View my profile' : 'Create my profile'}</button>
       </div>
     </header>
     {status && <p className="am-status" role="status">{status}{onReconnect && <button type="button" className="ds-link" onClick={onReconnect}>Reconnect</button>}</p>}
     <button type="button" className="ap-wallet" onClick={() => onNavigate('Wallet')}>
       <Wallet size={22} aria-hidden />
-      <span><strong>Wallet</strong><small>{wallet === null ? 'Loading…' : wallet === 'error' ? 'Open your wallet to see your balance.' : `${wallet.points.toLocaleString('en-US')} points · ${usd(wallet.creditCents)} credit`}</small></span>
+      <span><strong>Wallet</strong><small className={wallet === null ? 'ap-wallet-loading' : undefined}>{wallet === null ? 'Loading…' : wallet === 'error' ? 'Open your wallet to see your balance.' : `${wallet.points.toLocaleString('en-US')} points · ${usd(wallet.creditCents)} credit`}</small></span>
       <ChevronRight size={18} aria-hidden />
     </button>
 
@@ -89,9 +89,9 @@ export default function AccountPanel(props: AccountPanelProps) {
       {row('Wallet & transactions', Wallet, 'Wallet')}
     </section>
     <section className="ap-group" aria-labelledby="ap-more"><h3 id="ap-more" className="mm-heading">You</h3>
+      <GetVerified variant="row" onBusiness={() => onNavigate('My Profile')}/>
       {row('Messages', MessageCircle, 'Messages', undefined, unread)}
-      {row('Profile & showcase', Sparkles, 'Collectors')}
-      <GetVerified/>
+      {row('My profile', Sparkles, 'My Profile')}
       {row(hasStudio ? 'My workshop studio' : 'Workshop requests', Wrench, 'Pressing', hasStudio ? 'provider' : 'requests')}
       {row('Settings', Settings, 'Settings')}
     </section>

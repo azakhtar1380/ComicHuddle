@@ -1,6 +1,6 @@
 type DialogEntry={element:HTMLElement;previous:HTMLElement|null};
 const dialogs:DialogEntry[]=[];
-let previousOverflow='';
+let previousOverflow='',previousPadding='';
 const focusable='button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]';
 
 function focusInPlace(element:HTMLElement|null|undefined){
@@ -19,7 +19,11 @@ function focusControl(element:HTMLElement,dialog:HTMLElement){
 export function activateDialog(element:HTMLElement|null,onClose:()=>void){
  if(!element)return;
  const entry:DialogEntry={element,previous:document.activeElement as HTMLElement|null};
- if(!dialogs.length){previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden'}
+ if(!dialogs.length){
+  const bar=window.innerWidth-document.documentElement.clientWidth;
+  previousOverflow=document.body.style.overflow;previousPadding=document.body.style.paddingRight;
+  if(bar>0)document.body.style.paddingRight=bar+'px';document.body.style.overflow='hidden';
+ }
  dialogs.push(entry);
  let active=true;
  // Focus right after the dialog first paints: focusing earlier forces a full-page layout before anything shows.
@@ -46,7 +50,7 @@ export function activateDialog(element:HTMLElement|null,onClose:()=>void){
   const wasTop=dialogs.at(-1)===entry;
   dialogs.splice(dialogs.indexOf(entry),1);
   document.removeEventListener('keydown',key);
-  if(!dialogs.length)document.body.style.overflow=previousOverflow;
+  if(!dialogs.length){document.body.style.overflow=previousOverflow;document.body.style.paddingRight=previousPadding}
   if(wasTop){
    const parent=dialogs.at(-1)?.element;
    const previous=entry.previous?.isConnected&&(!parent||parent.contains(entry.previous))?entry.previous:parent;

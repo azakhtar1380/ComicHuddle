@@ -4,18 +4,33 @@
 // (pending); we contact the collector to confirm they're a real person, and an admin turns the blue check on by hand.
 // Business accounts are verified through their business details instead (onBusiness opens them).
 import {useEffect,useState} from 'react';
-import {BadgeCheck} from 'lucide-react';
+import {useRouter} from 'next/navigation';
+import {BadgeCheck,ChevronRight} from 'lucide-react';
 import {VerifiedBadge} from '../verified-badge';
 import Sheet from '../sheet';
 import './get-verified.css';
 
 type Status={status:'unverified'|'pending'|'verified'|'revoked';business:boolean;feeCents?:number};
 const money=(c:number)=>'$'+(c/100).toFixed(c%100?2:0);
-export default function GetVerified({variant='panel',onBusiness}:{variant?:'panel'|'profile';onBusiness?:()=>void}){
+export default function GetVerified({variant='panel',onBusiness}:{variant?:'panel'|'profile'|'row';onBusiness?:()=>void}){
+ const router=useRouter();
  const [s,setS]=useState<Status|null>(null),[open,setOpen]=useState(false),[contact,setContact]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  useEffect(()=>{let keep=true;void fetch('/api/verification',{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(keep&&d)setS(d)}).catch(()=>undefined);return()=>{keep=false}},[]);
- if(!s)return null;
  async function ask(){setBusy(true);setError('');try{const r=await fetch('/api/verification',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'request',contact})});const d=await r.json();if(!r.ok)throw Error(d.error);if(typeof d.checkoutUrl==='string'&&/^https:\/\/checkout\.stripe\.com\//.test(d.checkoutUrl)){window.location.assign(d.checkoutUrl);return}setS(v=>v&&{...v,status:d.status});setOpen(false)}catch(e){setError(e instanceof Error?e.message:'That didn’t send.')}finally{setBusy(false)}}
+ // The Account panel row renders at once (fixed-size pill while the status loads), so nothing shifts.
+ if(variant==='row'){
+  const state=!s?null:s.status==='verified'?'verified':s.status==='pending'?'pending':'none';
+  const pill=state===null?<em className="gv-pill-row is-loading" aria-hidden="true"/>:state==='verified'?<em className="gv-pill-row is-verified"><BadgeCheck size={13} aria-hidden="true"/> Verified</em>:state==='pending'?<em className="gv-pill-row is-pending">Pending</em>:<em className="gv-pill-row">Not verified</em>;
+  const go=()=>{if(!s)return;if(s.business&&onBusiness&&state==='none'){onBusiness();return}if(state==='none'){setOpen(true);return}router.push('/verified')};
+  return <>
+   <button type="button" className="ap-row gv-row" onClick={go} disabled={!s} aria-busy={!s}><BadgeCheck size={20} aria-hidden /><span>{state==='verified'?'Verified':'Get verified'}</span>{pill}<ChevronRight size={16} aria-hidden className="mm-chev" /></button>
+   {open&&<Sheet title="Get verified" onClose={()=>setOpen(false)} footer={<>{error&&<p className="ds-error gv-error" role="alert">{error}</p>}<button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setOpen(false)} disabled={busy}>Cancel</button><button type="button" className="ds-btn ds-btn-primary" onClick={()=>void ask()} disabled={busy}>{busy?'Starting…':s?.feeCents?'Pay '+money(s.feeCents)+' and request':'Request verification'}</button></>}>
+    <p className="gv-explain">{s?.feeCents?<>Verification costs <b>{money(s.feeCents)}</b>, paid first. </>:null}We’ll contact you to confirm you’re a real person, then an admin turns on the blue check.{s?.feeCents?' If we decline, the fee is refunded in full.':''} <a href="/verified">How we verify</a></p>
+    <label className="ds-field"><span>Best way to reach you (optional)</span><input value={contact} maxLength={200} onChange={e=>setContact(e.target.value)} placeholder="The email on your account is fine"/></label>
+   </Sheet>}
+  </>;
+ }
+ if(!s)return null;
  const fee=s.feeCents?money(s.feeCents):'';
  const explain=<p className="gv-explain">{fee?<>Verification costs <b>{fee}</b>, paid first. </>:null}We’ll contact you to confirm you’re a real person, then an admin turns on the blue check.{fee?' If we decline, the fee is refunded in full.':''} <a href="/verified">How we verify</a></p>;
  const field=<label className="ds-field"><span>Best way to reach you (optional)</span><input value={contact} maxLength={200} onChange={e=>setContact(e.target.value)} placeholder="The email on your account is fine"/></label>;

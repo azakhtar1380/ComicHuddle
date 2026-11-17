@@ -10,3 +10,11 @@
 .gv-error{flex-basis:100%;margin:0}
 .gv-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;font-size:14px;color:var(--ink)}
 .gv-form{display:grid;gap:8px}
+/* Account panel row: status pill on the right (fixed size while loading). */
+.gv-pill-row{display:inline-flex;align-items:center;gap:4px;min-width:84px;height:24px;justify-content:center;padding:0 10px;border-radius:999px;border:1.5px solid #8a857b;background:#ece8df;color:#4a463f;font:700 12px/1 var(--font-body,inherit);font-style:normal;white-space:nowrap}
+.gv-pill-row.is-pending{border-color:#8a6d00;background:#f6e3a1;color:#4d3b00}
+.gv-pill-row.is-verified{border-color:#174c9e;background:#e3edfb;color:#174c9e}
+.gv-pill-row.is-loading{border-color:transparent;background:linear-gradient(90deg,#ece8df,#f6f2ea,#ece8df);background-size:200% 100%}
+@media (prefers-reduced-motion:no-preference){.gv-pill-row.is-loading{animation:gv-shimmer 1.2s linear infinite}}
+@keyframes gv-shimmer{to{background-position:-200% 0}}
+.gv-row:disabled{cursor:progress;opacity:1}
