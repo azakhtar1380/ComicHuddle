@@ -3,7 +3,7 @@
 // (owner-written): admins are recognized by account email, the site owner is always the Founder.
 // Public display gets booleans only. Emails never leave this module.
 import {getPool} from '../db/postgres';
-import {adminEmails,isAdmin,isFounder} from './admin';
+import {adminEmails,founderEmail,isAdmin,isFounder} from './admin';
 import {ownerAccountId} from './owner';
 
 export type AdminAuditEntry = {id: string; adminUserId: string; adminName: string | null; founder: boolean; action: string; targetType: string; targetId: string; detail: Record<string, unknown>; createdAt: string};
@@ -24,7 +24,7 @@ async function accountEmail(userId: string): Promise<string | null> {
 export async function isAdminUserId(userId: string): Promise<boolean> {
   if (!userId) return false;
   if (userId === ownerAccountId) return true;
-  if (!adminEmails().length) return false;
+  if (!adminEmails().length && !founderEmail()) return false;
   return isAdmin({userId, email: await accountEmail(userId)});
 }
 
@@ -32,8 +32,9 @@ export type StaffBadge = {admin: boolean; founder: boolean};
 /** Public-safe badge flags for one account id. Never returns the email. */
 export async function staffBadgeForUser(userId: string | null | undefined): Promise<StaffBadge> {
   if (!userId) return {admin: false, founder: false};
-  const founder = isFounder({userId});
-  return {admin: founder || await isAdminUserId(userId), founder};
+  const email = adminEmails().length || founderEmail() ? await accountEmail(userId) : null;
+  const founder = isFounder({userId, email});
+  return {admin: founder || isAdmin({userId, email}), founder};
 }
 
 /** Public-safe badge flags keyed by profile id (profiles without a badge are omitted). */
@@ -45,7 +46,7 @@ export async function staffBadgesForProfiles(profileIds: string[]): Promise<Reco
     const result = await getPool().query<{id: string; user_id: string; email: string | null}>(
       'SELECT p.id, p.user_id, u.email FROM ch_web.profiles p LEFT JOIN ch_web."user" u ON u.id = p.user_id WHERE p.id = ANY($1::text[])', [ids]);
     for (const row of result.rows) {
-      const founder = row.user_id === ownerAccountId;
+      const founder = isFounder({userId: row.user_id, email: row.email});
       const admin = founder || (!!emails.length && isAdmin({userId: row.user_id, email: row.email}));
       if (admin) out[row.id] = {admin, founder};
     }

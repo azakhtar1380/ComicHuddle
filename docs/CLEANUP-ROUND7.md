@@ -60,3 +60,15 @@ Most of the remaining task is React development-mode work in the panel's first r
 ## Owner mockups (profile header and slab)
 - Profile header: dark striped band behind the photo row, name card, origin story and stats; red Share and yellow Edit profile buttons with labels; a Founder pill under the photo (founder only); Admin shown as a tag for other admins; four stat boxes with red numbers (Issues, Keys, Wishlist, Trades). "Now reading" is removed from profiles (the saved field stays, unused).
 - Share card: the slab only (no Trading card): night background with soft rays, clear slab with a red offset shadow, label with 9.8 COLLECTOR, name (+ check), @handle · Since, stats line, Fave / Grail, WHITE PAGES · BAGGED & BOARDED; the member's cover in the window with a Founder! sticker for the founder; photo with a yellow ring and Mr. Huddles; comichuddle.com/@handle. Under it: Scan at the con (real QR), the link with Copy link, and Instagram, Facebook, Messages, Save card, More.
+
+## 9. Founder badge, name and handle changes
+**Founder.** The founder is the owner account id (`COMICHUDDLE_OWNER_USER_ID`) **or** the account whose email matches the new private setting `COMICHUDDLE_FOUNDER_EMAIL` (one email, case-insensitive) — `isFounder` in `lib/admin.ts`, `staffBadgeForUser` / `staffBadgesForProfiles` in `lib/admin-audit.ts`. The founder is always an admin and shows the Founder badge only (others show Admin). Only `founder:true` reaches the browser. Badges now also show on listing seller cards and message threads. Owner-only tools (SafePurchase sweeps, reports, restrictions) still check the owner account id only.
+
+**Name and handle changes** (migration `058_profile_name_changes.sql`):
+- Edit profile shows "2 changes left" / "1 change left" / "No changes left — contact support" under Display name and Handle; at 0 the field is read-only; saving a change asks first ("Change your handle to @new? You'll have 1 change left.").
+- The server enforces it in the profile action (`app/api/social/route.ts`): 2 name and 2 handle changes per account; creating the profile doesn't count; admins and the founder are unlimited; unchanged values don't count. Staff words (admin, comichuddle, founder, support, staff, mod, official… including look-alikes like `adm1n`) and a starter list of offensive words are blocked (`lib/name-rules.ts`; there was no existing moderation word list, so this adds one to extend).
+- Every change is logged in `ch_web.profile_name_history`. A given-up handle is held for 30 days, and `/@old` redirects (308) to `/@new` for 90 days (`/api/profile-status` → `proxy.ts`).
+- Admin → Member names: look up @handle, reset change counts, or rename a handle. Both are written to the audit log and the member gets a notification.
+- Listings, messages, reviews, the share card and OG read names from the profile at request time, so they show the current values. Notifications keep the text they were sent with.
+
+Tests: `checks/founder-names.test.ts`, `e2e/16-names.spec.ts`, `e2e/17-founder.spec.ts` (the test server sets `COMICHUDDLE_FOUNDER_EMAIL` to the admin test account).

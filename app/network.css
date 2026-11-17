@@ -329,3 +329,4 @@ html.nwm-thread-open,html.nwm-thread-open body{overflow:hidden;overscroll-behavi
 .nw-pill.nw-pill-biz{display:inline-block;margin-left:8px;padding:1px 8px;font-size:12px;vertical-align:middle;background:#e7eefb}
 .nw-join-form .pf-biz{margin:2px 0}
 .ps-loading{margin:24px 0;text-align:center;font-weight:700;color:var(--ink)}
+.nw-left{font-weight:700;color:var(--ink)}

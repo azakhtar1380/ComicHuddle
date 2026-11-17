@@ -3,6 +3,7 @@ import AdminShell,{adminPageUser,isFounder} from './admin-shell';
 import VerifyBusinessPanel from '../../components/profile/verify-business-panel';
 import VerifyPersonPanel from '../../components/profile/verify-person-panel';
 import AdminTrophiesPanel from '../../components/trophies/admin-trophies-panel';
+import MemberNamesPanel from '../../components/profile/member-names-panel';
 import {adminEmails,adminLimit} from '../../lib/admin';
 import {adminAuditReady} from '../../lib/admin-audit';
 import {protectionConfig,type ProtectionEnv} from '../../lib/commerce-protection';
@@ -28,6 +29,7 @@ export default async function AdminHome(){
     </div>
     <section id="verified-businesses" aria-labelledby="adm-verified" style={{margin:'0 0 32px'}}><h2 id="adm-verified" className="adm-title" style={{fontSize:28}}>Verified businesses</h2><VerifyBusinessPanel/></section>
     <section id="verified-collectors" aria-labelledby="adm-verified-people" style={{margin:'0 0 32px'}}><h2 id="adm-verified-people" className="adm-title" style={{fontSize:28}}>Verified collectors</h2><VerifyPersonPanel/></section>
+    <section id="member-names" aria-labelledby="adm-names" style={{margin:'0 0 32px'}}><h2 id="adm-names" className="adm-title" style={{fontSize:28}}>Member names</h2><MemberNamesPanel/></section>
     <section id="trophies" aria-labelledby="adm-trophies" style={{margin:'0 0 32px'}}><h2 id="adm-trophies" className="adm-title" style={{fontSize:28}}>Trophies</h2><AdminTrophiesPanel/></section>
     <section aria-labelledby="adm-support" style={{margin:'0 0 32px'}}><h2 id="adm-support" className="adm-title" style={{fontSize:28}}>Support payments</h2>
       <p className="adm-lede">Paid to ComicHuddle directly. Separate from marketplace revenue; never wallet balance, points or store credit. Total: <b>{usd(support.totalCents)}</b></p>

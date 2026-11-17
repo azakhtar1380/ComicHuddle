@@ -70,3 +70,6 @@ __pycache__/
 e2e/.auth/
 e2e-results/
 e2e-report/
+
+# The settings template (names only, no values) is committed.
+!.env.example

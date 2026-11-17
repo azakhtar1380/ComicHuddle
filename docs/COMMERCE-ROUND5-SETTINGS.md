@@ -37,6 +37,7 @@ Production needs all of these at launch, together with the earlier 030, 032 and 
 | `VERIFICATION_FEE_CENTS` | **new**, optional (default $10) | The collector verification fee in cents. `0` turns it off. |
 | `FOUNDING_HUDDLER_UNTIL` | **new**, not set | ISO date. Accounts created before it earn the Founding Huddler trophy; unset means nobody earns it. See docs/PROFILE-ROUND6.md. |
 | `COMICHUDDLE_ADMIN_EMAILS` | preview ✓ | Your account. Production needs it too. |
+| `COMICHUDDLE_FOUNDER_EMAIL` | **new**, not set | Your account email (one email). Shows the Founder badge on that account in every environment; it is never sent to the browser. Set it in Vercel for Production, Preview and Development. |
 | `METRON_COVER_CDN_BASE` | preview, **remove it** | Leftover from the paused cover import, so the enrichment job stops trying. Claude's attempt to remove it was blocked by a permission prompt. Run `vercel env rm METRON_COVER_CDN_BASE preview`. |
 
 **Stripe dashboard (test mode).**

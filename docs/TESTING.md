@@ -53,6 +53,8 @@ There are two layers. Run both before anything goes live.
 13. **Profile header** (`e2e/13-profile-header.spec.ts`): nothing overlaps or clips at 360/390/430 and desktop, the four tabs fit without scrolling, Edit profile / Message on the right, Get verified for the owner only.
 14. **Notifications** (`e2e/14-notifications.spec.ts`): bottom sheet under 640px and dropdown inside the window on desktop, chips scroll inside, Escape returns focus to the bell.
 15. **Account panel** (`e2e/15-account-panel.spec.ts`): Get verified row first under You with a status pill, My profile opens My Profile, transform-only drawer, no sideways jump, Escape returns focus.
+16. **Names** (`e2e/16-names.spec.ts`): 2 name and 2 handle changes, staff words blocked, old handle held and redirected, the form shows changes left.
+17. **Founder** (`e2e/17-founder.spec.ts`): the founder email shows the Founder badge only, and the email never reaches the browser.
 
 The "Trophy unlocked!" screen appears on the next page load after a test account earns a trophy; `e2e/fixtures.ts` closes it automatically except in the trophies test.
 

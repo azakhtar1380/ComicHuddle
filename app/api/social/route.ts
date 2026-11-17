@@ -26,7 +26,11 @@ import {conditionalGuard,operationGuardFailed} from '../../../lib/operation-guar
 import {businessSummaries,businessSummary,sellerBusinessFields,type BusinessSummary} from '../../../lib/business-profile';
 // --- end profiles (round 4) ---
 import {profileExtras} from '../../../lib/profile-extras';
-import {staffBadgeForUser} from '../../../lib/admin-audit'; // owner (round 4): admin / founder badge flags, booleans only
+import {staffBadgeForUser,staffBadgesForProfiles} from '../../../lib/admin-audit';
+import {isAdmin} from '../../../lib/admin';
+import {offensiveReason,reservedReason} from '../../../lib/name-rules';
+import {handleHeld,nameChangeCounts,recordNameChange} from '../../../lib/profile-names';
+import {HANDLE_CHANGE_LIMIT,NAME_CHANGE_LIMIT} from '../../../lib/name-rules'; // owner (round 4): admin / founder badge flags, booleans only
 import {readSocialObject,createListing,proposeListingTrade,readTradeTerms,tradeTermsAccountData,decideTradeTerms,listingContext,listingDto,placeBid,retractBid,checkMarketplaceDeletion,anonymizeMarketplaceHistory,closeListingStatements,withdrawListing,marketplaceGuardFailed} from '../../../lib/marketplace';
 const text=(n:number)=>z.string().trim().min(1).max(n);const id=z.string().min(1).max(100);const now=()=>new Date().toISOString();
 type Db=ReturnType<typeof getDb>;type P=typeof profiles.$inferSelect;
@@ -172,12 +176,13 @@ const [related,personMap,hidden,avatars]=await Promise.all([profileRelated(db,me
 const people=[];for(const p of publicPeople){if(!p.moderated&&!hidden.has(p.id))people.push(await profileDto(db,p,false,related))}
 const members=new Map<string,number>(),joinedGroups=new Set<string>();for(const batch of chunks(gs.map(g=>g.id))){const counts=await db.select({id:memberships.groupId,n:count()}).from(memberships).where(inArray(memberships.groupId,batch)).groupBy(memberships.groupId);for(const row of counts)members.set(row.id,row.n);if(me){for(const row of await db.select({id:memberships.groupId}).from(memberships).where(and(eq(memberships.profileId,me.id),inArray(memberships.groupId,batch))))joinedGroups.add(row.id)}}
 const gsOut=gs.map(g=>({...g,members:members.get(g.id)||0,joined:joinedGroups.has(g.id)}));
+const staff=await staffBadgesForProfiles(peerIds); // founder/admin flags only, never emails
 const visibleListings=ls.filter(l=>{const seller=personMap.get(l.sellerId);return !!seller?.visible&&!seller.moderated&&!hidden.has(seller.id)});
 const marketContext=await listingContext(db,visibleListings,me?.id);
-const lsOut=visibleListings.map(l=>{const dto=listingDto(l,personMap.get(l.sellerId),me?.id,marketContext);return {...dto,seller:{...dto.seller,avatarUrl:avatars.get(l.sellerId)||null,/* profiles (round 4) */...sellerBusinessFields(related.business?.get(l.sellerId))}}});
+const lsOut=visibleListings.map(l=>{const dto=listingDto(l,personMap.get(l.sellerId),me?.id,marketContext);return {...dto,seller:{...dto.seller,avatarUrl:avatars.get(l.sellerId)||null,...(staff[l.sellerId]?{staff:staff[l.sellerId]}:{}),/* profiles (round 4) */...sellerBusinessFields(related.business?.get(l.sellerId))}}});
 const lastMessages=new Map<string,typeof messages.$inferSelect>();for(const batch of chunks(ts.map(t=>t.id))){const latest=await db.select().from(messages).where(inArray(messages.id,db.select({id:sql<string>`(SELECT latest.id FROM messages latest WHERE latest.thread_id = ${sql.raw('threads.id')} ORDER BY latest.created_at DESC, latest.id DESC LIMIT 1)`}).from(threads).where(inArray(threads.id,batch))));for(const row of latest)lastMessages.set(row.threadId,row)}
 const [states,storage,unreadByThread]=me?await Promise.all([threadStates(db,me.id,ts.map(t=>t.id)),messagingStorage(db),unreadCounts(db,me.id,ts.map(t=>t.id))]):[new Map<string,{readAt:string|null;archivedAt:string|null}>(),{states:false},new Map<string,number>()];
-const tsOut=ts.flatMap(t=>{const peer=personMap.get(t.a===me?.id?t.b:t.a),last=lastMessages.get(t.id),state=states.get(t.id),latestAt=last?.createdAt||t.createdAt,latestMine=last?last.profileId===me?.id:undefined;return peer?[{id:t.id,context:t.context,peer:{id:peer.id,name:peer.name,handle:peer.handle,color:peer.color,avatarUrl:avatars.get(peer.id)||null,/* profiles (round 4) */...sellerBusinessFields(related.business?.get(peer.id))},createdAt:t.createdAt,latest:last?last.body||'Photo':undefined,latestAt,latestMine,...(storage.states?{unread:!!last&&latestMine===false&&(!state?.readAt||state.readAt<last.createdAt),unreadCount:unreadByThread.get(t.id)||0,archived:!!state?.archivedAt&&state.archivedAt>=latestAt}:{})}]:[]}).sort((x,y)=>y.latestAt.localeCompare(x.latestAt));
+const tsOut=ts.flatMap(t=>{const peer=personMap.get(t.a===me?.id?t.b:t.a),last=lastMessages.get(t.id),state=states.get(t.id),latestAt=last?.createdAt||t.createdAt,latestMine=last?last.profileId===me?.id:undefined;return peer?[{id:t.id,context:t.context,peer:{id:peer.id,name:peer.name,handle:peer.handle,color:peer.color,avatarUrl:avatars.get(peer.id)||null,...(staff[peer.id]?{staff:staff[peer.id]}:{}),/* profiles (round 4) */...sellerBusinessFields(related.business?.get(peer.id))},createdAt:t.createdAt,latest:last?last.body||'Photo':undefined,latestAt,latestMine,...(storage.states?{unread:!!last&&latestMine===false&&(!state?.readAt||state.readAt<last.createdAt),unreadCount:unreadByThread.get(t.id)||0,archived:!!state?.archivedAt&&state.archivedAt>=latestAt}:{})}]:[]}).sort((x,y)=>y.latestAt.localeCompare(x.latestAt));
 const [ownOffers,ownSwipes]=me?await Promise.all([
  db.select().from(offers).where(or(eq(offers.buyerId,me.id),inArray(offers.listingId,db.select({id:listings.id}).from(listings).where(eq(listings.sellerId,me.id))))).orderBy(desc(offers.createdAt)).limit(100),
  db.select({pair:swipes.pair,direction:swipes.direction}).from(swipes).where(eq(swipes.fromId,me.id))]):[[],[]];
@@ -262,10 +267,27 @@ if(a.action==='profile'){
  if(external.some(key=>directoryGrailId(key)===null))return json({error:'Choose a grail from the directory or your own saved comics.'},400);
  const records=await catalogIssuesById(db,external.map(key=>directoryGrailId(key)!));
  if(records.length!==external.length)return json({error:'A selected grail is no longer available. Remove it and choose the exact directory issue again.'},400);
- const [occupied]=await db.select().from(profiles).where(eq(profiles.handle,v.handle));if(occupied&&occupied.userId!==u.userId)return json({error:'That collector handle is taken.'},409);
+ // Name and handle rules (cleanup round): staff words and offensive words are blocked for regular members;
+ // changes after the profile exists are limited (2 each, admins and the Founder unlimited) and logged.
+ const staffMember=isAdmin({userId:u.userId,email:(u as {email?:string|null}).email??null});
+ const nameChanged=!!p&&p.name.trim()!==v.name.trim(),handleChanged=!!p&&p.handle.toLowerCase()!==v.handle;
+ if(!staffMember&&(!p||nameChanged)){const why=offensiveReason(v.name)||reservedReason(v.name,'name');if(why)return json({error:why},400)}
+ if(!staffMember&&(!p||handleChanged)){const why=offensiveReason(v.handle)||reservedReason(v.handle,'handle');if(why)return json({error:why},400)}
+ if(p&&(nameChanged||handleChanged)){
+  const used=await nameChangeCounts(p.id);
+  if(!used&&!staffMember)return json({error:'Name and handle changes aren’t available yet. Try again later.'},503);
+  if(!staffMember&&used){
+   if(nameChanged&&used.name>=NAME_CHANGE_LIMIT)return json({error:'You’ve used your '+NAME_CHANGE_LIMIT+' name changes. Contact support to change it again.'},403);
+   if(handleChanged&&used.handle>=HANDLE_CHANGE_LIMIT)return json({error:'You’ve used your '+HANDLE_CHANGE_LIMIT+' handle changes. Contact support to change it again.'},403);
+  }
+ }
+ const [occupied]=await db.select().from(profiles).where(sql`lower(${profiles.handle})=${v.handle}`);if(occupied&&occupied.userId!==u.userId)return json({error:'That collector handle is taken.'},409);
+ if((!p||handleChanged)&&await handleHeld(v.handle,p?.id??null))return json({error:'That handle was used by another collector recently. Pick a different one.'},409);
  const data={...consent,userId:u.userId,handle:v.handle,name:v.name,bio:v.bio,tagline:v.tagline,location:v.location,favorite:v.favorite,since:v.since,color:v.color,featured:JSON.stringify(v.featured),visible:Number(v.visible),dmOpen:Number(v.dmOpen)};
  const [saved]=p?await db.update(profiles).set(data).where(eq(profiles.id,p.id)).returning():await db.insert(profiles).values({...data,id:crypto.randomUUID(),createdAt:now()}).returning();
 
+ if(p&&nameChanged)await recordNameChange({profileId:p.id,kind:'name',oldValue:p.name,newValue:v.name,changedBy:u.userId,count:!staffMember}).catch(()=>undefined);
+ if(p&&handleChanged)await recordNameChange({profileId:p.id,kind:'handle',oldValue:p.handle,newValue:v.handle,changedBy:u.userId,count:!staffMember}).catch(()=>undefined);
  queueTrophies([u.userId]);
  return json({saved:true,profile:await profilePageDto(db,saved,true)});
 }

@@ -1,7 +1,9 @@
 // Admins are ordinary signed-in accounts whose email is listed in the private server setting
 // COMICHUDDLE_ADMIN_EMAILS (comma-separated, case-insensitive). There is no separate admin login.
 // COMICHUDDLE_ADMIN_LIMIT caps how many listed emails count (default 3), so the team can grow later.
-// The site owner (ownerAccountId) is always an admin and is shown with the "Founder" label.
+// The Founder is the site owner account (ownerAccountId) or the account whose email matches the private setting
+// COMICHUDDLE_FOUNDER_EMAIL (one email, case-insensitive). The Founder is always an admin and is shown with the
+// "Founder" label only. The email never leaves the server: clients only ever get a founder:true flag.
 // Server-only: never import this from a client component.
 import {ownerAccountId} from './owner';
 
@@ -19,10 +21,20 @@ export function adminEmails(env: Record<string, string | undefined> = process.en
 }
 
 export type AdminIdentity = {userId: string; email?: string | null};
-export const isFounder = (user: AdminIdentity | null | undefined) => !!user && user.userId === ownerAccountId;
+/** COMICHUDDLE_FOUNDER_EMAIL, trimmed and lowercased, or '' when unset or malformed. */
+export function founderEmail(env: Record<string, string | undefined> = process.env) {
+  const email = String(env.COMICHUDDLE_FOUNDER_EMAIL || '').trim().toLowerCase();
+  return /^[^s@,]+@[^s@,]+.[^s@,]+$/.test(email) ? email : '';
+}
+export function isFounder(user: AdminIdentity | null | undefined, env: Record<string, string | undefined> = process.env) {
+  if (!user) return false;
+  if (user.userId === ownerAccountId) return true;
+  const founder = founderEmail(env), email = (user.email || '').trim().toLowerCase();
+  return !!founder && !!email && email === founder;
+}
 export function isAdmin(user: AdminIdentity | null | undefined, env: Record<string, string | undefined> = process.env) {
   if (!user) return false;
-  if (isFounder(user)) return true;
+  if (isFounder(user, env)) return true;
   const email = (user.email || '').trim().toLowerCase();
   return !!email && adminEmails(env).includes(email);
 }

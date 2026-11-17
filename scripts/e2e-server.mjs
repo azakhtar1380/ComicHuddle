@@ -13,6 +13,8 @@ const env={...process.env,
  BETTER_AUTH_URL:origin,COMMERCE_PUBLIC_ORIGIN:origin,
  // The admin test account (created by the tests, never a real person's login).
  COMICHUDDLE_ADMIN_EMAILS:'e2e-admin@comichuddle.test',
+ // The admin test account is also the Founder here, so the Founder badge can be tested.
+ COMICHUDDLE_FOUNDER_EMAIL:'e2e-admin@comichuddle.test',
  // Online payments stay off in these tests: checkout shows its "unavailable" state, nothing reaches Stripe.
  COMMERCE_SANDBOX_ENABLED:'',COMMERCE_SANDBOX_REVIEWED:'',COMMERCE_STRIPE_MODE:'',COMMERCE_STRIPE_TEST_SECRET_KEY:'',COMMERCE_STRIPE_TEST_PUBLISHABLE_KEY:'',COMMERCE_STRIPE_TEST_WEBHOOK_SECRET:'',
  EASYPOST_API_KEY:'',METRON_API_TOKEN:'',METRON_UPC_ENABLED:'',COVER_DIRECT_DISPLAY:'',AWS_ACCESS_KEY_ID:'',AWS_SECRET_ACCESS_KEY:'',AWS_REGION:'',VERCEL_OIDC_TOKEN:'',

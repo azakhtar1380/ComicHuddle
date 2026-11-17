@@ -11,8 +11,10 @@ export async function proxy(request:NextRequest){
  const match=HANDLE.exec(request.nextUrl.pathname);
  if(!match)return NextResponse.rewrite(new URL('/profile-not-found',request.url));
  const handle=match[1].toLowerCase(),check=new URL('/api/profile-status?handle='+handle,request.url);
- let status=503;
- try{status=(await fetch(check,{headers:{cookie:request.headers.get('cookie')||''},cache:'no-store'})).status}catch{/* fall through to the page, which checks again */}
+ let status=503,moved='';
+ try{const r=await fetch(check,{headers:{cookie:request.headers.get('cookie')||''},cache:'no-store'});status=r.status;moved=r.headers.get('x-current-handle')||''}catch{/* fall through to the page, which checks again */}
+ // A handle changed in the last 90 days: send old links to the new one.
+ if(status===410&&/^[a-z][a-z0-9_]{2,23}$/.test(moved))return NextResponse.redirect(new URL('/@'+moved+request.nextUrl.search,request.url),308);
  if(status===404)return NextResponse.rewrite(new URL('/profile-not-found',request.url));
  return NextResponse.rewrite(new URL('/profile/'+handle+request.nextUrl.search,request.url));
 }

@@ -5,6 +5,7 @@ import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {profiles} from '../../../db/schema';
 import {handlePattern} from '../../../lib/public-profile';
+import {handleRedirect} from '../../../lib/profile-names';
 
 export const dynamic='force-dynamic';
 const reply=(status:number)=>new Response(null,{status,headers:{'Cache-Control':'no-store'}});
@@ -13,7 +14,7 @@ export async function GET(req:Request){
  if(!handlePattern.test(handle))return reply(404);
  try{
   const [p]=await getDb().select({userId:profiles.userId,visible:profiles.visible,moderated:profiles.moderated,deletion:profiles.deletionStartedAt}).from(profiles).where(eq(profiles.handle,handle));
-  if(!p)return reply(404);
+  if(!p){const moved=await handleRedirect(handle);return moved?new Response(null,{status:410,headers:{'Cache-Control':'no-store','X-Current-Handle':moved}}):reply(404)}
   if(p.visible&&!p.moderated&&!p.deletion)return reply(200);
   const user=await getChatGPTUser();
   return reply(user&&user.userId===p.userId?200:404);
