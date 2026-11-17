@@ -1,0 +1,12 @@
+/* Get verified: the blue-outlined button under the name on My Profile, the pending pill, and the panel form. */
+.gv-profile{display:grid;justify-items:center;gap:4px;margin:12px 0 0}
+.gv-cta{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:2px solid #174c9e;background:#fff;color:#174c9e;font-weight:800;font-size:15px;border-radius:999px;box-shadow:2px 2px 0 #174c9e}
+.gv-cta:hover{background:#eaf1fb}
+.gv-cta:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.gv-why{margin:0;font-size:13px;color:var(--muted)}
+.gv-pill{display:inline-flex;align-items:center;gap:6px;margin:12px auto 0;padding:6px 12px;border:2px solid #174c9e;border-radius:999px;background:#eaf1fb;color:#174c9e;font-size:14px;font-weight:700}
+.gv-explain{margin:0 0 10px;font-size:14px;line-height:1.45;color:var(--ink)}
+.gv-explain a{color:#174c9e}
+.gv-error{flex-basis:100%;margin:0}
+.gv-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;font-size:14px;color:var(--ink)}
+.gv-form{display:grid;gap:8px}

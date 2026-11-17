@@ -9,7 +9,7 @@ import {catalog} from '../../lib/catalog';
 import {emptyExtras,profilePath,type ProfileExtras} from '../../lib/profile-page-types';
 import {VerifiedBadge} from '../verified-badge';
 import AdminBadge from '../admin-badge';
-import HScroll from '../h-scroll';
+import GetVerified from './get-verified';
 import BusinessCard from './business-card';
 import type {BusinessSummary} from './business-client';
 import './profile-page.css';
@@ -81,7 +81,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
 
   <div className="pp-cover" style={x.coverUrl?{backgroundImage:`url(${x.coverUrl})`}:undefined}>
    {!x.coverUrl&&<span className="pp-cover-empty" aria-hidden="true"/>}
-   {own&&fileButton(x.coverUrl?'Change cover photo':'Add a cover photo',onCover,'pp-cover-change',<><Camera size={16} aria-hidden="true"/> {uploading==='cover'?'Uploading…':'Change'}</>,busy||!!uploading)}
+   {own&&fileButton(x.coverUrl?'Change cover photo':'Add a cover photo',onCover,'pp-cover-change',<><Camera size={16} aria-hidden="true"/> {uploading==='cover'?'Uploading…':'Change cover'}</>,busy||!!uploading)}
   </div>
 
   <div className="pp-head">
@@ -90,18 +90,19 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
    <ProfilePhoto url={p.avatarUrl} name={p.name}>
     {own&&fileButton(p.avatarUrl?'Replace profile photo':'Upload a profile photo',onPhoto,'pp-photo-camera',<Camera size={18} aria-hidden="true"/>,busy||!!uploading)}
    </ProfilePhoto>
-   <span className="pp-round pp-round-spacer" aria-hidden="true"/>
+   {own?<button type="button" className="pp-round pp-round-edit" onClick={onEdit}><Pencil size={22} aria-hidden="true"/><span>Edit profile</span></button>
+   :<button type="button" className="pp-round pp-round-message" disabled={!p.dmOpen||busy} title={p.dmOpen?undefined:'Not taking messages'} onClick={()=>onMessage()}><MessageCircle size={22} aria-hidden="true"/><span>{p.dmOpen?'Message':'No DMs'}</span></button>}
   </div>
-  {p.staff?.founder&&<p className="pp-staff"><AdminBadge founder showLabel size={18}/></p>}
+  {p.staff?.founder?<p className="pp-staff"><AdminBadge founder showLabel size={18}/></p>:p.staff?.admin?<p className="pp-staff"><AdminBadge showLabel size={18}/></p>:null}
   {uploading==='photo'&&<p className="pp-uploading" role="status">Uploading your photo…</p>}
 
   <section className="pp-card pp-namecard">
    <h1 id={ids+'-name'} className="pp-name"><span>{p.name}</span>{verifiedLabel&&<VerifiedBadge kind={biz.isBusiness?'business':'person'} size={24}/>}</h1>
    {verifiedLabel&&<p className="pp-verified-line">{verifiedLabel} · <a href="/verified">How we verify</a></p>}
+   {own&&!verifiedLabel&&<GetVerified variant="profile" onBusiness={onEdit}/>}
    <p className="pp-meta"><b>@{p.handle}</b> · Collecting since <span className="pp-num">{p.since}</span>{p.location?<> · {p.location}</>:null}</p>
    {x.rating&&<p className="pp-rating">{x.rating.stars!==null?<><span className="pp-stars" aria-hidden="true">{[1,2,3,4,5].map(n=><Star key={n} size={16} fill={n<=Math.round(x.rating!.stars!)?'currentColor':'none'}/>)}</span><span className="pp-num">{x.rating.stars.toFixed(1)}</span><span className="sr-only">out of 5 stars</span></>:<span className="pp-num">{x.rating.percent}% positive</span>} · <span className="pp-num">{x.rating.count}</span> {x.rating.count===1?'review':'reviews'}</p>}
    {x.tags.length>0&&<ul className="pp-tags" aria-label="Collector tags">{x.tags.map(tag=><li key={tag}>{tag}</li>)}</ul>}
-   {!own&&<div className="pp-actions"><button type="button" className="ds-btn ds-btn-primary" disabled={!p.dmOpen||busy} onClick={()=>onMessage()}><MessageCircle size={18} aria-hidden="true"/> {p.dmOpen?'Send a message':'Not taking messages'}</button></div>}
    {own&&!p.visible&&<p className="pp-hidden-note">Hidden. Only you can see this profile.</p>}
    {p.provider&&<a className="ds-link" href={'/?section=Pressing&provider='+p.provider.id}><Wrench size={16} aria-hidden="true"/> Comic Workshop pro · {p.provider.name}</a>}
   </section>
@@ -116,9 +117,9 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
    <div><dt>Trades</dt><dd>{p.stats.trades.toLocaleString('en-US')}</dd></div>
   </dl>
 
-  <HScroll as="div" className="pp-tabs" role="tablist" aria-label="Profile sections">
+  <div className="pp-tabs" role="tablist" aria-label="Profile sections" style={{gridTemplateColumns:`repeat(${tabs.length},minmax(0,1fr))`}}>
    {tabs.map((t,i)=><button key={t.id} id={ids+'-tab-'+t.id} type="button" role="tab" aria-selected={tab===t.id} aria-controls={ids+'-panel'} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)} onKeyDown={event=>{if(event.key==='ArrowRight')select(tabs[(i+1)%tabs.length].id);if(event.key==='ArrowLeft')select(tabs[(i-1+tabs.length)%tabs.length].id)}}>{t.label}</button>)}
-  </HScroll>
+  </div>
 
   <div id={ids+'-panel'} role="tabpanel" aria-labelledby={ids+'-tab-'+tab} className="pp-panel">
    {tab==='overview'&&<>

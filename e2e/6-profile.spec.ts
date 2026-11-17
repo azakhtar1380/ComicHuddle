@@ -2,7 +2,7 @@
 // the share screen (both cards, five share buttons with fallbacks), and the shared horizontal scroll rows.
 import {test,expect,open,signedInAs} from './fixtures';
 import {ACCOUNTS} from './accounts';
-import {PHOTO} from './helpers';
+import {PHOTO,addComicToCollection} from './helpers';
 import type {Page,Locator} from '@playwright/test';
 
 const box=async(locator:Locator)=>{const b=await locator.boundingBox();if(!b)throw Error('not visible');return b};
@@ -120,7 +120,9 @@ test.describe('My profile',()=>{
   await expect(dialog.getByRole('switch',{name:/Collection value/})).not.toBeChecked();
  });
  test('horizontal rows scroll without a visible scroll bar at rest',async({page})=>{
+  await open(page,'/');await addComicToCollection(page);              // the chips show once there is a comic
   await open(page,'/@'+ACCOUNTS.seller.handle);
+  await page.getByRole('tab',{name:'Collection'}).click();          // the filter chips are a scroll row
   const row=page.locator('.ch-hscroll').first();
   await expect(row).toBeVisible();
   await page.mouse.move(0,0);

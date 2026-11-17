@@ -2,6 +2,7 @@
 // One sheet for quick edits: a bottom sheet on phones, a centered dialog on desktop. Focus is trapped, Escape and
 // a backdrop tap close it, and the shared scroll lock (lib/dialog-focus.ts) is released on close and unmount.
 import {useEffect,useId,useRef,type ReactNode} from 'react';
+import {createPortal} from 'react-dom';
 import {X} from 'lucide-react';
 import {activateDialog} from '../lib/dialog-focus';
 import './sheet.css';
@@ -10,7 +11,8 @@ export default function Sheet({title,onClose,children,footer}:{title:string;onCl
  const ref=useRef<HTMLDivElement>(null),close=useRef(onClose),id=useId();
  useEffect(()=>{close.current=onClose});
  useEffect(()=>activateDialog(ref.current,()=>close.current()),[]);
- return <div className="sh-backdrop" onClick={onClose}>
+ // Rendered into <body> so a parent stacking context (the profile card, for one) never puts the phone dock on top.
+ const sheet=<div className="sh-backdrop" onClick={onClose}>
   <div ref={ref} className="sh" role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onClick={e=>e.stopPropagation()}>
    <span className="sh-grip" aria-hidden="true"/>
    <div className="sh-head"><h2 id={id}>{title}</h2><button type="button" className="sh-close" aria-label={'Close '+title} onClick={onClose}><X size={22} aria-hidden="true"/></button></div>
@@ -18,4 +20,5 @@ export default function Sheet({title,onClose,children,footer}:{title:string;onCl
    {footer&&<div className="sh-foot">{footer}</div>}
   </div>
  </div>;
+ return typeof document==='undefined'?sheet:createPortal(sheet,document.body);
 }

@@ -44,11 +44,13 @@ There are two layers. Run both before anything goes live.
 4. **Admin** (`e2e/4-admin.spec.ts`): admin sections, cover review, email previews, audit log.
 5. **Screenshots** (`e2e/5-visual.spec.ts`): home, marketplace, about, contact, sign-in, cart, directory, wallet, sell form.
 6. **Profile** (`e2e/6-profile.spec.ts`): `/@handle` and its link-preview meta, hidden profiles 404, photo upload with Mr. Huddles at the photo’s bottom-right, both share cards and all five share buttons (or their copy-link fallback), scroll rows without a visible scroll bar.
-7. **Comic shop** (`e2e/7-shop.spec.ts`): the shop front, Open / Window display / Closed as a guest sees them, the value never public, runs.
+7. **Collection tab** (`e2e/7-collection.spec.ts`): old Collection links redirect to My Profile → Collection, Add comics adds several in one save, and visitors see Everyone / Keys only / Only me (never the value).
 8. *(Worlds were removed in the cleanup round; `e2e/8-worlds.spec.ts` is gone.)*
 9. **Verified** (`e2e/9-verified.spec.ts`): a collector goes from pending to verified after admin approval.
 10. **Trophies** (`e2e/10-trophies.spec.ts`): an unlock creates a notification and shows the unlock screen once; the trophy case page.
 11. **Origin story** (`e2e/11-origin.spec.ts`): the one-time nudge and the setup page.
+12. **Directory picks** (`e2e/12-directory-picks.spec.ts`): the owner picks the six, favorite character, favorite comic and WANTED grail from the Directory; saved without a reload; visitors see them.
+13. **Profile header** (`e2e/13-profile-header.spec.ts`): nothing overlaps or clips at 360/390/430 and desktop, the four tabs fit without scrolling, Edit profile / Message on the right, Get verified for the owner only.
 
 The "Trophy unlocked!" screen appears on the next page load after a test account earns a trophy; `e2e/fixtures.ts` closes it automatically except in the trophies test.
 
