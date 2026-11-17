@@ -197,7 +197,7 @@ test('anti-sniping: a bid in the last 2 minutes extends the end by 2 minutes; ea
 
 test('SafePurchase delivery details point the seller at ComicHuddle, with a marked placeholder when the address is unset',async()=>{
  const seller=await collector('spdseller'),buyer=await collector('spdbuyer');await onboard(seller);
- const listing=await offer(seller,{price:60000}),orderId=await paid(buyer,listing.id,spEnv);
+ const listing=await offer(seller,{price:150000}),orderId=await paid(buyer,listing.id,spEnv,{safePurchaseOptIn:true});
  const configured=await commerceDeliveryInfo(getDb(),seller.userId,orderId,spEnv);
  assert.equal(configured.shipTo?.kind,'inspection');assert.equal((configured.shipTo as {placeholder:boolean}).placeholder,false);
  assert.deepEqual((await commerceDeliveryInfo(getDb(),seller.userId,orderId,testEnv)).shipTo,{kind:'inspection',address:null,placeholder:true});

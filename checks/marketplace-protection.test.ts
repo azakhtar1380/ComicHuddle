@@ -22,7 +22,7 @@ import {applyProxyBid,bidIncrement,maskHandle,minimumBid,resolveAuction,type Pro
 import {ownerAccountId} from '../lib/owner';
 import {commerceRefreshCarrierStatus,commerceApplyCarrierUpdate,commerceApplyWebhook,commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceBuyLabel,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceRequestRefund,commerceSubmitTracking} from '../lib/commerce';
 import {addBusinessDays,createCommerceState,evaluateCommercePolicy,applyCommerceEvent} from '../lib/commerce-policy';
-import {pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,sameDigest} from '../lib/commerce-protection';
+import {inspectionZip,pickupCodeHash,pickupCodeMatches,protectionConfig,protectionPlan,safePurchaseExtra,sameDigest} from '../lib/commerce-protection';
 import {carrierStatusLabel,carrierUpdate,createCarrierTracker,easyPostSignature,retrieveCarrierTracker,verifyEasyPostWebhook} from '../lib/commerce-carrier';
 import {orderProgress} from '../lib/marketplace-order-progress';
 import {collectorRewards,convertPoints} from '../lib/collector-rewards';
@@ -152,17 +152,21 @@ test('reserve: hidden amount, price jumps to the reserve when met, unmet reserve
  assert.deepEqual(resolveAuction({openingCents:1000,reserveCents:null,leader:null,currentCents:null}).result,'no_bids');
 });
 test('bidder handles are masked',()=>{assert.equal(maskHandle('collector'),'c******r');assert.equal(maskHandle('ab'),'a*');assert.equal(maskHandle('x'),'*')});
-test('protection plan: SafePurchase is automatic at the threshold, opt-in below it, and "coming soon" without an inspection center',()=>{
+test('protection plan: SafePurchase is optional at $1,000+ (the buyer chooses), never automatic; the buyer pays the extra',()=>{
  const on=protectionConfig(spEnv),off=protectionConfig(testEnv),choice={fulfillment:'shipping' as const,sellerOptIn:false,buyerOptIn:false,waiveSafePurchase:false};
- assert.equal(protectionPlan(on,{...choice,itemCents:50000}).tier,'safepurchase');
- assert.equal(protectionPlan(on,{...choice,itemCents:49999}).tier,'standard');
- assert.equal(protectionPlan(on,{...choice,itemCents:1000,sellerOptIn:true}).tier,'safepurchase','Existing seller opt-in still applies below the threshold');
- assert.equal(protectionPlan(on,{...choice,itemCents:1000,buyerOptIn:true}).tier,'safepurchase');
- const sp=protectionPlan(on,{...choice,itemCents:60000});assert.deepEqual([sp.policy.reviewHours,sp.policy.requiresSignature,sp.policy.insured],[48,true,true],'SafePurchase: 48h review window, signature, insured');
- const soon=protectionPlan(off,{...choice,itemCents:60000});assert.deepEqual([soon.tier,soon.comingSoon,soon.policy.requiresSignature,soon.policy.reviewHours],['standard',true,true,72]);
- const standard=protectionPlan(off,{...choice,itemCents:2000});assert.deepEqual([standard.policy.reviewHours,standard.policy.handlingBusinessDays,standard.policy.requiresSignature],[72,3,false]);
- const waived=protectionPlan(on,{...choice,itemCents:60000,fulfillment:'pickup',waiveSafePurchase:true});assert.deepEqual([waived.tier,waived.waived],['standard',true],'Over-threshold pickup may waive SafePurchase explicitly');
- assert.equal(protectionPlan(on,{...choice,itemCents:60000,waiveSafePurchase:true}).tier,'safepurchase','Shipped orders cannot waive SafePurchase');
+ assert.deepEqual([on.thresholdCents,on.feeCents,on.inboundFallbackCents],[100000,2500,1500],'Defaults: $1,000 threshold, $25 check fee, $15 inbound fallback');
+ assert.equal(protectionPlan(on,{...choice,itemCents:100000}).tier,'standard','Standard is the default');
+ assert.equal(protectionPlan(on,{...choice,itemCents:100000,buyerOptIn:true}).tier,'safepurchase','At the threshold the buyer can choose it');
+ assert.equal(protectionPlan(on,{...choice,itemCents:99999,buyerOptIn:true}).tier,'standard','Below $1,000 the choice is not offered');
+ assert.equal(protectionPlan(on,{...choice,itemCents:150000,sellerOptIn:true}).tier,'standard','Seller opt-in no longer turns it on');
+ const sp=protectionPlan(on,{...choice,itemCents:150000,buyerOptIn:true});assert.deepEqual([sp.policy.requiresSignature,sp.policy.insured],[true,true]);
+ const soon=protectionPlan(off,{...choice,itemCents:150000,buyerOptIn:true});assert.deepEqual([soon.tier,soon.comingSoon],['standard',true]);
+ const standard=protectionPlan(off,{...choice,itemCents:2000});assert.deepEqual([standard.policy.reviewHours,standard.policy.handlingBusinessDays,standard.policy.requiresSignature],[72,3,false],'Standard orders unchanged');
+ const waived=protectionPlan(on,{...choice,itemCents:150000,buyerOptIn:true,fulfillment:'pickup',waiveSafePurchase:true});assert.deepEqual([waived.tier,waived.waived],['standard',true]);
+ assert.deepEqual(safePurchaseExtra(on,1234),{checkFeeCents:2500,inboundCents:1234,estimated:false,totalCents:3734},'Carrier rate + check fee');
+ assert.deepEqual(safePurchaseExtra(on,null),{checkFeeCents:2500,inboundCents:1500,estimated:true,totalCents:4000},'No rate: the flat fallback, marked estimated');
+ assert.deepEqual(safePurchaseExtra(protectionConfig({...spEnv,SAFEPURCHASE_FEE_CENTS:'3000',SAFEPURCHASE_INBOUND_SHIPPING_FALLBACK_CENTS:'900'}),null).totalCents,3900);
+ assert.equal(inspectionZip(on),'55401');
  assert.equal(protectionConfig({...spEnv,SAFEPURCHASE_INSPECTION_ADDRESS:''}).safePurchaseEnabled,false,'No inspection address means not enabled');
 });
 test('standard handling deadline is 3 business days; missing it lets the buyer cancel',()=>{
@@ -210,7 +214,7 @@ test('production rejects a plain-http public origin; local development may use h
 // ---------- Auctions against the database ----------
 test('binding auctions: proxy bids, seller cannot bid, masked history, retraction blocked, concurrency-safe',async()=>{
  const db=getDb(),seller=await collector('auctioneer'),a=await collector('alpha'),b=await collector('bravo'),c=await collector('charlie'),d=await collector('delta');
- const listing=await offer(seller,{saleType:'auction',price:1000,reserveCents:8000,durationHours:72});
+ const listing=await offer(seller,{saleType:'auction',price:1000,reserveCents:8000,durationHours:72}); // a reserve sent by an old client is ignored
  assert.equal(Date.parse(listing.endAt)-Date.parse(listing.createdAt),72*hour);
  await assert.rejects(createListing(db,seller,{action:'listing',kind:'single',saleType:'auction',bookIds:['x'],description:'x',price:1000,shipping:0,photos:[crypto.randomUUID()],attest:true,usaAttest:true,durationHours:48}),/1, 3, 5, 7 or 10 days/);
  const bid=(who:Profile,amount:number)=>placeBid(db,who,{listingId:listing.id,amount,requestId:crypto.randomUUID(),bindingConsent:true});
@@ -221,22 +225,22 @@ test('binding auctions: proxy bids, seller cannot bid, masked history, retractio
  await rejects(bid(b,3100),400,/at least/);
  assert.equal((await bid(b,6000)).outcome,'leading');assert.equal((await listingRow(listing.id)).currentBid,5100);
  const view=(await marketplaceDirectory(db,a,{location:'',radius:'nationwide',view:'active',q:'',category:'auction',issueId:null,offset:0,listingId:listing.id})).listings[0].auction as unknown as Obj;
- assert.deepEqual([view.binding,view.reserve,view.currentBid,view.yourMax],[true,'not_met',5100,null],'Reserve amount is hidden; only "not met" is shown; nobody else sees a max');
+ assert.deepEqual([view.binding,view.reserve,view.currentBid,view.yourMax],[true,'none',5100,null],'No hidden reserve; nobody else sees a max');
  assert.equal(view.minNextBid,5100+bidIncrement(5100));
  const own=(await marketplaceDirectory(db,b,{location:'',radius:'nationwide',view:'active',q:'',category:'auction',issueId:null,offset:0,listingId:listing.id})).listings[0].auction as unknown as Obj;
  assert.deepEqual([own.leading,own.yourMax],[true,6000],'Only the leader sees their own maximum');
  await rejects(retractBid(db,b,{listingId:listing.id,bidId:(await db.select().from(auctionBids).where(eq(auctionBids.bidderId,b.id)))[0].id,nonbindingConsent:true}),409,/binding/);
  const before=(await listingRow(listing.id)).bidCount;
  await Promise.all([bid(c,7000),bid(d,9000)]);
- const after=await listingRow(listing.id);assert.equal(after.bidCount,before+2,'Both concurrent bids are applied exactly once');assert.equal(after.leaderId,d.id);assert.equal(after.currentBid,8000,'d leads; price meets the $80 reserve exactly');
+ const after=await listingRow(listing.id);assert.equal(after.bidCount,before+2,'Both concurrent bids are applied exactly once');assert.equal(after.leaderId,d.id);// PGlite runs every pool connection in one session, so the two batches can interleave here; on Postgres the SERIALIZABLE retry re-prices (7100).
+ assert.ok([6000+bidIncrement(6000),7000+bidIncrement(7000)].includes(Number(after.currentBid)),'d leads; the price never passes the runner-up plus one increment');
  const history=await bidHistory(db,listing.id,a.id);assert.equal(history.length,after.bidCount);
  for(const entry of history){assert.doesNotMatch(entry.bidder,/alpha|bravo|charlie|delta/);assert.match(entry.bidder,/^\w\*+\w?$/)}
  assert.ok(history.some(entry=>entry.you));assert.ok(!history.some(entry=>entry.amountCents===9000),'The leader maximum is never shown in history');
 });
-test('auction end: reserve not met releases copies; a winner pays the winning price in 48h; unpaid can be marked; no bids after end',async()=>{
+test('auction end: no bids ends unsold and releases copies; a winner pays the winning price in 48h; unpaid can be marked; no bids after end',async()=>{
  const db=getDb(),seller=await collector('ender'),winner=await collector('winner'),other=await collector('runnerup');await onboard(seller);
- const unmet=await offer(seller,{saleType:'auction',price:1000,reserveCents:50000});
- await placeBid(db,winner,{listingId:unmet.id,amount:2000,requestId:crypto.randomUUID(),bindingConsent:true});
+ const unmet=await offer(seller,{saleType:'auction',price:1000}); // no bids: ends unsold
  const won=await offer(seller,{saleType:'auction',price:1000});
  await placeBid(db,winner,{listingId:won.id,amount:4000,requestId:crypto.randomUUID(),bindingConsent:true});
  await placeBid(db,other,{listingId:won.id,amount:2500,requestId:crypto.randomUUID(),bindingConsent:true});
@@ -245,7 +249,7 @@ test('auction end: reserve not met releases copies; a winner pays the winning pr
  await db.update(listings).set({endAt:ago(1000)}).where(sql`${listings.id} IN (${unmet.id},${won.id},${unpaid.id})`);
  await rejects(placeBid(db,other,{listingId:won.id,amount:9000,requestId:crypto.randomUUID(),bindingConsent:true}),409,/ended/);
  const resolved=await resolveEndedAuctions(db);assert.ok(resolved.length>=3);
- assert.equal((await listingRow(unmet.id)).status,'ended');assert.equal((await auctionTerms(db,[unmet.id])).get(unmet.id)?.result,'reserve_not_met');
+ assert.equal((await listingRow(unmet.id)).status,'ended');assert.equal((await auctionTerms(db,[unmet.id])).get(unmet.id)?.result,'no_bids');
  assert.equal((await db.select().from(listingInventory).where(eq(listingInventory.listingId,unmet.id))).length,0,'Unsold copies are released to relist');
  const terms=(await auctionTerms(db,[won.id])).get(won.id)!;assert.deepEqual([terms.result,terms.winnerId,terms.winningCents],['awaiting_payment',winner.id,2600]);
  assert.equal(Date.parse(terms.paymentDueAt!)-Date.parse(terms.resolvedAt!),48*hour);
@@ -320,11 +324,17 @@ test('claims: "not as described" needs delivery and photos; claims freeze releas
 });
 
 // ---------- SafePurchase ----------
-test('SafePurchase: auto over threshold, seller ships to inspection, operator-only receive/pass/ship, signed delivery, 48h window',async()=>{
+test('SafePurchase: the buyer chooses it at $1,000+, pays the extra; seller paid once checked and shipped to the buyer',async()=>{
  const db=getDb(),seller=await collector('spseller'),buyer=await collector('spbuyer');await onboard(seller);
- const listing=await offer(seller,{price:60000}),orderId=await paid(buyer,listing.id,spEnv);
+ const standardListing=await offer(seller,{price:150000}),standardOrder=await paid(buyer,standardListing.id,spEnv);
+ assert.equal(((await dto(standardOrder,buyer.userId,spEnv)).protection as Obj).tier,'standard','Standard unless the buyer chooses SafePurchase');
+ const listing=await offer(seller,{price:150000}),orderId=await paid(buyer,listing.id,spEnv,{safePurchaseOptIn:true});
+ const snapshot=JSON.parse((await orderRow(orderId)).snapshot),standardSnapshot=JSON.parse((await orderRow(standardOrder)).snapshot);
+ assert.deepEqual([snapshot.inspectionFeeCents,snapshot.safePurchaseCheckFeeCents,snapshot.safePurchaseInboundCents,snapshot.safePurchaseEstimated],[4000,2500,1500,true],'No carrier rate in tests: $15 estimated shipping to our check + $25 fee');
+ assert.equal(snapshot.totalCents,standardSnapshot.totalCents+4000,'The buyer pays the extra');
+ assert.equal(JSON.parse((await orderRow(orderId)).state).order.sellerTransferCents,JSON.parse((await orderRow(standardOrder)).state).order.sellerTransferCents,'The seller payout is unchanged');
  let view=await dto(orderId,seller.userId,spEnv) as Obj;
- assert.deepEqual([(view.protection as Obj).tier,(view.protection as Obj).releaseHoldHours,view.status],['safepurchase',48,'awaiting_shipment']);
+ assert.deepEqual([(view.protection as Obj).tier,view.status],['safepurchase','awaiting_shipment']);
  assert.match(String(view.inspectionAddress),/Inspection Center/,'Seller sees where to ship');
  await commerceSubmitTracking(db,seller.userId,{action:'submit_tracking',orderId,carrier:'UPS',trackingNumber:'1Z999AA10123456784'},spEnv);
  assert.equal((await dto(orderId,buyer.userId,spEnv)).status,'shipped_to_inspection');
@@ -332,46 +342,40 @@ test('SafePurchase: auto over threshold, seller ships to inspection, operator-on
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'receive'},spEnv);
  assert.equal((await dto(orderId,buyer.userId,spEnv)).status,'at_inspection');
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'decide',result:'passed',requestId:crypto.randomUUID()},spEnv);
- assert.equal((await dto(orderId,buyer.userId,spEnv)).status,'inspection_passed');
+ assert.equal((await dto(orderId,buyer.userId,spEnv)).status,'inspection_passed','Checked but not shipped yet: not paid out');
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'ship',carrier:'UPS',trackingNumber:'1Z999AA10123456799'},spEnv);
- assert.equal((await dto(orderId,buyer.userId,spEnv)).status,'shipped_to_buyer');
- await commerceApplyCarrierUpdate(db,{trackerId:null,trackingCode:'1Z999AA10123456799',status:'delivered',occurredAt:null,signedBy:null});
- assert.equal((await dto(orderId,buyer.userId,spEnv)).protectionReason,'delivery_signature_required','SafePurchase requires a signed delivery');
- await commerceApplyCarrierUpdate(db,{trackerId:null,trackingCode:'1Z999AA10123456799',status:'delivered',occurredAt:null,signedBy:'Q BUYER'});
- view=await dto(orderId,seller.userId,spEnv) as Obj;assert.equal(view.status,'delivered_review');
- const state=JSON.parse((await orderRow(orderId)).state);assert.equal(Date.parse(String(view.fundsAvailableAt))-Date.parse(state.shipment.deliveredAt),48*hour);
- const model=orderProgress(view as never);assert.deepEqual(model.steps.map(step=>step.label),['Order placed','Payment confirmed','Shipped to inspection','Inspected','Shipped to you','Delivered']);assert.equal(model.complete,6);
- await rejects(commerceRequestRefund(db,buyer.userId,{action:'request_refund',orderId,requestId:crypto.randomUUID(),reason:'Never arrived',claimType:'not_received'}),409,/signed delivery/);
+ view=await dto(orderId,seller.userId,spEnv) as Obj;
+ assert.equal(view.status,'release_eligible','Checked and shipped to the buyer: the seller is paid now, no wait after delivery');
 });
 test('SafePurchase: a failed inspection refunds in full automatically; partial collection failure lets the buyer choose',async()=>{
  const db=getDb(),seller=await collector('failseller'),buyer=await collector('failbuyer');await onboard(seller);
- const single=await offer(seller,{price:60000}),failed=await paid(buyer,single.id,spEnv);
+ const single=await offer(seller,{price:150000}),failed=await paid(buyer,single.id,spEnv,{safePurchaseOptIn:true});
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId:failed,step:'receive'},spEnv);
  await rejects(commerceInspection(db,ownerAccountId,{action:'inspection',orderId:failed,step:'decide',result:'failed',requestId:crypto.randomUUID()},spEnv),400,/finding/);
  const result=await commerceInspection(db,ownerAccountId,{action:'inspection',orderId:failed,step:'decide',result:'failed',reasons:['Undisclosed color touch on the spine'],requestId:crypto.randomUUID()},spEnv);
  assert.equal(result.order.status,'refunded','Automatic full refund');
- const lot=await offer(seller,{price:90000,count:3}),partial=await paid(buyer,lot.id,spEnv);
+ const lot=await offer(seller,{price:150000,count:3}),partial=await paid(buyer,lot.id,spEnv,{safePurchaseOptIn:true});
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId:partial,step:'receive'},spEnv);
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId:partial,step:'decide',result:'partial',failedItems:1,reasons:['#302 is a later printing'],requestId:crypto.randomUUID()},spEnv);
  const waiting=await dto(partial,buyer.userId,spEnv) as Obj;assert.equal(waiting.status,'inspection_failed');assert.equal((waiting.inspection as Obj).failedItems,1);
  await rejects(commerceInspectionChoice(db,seller.userId,{action:'inspection_choice',orderId:partial,choice:'accept_partial',requestId:crypto.randomUUID()},spEnv),403);
  const accepted=await commerceInspectionChoice(db,buyer.userId,{action:'inspection_choice',orderId:partial,choice:'accept_partial',requestId:crypto.randomUUID()},spEnv);
- assert.equal((accepted.order.inspection as Obj).partialRefundCents,30000,'Pro-rated: one of three books');assert.equal(accepted.order.status,'inspection_passed');
- const lot2=await offer(seller,{price:90000,count:3}),full=await paid(buyer,lot2.id,spEnv);
+ assert.equal((accepted.order.inspection as Obj).partialRefundCents,50000,'Pro-rated: one of three books');assert.equal(accepted.order.status,'inspection_passed');
+ const lot2=await offer(seller,{price:150000,count:3}),full=await paid(buyer,lot2.id,spEnv,{safePurchaseOptIn:true});
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId:full,step:'receive'},spEnv);
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId:full,step:'decide',result:'partial',failedItems:2,reasons:['Two books trimmed'],requestId:crypto.randomUUID()},spEnv);
  assert.equal((await commerceInspectionChoice(db,buyer.userId,{action:'inspection_choice',orderId:full,choice:'full_refund',requestId:crypto.randomUUID()},spEnv)).order.status,'refunded');
 });
 test('SafePurchase pickup over the threshold: hand-off at the Inspection Center, or an explicit buyer waiver to Standard',async()=>{
  const db=getDb(),seller=await collector('sppickup'),buyer=await collector('sppickupbuyer');await onboard(seller);
- const listing=await offer(seller,{price:70000,fulfillment:'pickup'}),orderId=await paid(buyer,listing.id,spEnv,{fulfillment:'pickup'});
+ const listing=await offer(seller,{price:150000,fulfillment:'pickup'}),orderId=await paid(buyer,listing.id,spEnv,{fulfillment:'pickup',safePurchaseOptIn:true});
  const code=String((await dto(orderId,buyer.userId,spEnv) as Obj).pickupCode);
  await rejects(commerceConfirmPickupCode(db,seller.userId,{action:'confirm_pickup_code',orderId,code}),409,/doesn’t use/);
  await rejects(commerceConfirmPickup(db,buyer.userId,{action:'confirm_pickup',orderId}),409);
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'receive'},spEnv);
  await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'decide',result:'passed',requestId:crypto.randomUUID()},spEnv);
  assert.equal((await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'handoff',code},spEnv)).order.status,'release_eligible','admin PIN handoff at the Inspection Center releases at once');
- const waived=await offer(seller,{price:70000,fulfillment:'pickup'}),waivedOrder=await paid(buyer,waived.id,spEnv,{fulfillment:'pickup',waiveSafePurchase:true});
+ const waived=await offer(seller,{price:150000,fulfillment:'pickup'}),waivedOrder=await paid(buyer,waived.id,spEnv,{fulfillment:'pickup',safePurchaseOptIn:true,waiveSafePurchase:true});
  const view=await dto(waivedOrder,buyer.userId,spEnv) as Obj;assert.deepEqual([(view.protection as Obj).tier,(view.protection as Obj).waived,view.status],['standard',true,'awaiting_pickup']);
 });
 

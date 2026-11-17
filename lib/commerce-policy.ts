@@ -116,7 +116,7 @@ function fulfilmentStage(state:CommerceState):Omit<CommerceDecision,'state'|'ref
   if(!inspection.result)return {status:'at_inspection',reason:'inspection_in_progress'};
   if(pickup)return state.pickup?null:{status:'inspection_passed',reason:'pickup_at_inspection_center'};
   if(!shipment.validatedAt)return {status:'inspection_passed',reason:'outbound_shipment_required'};
-  if(!shipment.deliveredAt)return {status:'shipped_to_buyer',reason:'confirmed_delivery_required'};
+  // Checked and shipped to the buyer (tracking added): the seller is paid now, without waiting for delivery.
   return null;
  }
  if(pickup)return state.pickup?null:{status:'awaiting_pickup',reason:'pickup_confirmation_required'};
@@ -130,7 +130,9 @@ function decide(state:CommerceState,stamp:number):Omit<CommerceDecision,'state'>
  // confirmed with the buyer's PIN (seller) or at the Inspection Center (operator) releases at once, because the
  // buyer inspected the comic at the handoff; the buyer's backup 'I picked it up' button keeps a 24-hour window.
  const delivered=time(state.shipment.deliveredAt),pickupBy=state.pickup?.by,reviewHours=state.pickup?(pickupBy==='buyer'?24:0):state.policy.tier==='safepurchase'?state.policy.reviewHours:Math.max(state.policy.reviewHours,72);
- const releaseAt=Number.isFinite(delivered)?iso(delivered+reviewHours*hour):null;
+ // SafePurchase shipped to the buyer releases when the outbound tracking is added (the comic was already checked).
+ const safeShippedAt=state.policy.tier==='safepurchase'&&!state.pickup&&state.order.fulfillment!=='pickup'?time(state.shipment.validatedAt):NaN;
+ const releaseAt=Number.isFinite(safeShippedAt)?iso(safeShippedAt):Number.isFinite(delivered)?iso(delivered+reviewHours*hour):null;
  const base={refundEligible:false,transferEligible:false,trackingDeadlineAt,carrierDeadlineAt,releaseAt};
  if(state.financial){const operation=state.financial;
   if(operation.confirmedAt)return {...base,status:operation.kind==='refund'?'refunded':'transferred',reason:state.holdReason||(state.issue?.open||state.dispute==='open'||state.dispute==='lost'?'terminal_issue_requires_manual_recovery':'financial_operation_completed')};
@@ -144,7 +146,7 @@ function decide(state:CommerceState,stamp:number):Omit<CommerceDecision,'state'>
  if(state.refundReason)return {...base,status:'refund_eligible',refundEligible:true,reason:state.refundReason};
  const stage=state.policy.tier===undefined?(!state.shipment.acceptedAt?{status:'awaiting_shipment' as const,reason:state.shipment.validatedAt?'carrier_acceptance_required':'valid_tracking_required'}:!state.shipment.deliveredAt?{status:'in_transit' as const,reason:'confirmed_delivery_required'}:null):fulfilmentStage(state);
  if(stage)return {...base,...stage};
- if(state.policy.requiresSignature&&!state.shipment.signatureVerified)return {...base,status:'manual_review',reason:'delivery_signature_required'};
+ if(state.policy.requiresSignature&&!state.shipment.signatureVerified&&!Number.isFinite(safeShippedAt))return {...base,status:'manual_review',reason:'delivery_signature_required'};
  if(stamp<time(releaseAt))return {...base,status:state.pickup?'picked_up':'delivered_review',reason:'buyer_review_window_open'};
  if(state.inspection?.buyerChoice==='accept_partial'&&state.inspection.partialRefundCents>0)return {...base,status:'manual_review',reason:'partial_refund_settlement_required'};
  // Store credit is a platform-funded discount: the release tops up the seller from the platform balance.

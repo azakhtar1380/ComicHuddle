@@ -120,13 +120,13 @@ export async function cartView(db:Db,userId:string,environment:StripeSandboxEnv)
   if(row.missing)return {listingId:row.listing_id,href:'/?section=Marketplace',title:'Listing removed',issue:'',condition:'',kind:'single',itemCount:1,priceCents:Number(row.price_cents),shippingCents:Number(row.shipping_cents),addedPriceCents:Number(row.price_cents),priceChanged:false,photo:null,seller:{id:'',name:'',handle:''},status:'unavailable',problem:'The seller removed this listing.',pickupOnly:false,checkoutReady:false,savedForLater:row.saved_for_later,safePurchaseAutomatic:false,safePurchaseOptional:false};
   const problem=addProblem(row,userId),held=row.status==='checkout_reserved'&&heldByMe.has(row.id);
   const status:CartItemStatus=!problem?'available':held?'held_by_you':row.status==='checkout_reserved'?'reserved':row.status==='sold'?'sold':'unavailable';
-  const pickupOnly=row.fulfillment==='pickup',plan=protectionPlan(protection,{itemCents:Number(row.price),fulfillment:'shipping',sellerOptIn:!!row.safe_purchase_opt_in,buyerOptIn:false,waiveSafePurchase:false});
+  const pickupOnly=row.fulfillment==='pickup',plan=protectionPlan(protection,{itemCents:Number(row.price),fulfillment:'shipping',sellerOptIn:false,buyerOptIn:false,waiveSafePurchase:false});
   const {issue,condition}=describe(row),addedPrice=Number(row.price_cents);
   return {listingId:row.id,href:'/?'+new URLSearchParams({section:'Marketplace',listing:row.id}),title:row.title,issue,condition,kind:row.kind==='collection'?'collection':'single',itemCount:Number(row.item_count)||1,priceCents:Number(row.price),shippingCents:pickupOnly?0:Number(row.shipping),addedPriceCents:addedPrice,priceChanged:addedPrice>0&&addedPrice!==Number(row.price),photo:firstPhoto(row),seller:{id:row.seller_id,name:row.seller_name||'Collector',handle:row.seller_handle||''},status,
    problem:held?'You’re already checking out with this comic. Pay for it below.':problem||(pickupOnly?'Local pickup only. Buy it from the listing page.':null),pickupOnly,checkoutReady:status==='available'&&!pickupOnly,savedForLater:row.saved_for_later,
-   safePurchaseAutomatic:plan.tier==='safepurchase',safePurchaseOptional:protection.safePurchaseEnabled&&plan.tier!=='safepurchase'};
+   safePurchaseAutomatic:false,safePurchaseOptional:protection.safePurchaseEnabled&&Number(row.price)>=protection.thresholdCents&&row.fulfillment!=='pickup'};
  });
- return {signedIn:true as const,items,holds,safePurchase:{enabled:protection.safePurchaseEnabled,feeCents:protection.safePurchaseEnabled?protection.feeCents:0},
+ return {signedIn:true as const,items,holds,safePurchase:{enabled:protection.safePurchaseEnabled,feeCents:protection.safePurchaseEnabled?protection.feeCents+protection.inboundFallbackCents:0,checkFeeCents:protection.feeCents,thresholdCents:protection.thresholdCents},
   // Orders carry taxCents=0 and Stripe Checkout is created without automatic tax, so no tax line is shown.
   taxCalculated:false,limits:{maxItems:CART_MAX_ITEMS,maxCheckoutItems:CART_CHECKOUT_MAX_ITEMS}};
 }
@@ -198,10 +198,10 @@ export async function guestCartView(rawIds:unknown,environment:StripeSandboxEnv)
   const row=byId.get(id);if(!row)return [];
   const problem=addProblem(row,''),pickupOnly=row.fulfillment==='pickup';
   const status:CartItemStatus=!problem?'available':row.status==='checkout_reserved'?'reserved':row.status==='sold'?'sold':'unavailable';
-  const plan=protectionPlan(protection,{itemCents:Number(row.price),fulfillment:'shipping',sellerOptIn:!!row.safe_purchase_opt_in,buyerOptIn:false,waiveSafePurchase:false});
+  const plan=protectionPlan(protection,{itemCents:Number(row.price),fulfillment:'shipping',sellerOptIn:false,buyerOptIn:false,waiveSafePurchase:false});
   const {issue,condition}=describe(row);
   return [{listingId:row.id,href:'/?'+new URLSearchParams({section:'Marketplace',listing:row.id}),title:row.title,issue,condition,kind:row.kind==='collection'?'collection':'single',itemCount:Number(row.item_count)||1,priceCents:Number(row.price),shippingCents:pickupOnly?0:Number(row.shipping),addedPriceCents:Number(row.price),priceChanged:false,photo:firstPhoto(row),seller:{id:row.seller_id,name:row.seller_name||'Collector',handle:row.seller_handle||''},status,
-   problem:problem||(pickupOnly?'Local pickup only. Buy it from the listing page.':null),pickupOnly,checkoutReady:status==='available'&&!pickupOnly,savedForLater:false,safePurchaseAutomatic:plan.tier==='safepurchase',safePurchaseOptional:protection.safePurchaseEnabled&&plan.tier!=='safepurchase'}];
+   problem:problem||(pickupOnly?'Local pickup only. Buy it from the listing page.':null),pickupOnly,checkoutReady:status==='available'&&!pickupOnly,savedForLater:false,safePurchaseAutomatic:false,safePurchaseOptional:protection.safePurchaseEnabled&&Number(row.price)>=protection.thresholdCents&&row.fulfillment!=='pickup'}];
  });
- return {signedIn:false as const,items,holds:[] as CartHold[],safePurchase:{enabled:protection.safePurchaseEnabled,feeCents:protection.safePurchaseEnabled?protection.feeCents:0},taxCalculated:false,limits:{maxItems:CART_MAX_ITEMS,maxCheckoutItems:CART_CHECKOUT_MAX_ITEMS}};
+ return {signedIn:false as const,items,holds:[] as CartHold[],safePurchase:{enabled:protection.safePurchaseEnabled,feeCents:protection.safePurchaseEnabled?protection.feeCents+protection.inboundFallbackCents:0,checkFeeCents:protection.feeCents,thresholdCents:protection.thresholdCents},taxCalculated:false,limits:{maxItems:CART_MAX_ITEMS,maxCheckoutItems:CART_CHECKOUT_MAX_ITEMS}};
 }

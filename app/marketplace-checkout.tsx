@@ -13,11 +13,12 @@ export type PaymentConfiguration={publishableKey?:string|null;paymentElementEnab
 const usd=(cents:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100);
 /** Which protection an order of this value gets, before payment. Mirrors lib/commerce-protection.ts. */
 export function protectionPreview(settings:ProtectionSettings|undefined,itemCents:number,sellerOptIn:boolean){
- const threshold=settings?.safePurchaseThresholdCents??50000,over=itemCents>=threshold,enabled=!!settings?.safePurchaseEnabled;
- return {over,enabled,threshold,automatic:over&&enabled,offered:enabled&&(over||sellerOptIn),comingSoon:!enabled&&(over||sellerOptIn),feeCents:settings?.safePurchaseFeeCents??0,spHold:settings?.safePurchaseReleaseHoldHours??48,standardHold:settings?.standardReleaseHoldHours??72,handlingDays:settings?.handlingBusinessDays??3,claimDays:settings?.claimDays??30};
+ void sellerOptIn;const threshold=settings?.safePurchaseThresholdCents??100000,over=itemCents>=threshold,enabled=!!settings?.safePurchaseEnabled;
+ // Optional: offered only at or above the threshold (item price), never automatic; the buyer chooses it.
+ return {over,enabled,threshold,automatic:false,offered:enabled&&over,comingSoon:!enabled&&over,feeCents:settings?.safePurchaseFeeCents??0,spHold:settings?.safePurchaseReleaseHoldHours??48,standardHold:settings?.standardReleaseHoldHours??72,handlingDays:settings?.handlingBusinessDays??3,claimDays:settings?.claimDays??30};
 }
 /** The three SafePurchase steps. Only render this when SafePurchase is live. */
-export function SafePurchaseSteps({fee}:{fee:number}){return <div className="mpx-sp-steps"><ol className="safepurchase-steps"><li><b>1</b><span>You buy</span></li><li><b>2</b><span>We check the book</span></li><li><b>3</b><span>It ships to you</span></li></ol><p>You have 48 hours after delivery to report a problem.</p>{fee>0&&<p>SafePurchase fee: {usd(fee)}. It&rsquo;s in your total.</p>}</div>}
+export function SafePurchaseSteps({fee}:{fee:number}){return <div className="mpx-sp-steps"><ol className="safepurchase-steps"><li><b>1</b><span>You buy</span></li><li><b>2</b><span>We check the book</span></li><li><b>3</b><span>It ships to you</span></li></ol><p>The seller gets paid once we&rsquo;ve checked your comic and shipped it to you.</p>{fee>0&&<p>SafePurchase: {usd(fee)} (shipping to our check + the check fee). It&rsquo;s in your total.</p>}</div>}
 
 function configuration(value:unknown):PaymentConfiguration{
  if(!value||typeof value!=='object')throw Error('Payment configuration could not be read.');
@@ -51,7 +52,9 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
  const [reservedUntil,setReservedUntil]=useState<number|null>(null),[clock,setClock]=useState(()=>Date.now());
  useEffect(()=>{if(reservedUntil===null)return;const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer)},[reservedUntil]);
  const [fulfillment,setFulfillment]=useState<'shipping'|'pickup'>(fulfillmentOptions[0]||'shipping'),[buyerSafePurchase,setBuyerSafePurchase]=useState(false),[waive,setWaive]=useState(false);
- const preview=protectionPreview(data?.protection,itemCents,sellerSafePurchase),safePurchase=preview.enabled&&(preview.over||sellerSafePurchase||buyerSafePurchase)&&!(fulfillment==='pickup'&&waive);
+ const preview=protectionPreview(data?.protection,itemCents,sellerSafePurchase),safePurchase=preview.enabled&&preview.over&&buyerSafePurchase&&fulfillment==='shipping';
+ const [spQuote,setSpQuote]=useState<{eligible:boolean;totalCents?:number;checkFeeCents?:number;inboundCents?:number;estimated?:boolean}|null>(null);
+ useEffect(()=>{if(!preview.enabled||!preview.over)return;const c=new AbortController();void fetch('/api/safepurchase-quote?listing='+encodeURIComponent(listingId),{signal:c.signal}).then(r=>r.ok?r.json():null).then(q=>{if(q&&!c.signal.aborted)setSpQuote(q)}).catch(()=>undefined);return()=>c.abort()},[listingId,preview.enabled,preview.over]);
  // Calculated shipping: live carrier rates for the buyer's ZIP. The server re-quotes at checkout and charges that.
  const [rates,setRates]=useState<{zip:string;options:Rate[];packageLabel:string}|null>(null),[rateId,setRateId]=useState(''),[rateState,setRateState]=useState('');
  const quoteSeq=useRef(0);
@@ -67,7 +70,7 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
   }catch(problem){if(seq===quoteSeq.current){setRates(null);setRateId('');setRateState(problem instanceof Error?problem.message:'Shipping rates couldn’t be loaded.')}}
  }
  const chosenRate=rates?.options.find(option=>option.id===rateId)||null,needsRate=shippingCalculated&&fulfillment==='shipping'&&!chosenRate;
- const fee=safePurchase?preview.feeCents:0,shipping=fulfillment==='pickup'?0:shippingCalculated?chosenRate?.cents??0:shippingCents;
+ const fee=safePurchase?spQuote?.totalCents??preview.feeCents:0,shipping=fulfillment==='pickup'?0:shippingCalculated?chosenRate?.cents??0:shippingCents;
  const mounted=useRef(true),generation=useRef(0),inFlight=useRef(false),intent=useRef<{key:string;id:string}|null>(null);
  useEffect(()=>{mounted.current=true;generation.current++;intent.current=null;setError('');setBusy(false);setPayment(null);return()=>{mounted.current=false;generation.current++}},[listingId]);
  // Store credit is kept per payment mode: test orders spend sandbox credit, live orders spend live credit.
@@ -107,10 +110,13 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
    {inspectionReady&&onInspectionRequest?<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={onInspectionRequest}><ShieldCheck size={15}/> Add SafePurchase</button>:<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" disabled={loading} onClick={()=>void reload()}><RefreshCw size={15}/> {loading?'Checking…':'Retry payment check'}</button>}
   </div>}
   {itemCents>0&&<div className={'checkout-protection mpx-protect'+(safePurchase?' is-safepurchase':'')}>
-   {safePurchase?<><strong className="mpx-sp-title"><HuddlesArt pose="safepurchase" size="sm" decorative className="mpx-shield"/> SafePurchase{preview.automatic?' is on for this order':' added'}</strong><p>{fulfillment==='pickup'?'Pick it up at our inspection center with your 6-digit code once it passes.':'We check the book before it ships to you.'}</p>{fulfillment==='shipping'&&<SafePurchaseSteps fee={fee}/>}</>
+   {safePurchase?<><strong className="mpx-sp-title"><HuddlesArt pose="safepurchase" size="sm" decorative className="mpx-shield"/> SafePurchase added</strong><p>We check the comic before it ships to you. Expect a short delay while we verify it.</p><SafePurchaseSteps fee={fee}/></>
    :<><strong><ShieldCheck size={16}/> Standard Protection</strong><p>Money back if it doesn’t arrive or isn’t as described. {fulfillment==='pickup'?'You get a 6-digit PIN and a QR code. Give it to the seller once you have the comic. Your payment is held until pickup.':(preview.over?'It ships insured with a signature. ':'')+'The seller ships with tracking within '+preview.handlingDays+' business days.'} You can report a problem for {preview.claimDays} days after delivery.</p></>}
-   {preview.enabled&&!preview.over&&!sellerSafePurchase&&<label className="check-label mpx-check"><input type="checkbox" checked={buyerSafePurchase} onChange={event=>setBuyerSafePurchase(event.target.checked)}/><span><HuddlesArt pose="safepurchase" size="sm" decorative className="mpx-shield"/> Add SafePurchase{preview.feeCents?' ('+usd(preview.feeCents)+')':''}</span></label>}
-   {preview.enabled&&(preview.over||sellerSafePurchase)&&fulfillment==='pickup'&&<label className="check-label mpx-check"><input type="checkbox" checked={waive} onChange={event=>setWaive(event.target.checked)}/><span>Skip SafePurchase and pick up from the seller. It won’t be inspected.</span></label>}
+   {preview.enabled&&preview.over&&fulfillment==='shipping'&&<fieldset className="mpx-sp-choice"><legend>How should it reach you?</legend>
+    <label className={!buyerSafePurchase?'is-on':''}><input type="radio" name={'sp-'+listingId} checked={!buyerSafePurchase} onChange={()=>setBuyerSafePurchase(false)}/><span><strong>Standard</strong>: ships straight to you</span></label>
+    <label className={buyerSafePurchase?'is-on':''}><input type="radio" name={'sp-'+listingId} checked={buyerSafePurchase} onChange={()=>setBuyerSafePurchase(true)}/><span><strong>SafePurchase</strong>: we check the comic before it ships to you. Expect a short delay while we verify it. <b>+{spQuote?.totalCents!==undefined?usd(spQuote.totalCents):'…'}</b>{spQuote?.estimated?' (estimated)':''}</span></label>
+   </fieldset>}
+   
   </div>}
   {reservedUntil!==null&&reservedUntil>clock&&<p className="mp-reserved" role="status">Held for you for {Math.max(1,Math.ceil((reservedUntil-clock)/60000))} more minutes. Nobody else can buy it while you pay.</p>}
   {payment?<StripePaymentElement key={payment.orderId} {...payment}/>:<details className="checkout-address mpx-address" open={available}><summary>{fulfillment==='pickup'?'Local pickup':'Shipping address'}</summary>
@@ -128,7 +134,7 @@ export default function MarketplaceCheckout({listingId,onNotice,requiresInspecti
     </fieldset>}</>
     :<p className="mpx-fine">After you pay, you get a 6-digit PIN and a QR code in your order. Meet somewhere public. Share the PIN only once the comic is in your hands. If it isn’t used within 7 days, you’re refunded in full.</p>}
     <label className="ds-field"><span>Use store credit (USD)</span><input type="number" min="0" max={(creditBalance??0)/100} step="0.01" value={credit} onChange={event=>setCredit(event.target.value)} disabled={!creditBalance}/><small>{creditBalance===null?'No store credit to use. You can pay by card.':usd(creditBalance)+(live?' available':' test credit available')+'. Covers the comic, not shipping or fees.'}</small></label>
-    {itemCents>0&&<><dl className="mpx-receipt" aria-label="Order total"><div><dt>Comic</dt><dd>{usd(itemCents)}</dd></div><div><dt>{fulfillment==='pickup'?'Local pickup':'Shipping'}</dt><dd>{needsRate?'Enter ZIP':shipping?usd(shipping):'Free'}</dd></div>{fee>0&&<div><dt>SafePurchase</dt><dd>{usd(fee)}</dd></div>}{!creditProblem&&creditCents>0&&<div><dt>Store credit</dt><dd>&minus;{usd(creditCents)}</dd></div>}<div className="mpx-receipt-total"><dt>You pay</dt><dd className="checkout-live-total" role="status" aria-live="polite">{usd(creditProblem?gross:gross-creditCents)}</dd></div></dl>
+    {itemCents>0&&<><dl className="mpx-receipt" aria-label="Order total"><div><dt>Comic</dt><dd>{usd(itemCents)}</dd></div><div><dt>{fulfillment==='pickup'?'Local pickup':'Shipping'}</dt><dd>{needsRate?'Enter ZIP':shipping?usd(shipping):'Free'}</dd></div>{fee>0&&<div><dt>SafePurchase (shipping to our check + {usd(spQuote?.checkFeeCents??2500)} check fee){spQuote?.estimated?', estimated':''}</dt><dd>{usd(fee)}</dd></div>}{!creditProblem&&creditCents>0&&<div><dt>Store credit</dt><dd>&minus;{usd(creditCents)}</dd></div>}<div className="mpx-receipt-total"><dt>You pay</dt><dd className="checkout-live-total" role="status" aria-live="polite">{usd(creditProblem?gross:gross-creditCents)}</dd></div></dl>
      {creditProblem&&<p className="ds-error" role="status">{creditProblem}</p>}<p className="mpx-fine">Any sales tax is added on the payment screen.</p></>}
     <label className="check-label mpx-check"><input name="sandbox" type="checkbox" required/><span>{live?(fulfillment==='pickup'?'I confirm this purchase for local pickup. Stripe charges my card.':'I confirm this purchase and address. Stripe charges my card.'):'This is a test checkout. I’ll use a Stripe test card. No real money moves.'} <span className="required-mark" aria-hidden="true">*</span></span></label>
     {error&&<p className="ds-error" role="alert">{error} <a className="ds-link" href="/?section=Account&accountTab=Orders">View Orders</a></p>}

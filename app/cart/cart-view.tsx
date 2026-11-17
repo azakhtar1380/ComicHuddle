@@ -163,11 +163,10 @@ export default function CartView(){
    <dl className="cart-totals">
     <div><dt>Items ({ready.length})</dt><dd>{usd(totals.items)}</dd></div>
     <div><dt>Shipping</dt><dd>{totals.shipping?usd(totals.shipping):'Free'}</dd></div>
-    {spEnabled&&totals.safePurchase>0&&<div><dt>SafePurchase ({spCount})</dt><dd>{usd(totals.safePurchase)}</dd></div>}
+    {spEnabled&&totals.safePurchase>0&&<div><dt>SafePurchase ({spCount}, shipping to our check + check fee, estimated)</dt><dd>{usd(totals.safePurchase)}</dd></div>}
     <div className="cart-total"><dt>Total</dt><dd role="status" aria-live="polite">{usd(total)}</dd></div>
    </dl>
-   {spEnabled&&ready.some(item=>item.safePurchaseOptional)&&<label className="check-label cart-check"><input type="checkbox" checked={safePurchaseOptIn} onChange={event=>setSafePurchaseOptIn(event.target.checked)}/><span><ShieldCheck size={15} aria-hidden/> Add SafePurchase to every comic{spFee?' ('+usd(spFee)+' each)':''}. We check each book before it ships to you.</span></label>}
-   {spEnabled&&ready.some(item=>item.safePurchaseAutomatic)&&<p className="cart-fine"><ShieldCheck size={14} aria-hidden/> SafePurchase is on automatically for higher-value comics.</p>}
+   {spEnabled&&ready.some(item=>item.safePurchaseOptional)&&<fieldset className="mpx-sp-choice cart-sp-choice"><legend>Comics of $1,000 or more: how should they reach you?</legend><label className={!safePurchaseOptIn?'is-on':''}><input type="radio" name="cart-sp" checked={!safePurchaseOptIn} onChange={()=>setSafePurchaseOptIn(false)}/><span><strong>Standard</strong>: ships straight to you</span></label><label className={safePurchaseOptIn?'is-on':''}><input type="radio" name="cart-sp" checked={safePurchaseOptIn} onChange={()=>setSafePurchaseOptIn(true)}/><span><strong>SafePurchase</strong>: we check the comic before it ships to you. Expect a short delay while we verify it. <b>+{usd(spFee)} each</b> (estimated: shipping to our check + the check fee)</span></label></fieldset>}
    <p className="cart-fine">Shipping is set by each seller per listing. Every comic is its own order and payment.</p>
    {active.length>ready.length&&<p className="cart-fine">Comics marked above aren’t included in this total.</p>}
    {tooMany&&<p className="ds-error" role="status">Check out up to {data.limits.maxCheckoutItems} comics at a time. Save the rest for later.</p>}

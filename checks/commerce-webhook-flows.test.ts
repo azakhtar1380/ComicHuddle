@@ -297,12 +297,11 @@ test('order progress tracker follows the server order from placed to paid, shipp
  assert.equal(dto.status,'awaiting_shipment','Seller tracking without carrier confirmation does not release anything');assert.equal(dto.protectionReason,'carrier_confirmation_pending');assert.equal(dto.tracking?.verified,false);
  const seller=await progress(fixture.seller.userId);assert.equal(seller.dto.role,'seller');assert.equal(seller.model.complete,3,'Seller sees the same progress');assert.equal(seller.dto.fundsAvailableAt,null,'No funds date before confirmed delivery');
  // The same code path the signed EasyPost webhook uses.
- // The $600 fixture is over the $500 SafePurchase threshold while inspection is not configured:
- // Standard protection + signature-required shipping, and the copy says inspection is coming soon.
- assert.deepEqual([dto.protection?.tier,dto.protection?.overThreshold,dto.protection?.comingSoon,dto.protection?.signatureRequired,dto.protection?.releaseHoldHours],['standard',true,true,true,72]);
+ // The $600 fixture is under the $1,000 SafePurchase threshold: a Standard order, no signature, unchanged 72-hour hold.
+ assert.deepEqual([dto.protection?.tier,dto.protection?.overThreshold,dto.protection?.comingSoon,dto.protection?.signatureRequired,dto.protection?.releaseHoldHours],['standard',false,false,false,72]);
  const deliveredAt=new Date(Date.now()-1000).toISOString();
  await commerceApplyCarrierUpdate(db,{trackerId:'trk_test',trackingCode:'9400111899223197428490',status:'delivered',occurredAt:deliveredAt,signedBy:null});
- assert.equal(commerceOrderDto(await orderRow(orderId),fixture.buyer.userId).protectionReason,'delivery_signature_required','Unsigned delivery of a signature-required order is held for review');
+ assert.equal(commerceOrderDto(await orderRow(orderId),fixture.buyer.userId).protectionReason,'buyer_review_window_open','Under $1,000 is Standard: an unsigned delivery opens the normal review window');
  await commerceApplyCarrierUpdate(db,{trackerId:'trk_test',trackingCode:'9400111899223197428490',status:'delivered',occurredAt:deliveredAt,signedBy:'Q BUYER'});
  const delivered=commerceOrderDto(await orderRow(orderId),fixture.buyer.userId);
  assert.equal(delivered.status,'delivered_review');assert.equal(delivered.tracking?.verified,true);const done=orderProgress(delivered);assert.equal(done.complete,4);assert.equal(done.current,-1,'Every step is complete once delivery is confirmed');assert.equal(done.terminal,null);

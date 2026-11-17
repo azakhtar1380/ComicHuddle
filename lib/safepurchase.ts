@@ -86,7 +86,9 @@ export function buildTimeline(row:OrderRow,viewer:Viewer,updates:TimelineUpdate[
  const refunded=status==='refunded',refundPending=status==='refund_pending',refundEligible=status==='refund_eligible',cancelled=row.status==='cancelled'||row.status==='checkout_expired';
  const outcome:SafePurchaseOutcome=cancelled?'cancelled':refunded?'refunded':refundPending?'refund_pending':transferDone?'done':checkFailed?'check_failed':status==='manual_review'||refundEligible||!dto?'on_hold':'in_progress';
  const reviewUntil=dto?.reviewUntil||null;
- if(!transferDone&&facts.delivered.done&&outcome==='in_progress')facts.done.detail=reviewUntil?'The buyer can report a problem until '+new Date(reviewUntil).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'})+' UTC. The seller is paid after that.':'The seller is paid after the 48-hour review window.';
+ // SafePurchase pays the seller once the comic is checked and shipped to the buyer; problems after delivery use the 30-day claim.
+ if(!transferDone&&facts.shipped_to_buyer.done&&outcome==='in_progress')facts.done.detail='The seller is paid now that we’ve checked the comic and shipped it to the buyer.';
+ void reviewUntil;
  const outcomeNote=outcome==='refunded'?'The buyer was refunded.':outcome==='refund_pending'?'A refund to the buyer is in progress.':outcome==='check_failed'?(result==='failed'?'The comic did not pass our check. The buyer is refunded and the comic goes back to the seller.':'Part of the collection did not pass our check.'):outcome==='on_hold'?refundEligible?'Eligible for a full refund (for example, the seller missed the 48-hour shipping deadline). Waiting for the refund to be started.':(dto?'On hold for review by ComicHuddle.':'This order needs a manual check by ComicHuddle.'):outcome==='cancelled'?'This order was cancelled.':outcome==='done'?'Complete.':null;
  let currentStep:SafePurchaseStep|null=null;const stopAfterCheck=checkFailed||refunded||refundPending||refundEligible||cancelled;
  const steps:TimelineStep[]=SAFEPURCHASE_STEPS.map(step=>{

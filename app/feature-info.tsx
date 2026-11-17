@@ -42,23 +42,22 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
     <PageHeader eyebrow="SafePurchase" title="A careful path" accent="for a valuable book." lede="We check your comic before it ships to you." pose="safepurchase" caption="SAFEPURCHASE" line="We check it before it ships." actions={live?<Link className="ds-btn ds-btn-primary" href="/?section=Marketplace">Shop the marketplace <ArrowRight size={18} aria-hidden="true"/></Link>:<Link className="ds-btn ds-btn-secondary" href="/?section=Marketplace">Browse the marketplace <ArrowRight size={18} aria-hidden="true"/></Link>}/>
     {!live&&<p className="fi-status" role="status"><Clock size={18} aria-hidden="true"/> SafePurchase isn’t open for orders yet.</p>}
     <section className="fi-section" aria-labelledby="fi-steps">
-     <div className="ds-section-head"><h2 id="fi-steps">How it <span>works.</span></h2>{live&&<p>Automatic on orders of {threshold} or more.</p>}</div>
+     <div className="ds-section-head"><h2 id="fi-steps">How it <span>works.</span></h2>{live&&<p>An option on comics of {threshold} or more. You choose it at checkout.</p>}</div>
      <Steps label="How SafePurchase works" steps={[
-      ['You pay','Pay through ComicHuddle checkout. We hold the money. The seller isn’t paid yet.'],
+      ['You choose it and pay','On comics of '+threshold+' or more, pick SafePurchase at checkout. You pay the shipping to our check and the check fee. We hold the money.'],
       ['Seller ships to us','The seller ships the comic to ComicHuddle, not to you, with tracking.'],
       ['We check it','Right issue, right printing, condition as described. It isn’t official grading.'],
       ['We ship it to you','Insured, with a signature. If the check fails, you get a full refund and the comic goes back to the seller.'],
-      ['Seller gets paid','You have 48 hours after delivery to report a problem. Then the seller is paid.'],
+      ['Seller gets paid','Once we’ve checked your comic and shipped it to you.'],
      ]}/>
      <p className="fi-note">You and the seller see the same step-by-step progress on the order in Orders, with tracking numbers and our notes.</p>
-     <p className="fi-callout"><ShieldCheck size={22} aria-hidden="true"/> You have 48 hours after delivery to report a problem.</p>
+     <p className="fi-callout"><ShieldCheck size={22} aria-hidden="true"/> Expect a short delay while we verify your comic.</p>
     </section>
     <section className="fi-section" aria-labelledby="fi-faq">
      <div className="ds-section-head"><h2 id="fi-faq">Questions<span>.</span></h2></div>
      {live&&<HowItWorks title="Which orders get it?">
-      <p>It’s automatic on a comic or collection of {threshold} or more.</p>
-      <p>Below that, the seller can offer it, or you can add it at checkout.</p>
-      <p>{fee?'There’s a '+fee+' fee. You’ll see it at checkout before you pay.':'You’ll see any fee at checkout before you pay.'}</p>
+      <p>It’s an option on a comic or collection of {threshold} or more (the comic’s price, not shipping). Standard shipping straight to you is the default.</p>
+      <p>If you choose it, you pay the shipping from the seller to our check{fee?' plus a '+fee+' check fee':' plus the check fee'}. It’s shown as its own line before you pay. The seller’s payout doesn’t change.</p>
      </HowItWorks>}
      <HowItWorks title="What do you check?">
       <p>The title, issue, variant, printing and year. That the condition matches the listing.</p>
@@ -70,8 +69,8 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
       <p>We check the book within 2 business days of arrival. Then it ships to you insured, with a signature.</p>
      </HowItWorks>
      <HowItWorks title="What if something’s wrong?">
-      <p>After delivery, you have 48 hours to report a problem. Take photos and keep the packaging.</p>
-      <p>Report it in Orders. The seller isn’t paid while we look into it.</p>
+      <p>If the check fails, the comic goes back to the seller and you get a full refund, including the SafePurchase extra.</p>
+      <p>A problem after delivery? Report it in Orders within 30 days, like any order. Take photos and keep the packaging.</p>
       <p>If only part of a collection fails, you pick a partial or full refund. Refunds go back to how you paid.</p>
      </HowItWorks>
      <HowItWorks title="I’m the seller. Where do I ship?">

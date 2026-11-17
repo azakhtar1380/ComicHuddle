@@ -90,3 +90,10 @@
 .mpx-custom-sheet p{margin:0 0 10px;white-space:pre-wrap;color:var(--ink)}
 
 .builder-auction-rule,.mpx-auction-locked{margin:8px 0;padding:10px 12px;border:2px solid var(--ink);border-radius:10px;background:#f6ecc8;color:var(--ink);font-weight:600}
+
+/* SafePurchase choice (Standard by default), $1,000+ shipped orders only. */
+.mpx-sp-choice{display:grid;gap:8px;margin:10px 0 0;padding:0;border:0;min-width:0}
+.mpx-sp-choice legend{margin-bottom:6px;font-weight:700;color:var(--ink)}
+.mpx-sp-choice label{display:flex;gap:10px;align-items:flex-start;min-height:44px;padding:10px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;line-height:1.4}
+.mpx-sp-choice label.is-on{background:#f6ecc8}
+.mpx-sp-choice input{margin-top:3px;accent-color:var(--ink)}
