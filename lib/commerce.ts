@@ -14,6 +14,7 @@ import {previewRulesVersion} from './community';
 import {listingItems} from './marketplace';
 import {conditionalGuard,operationGuardFailed} from './operation-guard';
 import {ownerAccountId} from './owner';
+import {recordSellerStrike} from './seller-strikes';
 import {createCommerceState,emptyInspection,evaluateCommercePolicy,applyCommerceEvent,type CommerceState,type CommerceEvent} from './commerce-policy';
 import {sandboxSetup,stripeSandbox,stripeMode,stripePublishableKey,CHECKOUT_EXPIRY_SECONDS,StripeSandboxError,type StripeMode,type StripeSandboxEnv as StripeOnlyEnv,type StripeVerifiedEvent} from './stripe-sandbox';
 import {MAX_PLATFORM_FEE_BPS,estimatedStripeFeeCents,payoutLegs,platformFeeConfig,saleBreakdown,type PlatformFeeEnv} from './commerce-fees';
@@ -459,6 +460,9 @@ export async function commerceCancelOrder(db:Db,userId:string,raw:Record<string,
  const decision=evaluateCommercePolicy(state,now());
  if(decision.state.refundReason!=='tracking_deadline'||state.issue?.open)throw new ApiRequestError('You can cancel for a full refund only if the seller misses the shipping deadline.',409);
  const result=await refundOrder(db,userId,row.id,input.requestId,false,environment,false);
+ // A seller who won't ship a won auction can't back out quietly: the missed deadline is a strike admins see.
+ const [sold]=await db.select({saleType:listings.saleType}).from(listings).where(eq(listings.id,row.listingId));
+ if(sold?.saleType==='auction')await recordSellerStrike({sellerId:row.sellerId,orderId:row.id,reason:'Missed the shipping deadline on a won auction'});
  return {...result,note:result.order.status==='refunded'?'Order cancelled. Your full refund is on its way.':'Order cancelled. Your full refund is being processed.'};
 }
 async function persistAndMaybeRefund(db:Db,userId:string,row:Row,next:State,type:string,note:string,requestId:string|undefined,environment:StripeSandboxEnv,allowOperator:boolean){

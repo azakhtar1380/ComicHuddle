@@ -88,3 +88,5 @@
 .builder-custom-tag,.mpx-custom-tag{display:inline-block;width:max-content;margin-top:4px;padding:1px 8px;border:1.5px solid var(--ink);border-radius:999px;background:var(--cream);font-size:12px;font-weight:700;color:var(--ink)}
 .builder-custom textarea{width:100%;min-height:88px;border:2px solid var(--ink);border-radius:10px;padding:8px 10px;font:inherit;background:#fff;color:var(--ink)}
 .mpx-custom-sheet p{margin:0 0 10px;white-space:pre-wrap;color:var(--ink)}
+
+.builder-auction-rule,.mpx-auction-locked{margin:8px 0;padding:10px 12px;border:2px solid var(--ink);border-radius:10px;background:#f6ecc8;color:var(--ink);font-weight:600}
