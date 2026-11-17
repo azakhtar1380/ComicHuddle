@@ -61,7 +61,9 @@ export const extrasInput=z.object({
  favoriteCharacterId:z.number().int().refine(id=>id!==0).nullable().optional(),
  favoriteIssueId:z.number().int().min(0).nullable().optional(),
  grailIssueId:z.number().int().min(0).nullable().optional(),
- grailReward:z.string().trim().max(80).optional(),
+ grailReward:z.string().trim().max(60).optional(),
+ // The six favorites (profiles.featured): Directory issues ("directory:<id>") or copies the owner has in their vault.
+ featured:z.array(z.string().trim().min(1).max(80)).max(6).refine(keys=>new Set(keys).size===keys.length,'Each favorite once.').optional(),
  shareWishlist:z.boolean().optional(),shareReviews:z.boolean().optional(),shareCity:z.boolean().optional(),
  shopWindow:z.enum(['open','window','closed']).optional(),
  world:z.enum(['classic','gargoyle','sunrise','newyork','cosmic','sanctum','neon','sunken','bayou','frontier']).optional(),
@@ -73,9 +75,17 @@ export type ExtrasInput=z.infer<typeof extrasInput>;
 
 /** Validates references (issues exist, character exists) and upserts only the provided fields. */
 export async function saveExtras(db:CatalogDb,profile:{id:string;userId:string},input:ExtrasInput){
- const issueIds=[input.favoriteIssueId,input.grailIssueId].filter((v):v is number=>typeof v==='number');
+ const directoryKeys=(input.featured||[]).filter(key=>/^directory:\d{1,10}$/.test(key)),copyKeys=(input.featured||[]).filter(key=>!directoryKeys.includes(key));
+ if(copyKeys.length){
+  const {rows}=await getPool().query<{data:string}>('SELECT data FROM ch_web.collections WHERE user_id=$1',[profile.userId]);
+  let books:{id:string}[]=[];try{books=rows[0]?(JSON.parse(rows[0].data) as {books?:{id:string}[]}).books||[]:[]}catch{books=[]}
+  if(copyKeys.some(key=>!books.some(book=>book.id===key)))throw new ExtrasError('Pick that comic from the Directory again.');
+ }
+ const favoriteIds=directoryKeys.map(key=>Number(key.slice(10)));
+ const issueIds=[input.favoriteIssueId,input.grailIssueId,...favoriteIds].filter((v):v is number=>typeof v==='number');
  if(issueIds.length){const found=await catalogIssuesById(db,issueIds);if(new Set(found.map(i=>i.id)).size!==new Set(issueIds).size)throw new ExtrasError('Pick that comic from the Directory again.')}
  if(typeof input.favoriteCharacterId==='number'&&!await characterPage(db,input.favoriteCharacterId))throw new ExtrasError('Pick a character from the Character Directory.');
+ if(input.featured!==undefined)await getPool().query('UPDATE ch_web.profiles SET featured=$2 WHERE id=$1',[profile.id,JSON.stringify(input.featured)]);
  const columns:[string,unknown][]=[];
  if(input.tags!==undefined)columns.push(['tags',JSON.stringify(input.tags)]);
  if(input.favoriteCharacterId!==undefined)columns.push(['favorite_character_id',input.favoriteCharacterId]);
@@ -92,6 +102,7 @@ export async function saveExtras(db:CatalogDb,profile:{id:string;userId:string},
 export class ExtrasError extends Error{status=400}
 /** Column names are fixed by the callers above, never user input. */
 export async function upsertExtras(profile:{id:string;userId:string},columns:[string,unknown][]){
+ if(!columns.length)return;
  const names=columns.map(([name])=>name),values=columns.map(([,value])=>value);
  const insertCols=['profile_id','user_id',...names],placeholders=insertCols.map((name,i)=>name==='tags'?`$${i+1}::jsonb`:`$${i+1}`);
  const updates=names.map(name=>`${name}=EXCLUDED.${name}`).concat(['user_id=EXCLUDED.user_id','updated_at=now()']);

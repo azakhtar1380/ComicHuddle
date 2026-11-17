@@ -50,6 +50,9 @@ async function seedSampleCatalog(engine: Engine) {
       SELECT zip,city,state,latitude,longitude,accuracy,$2,$3,$4 FROM jsonb_to_recordset($1::jsonb) AS x(zip text,city text,state text,latitude double precision,longitude double precision,accuracy bigint) ON CONFLICT DO NOTHING`,
       [JSON.stringify(postal.records), postal.source, postal.archiveSha256, postal.fetchedAt]);
     console.log(`[local-db] seeded ${postal.records.length} US ZIP locations`);
+    // Two public-domain Golden Age characters so the Character Directory search works locally.
+    await engine.exec(`INSERT INTO ch_web.characters(character_id,name,search_text,issue_count) VALUES
+      (900001,'Mysta of the Moon','|mysta of the moon|',12),(900002,'Auro, Lord of Jupiter','|auro, lord of jupiter|auro|',20) ON CONFLICT DO NOTHING`);
   } catch (error) { console.warn('[local-db] sample catalog seed skipped: ' + (error as Error).message.slice(0, 200)); }
 }
 

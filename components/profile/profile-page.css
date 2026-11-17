@@ -102,3 +102,11 @@
 .pp-round-spacer{visibility:hidden}
 .pp-sfx{position:absolute;left:12px;top:12px;z-index:2;padding:4px 10px;background:var(--pp-ink-b,var(--yellow));color:var(--ink);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font:900 22px/1 'Barlow Condensed',Impact,sans-serif;transform:rotate(-6deg)}
 .pp-ink-modern .pp-name>span{color:#7fe0d6}.pp-ink-noir .pp-name>span{color:#f9f6ef}
+/* Owner edits picked from the Directory */
+.pp-edit{display:inline-flex;align-items:center;gap:4px;min-height:44px;min-width:44px;padding:0 10px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:700;font-size:13px}
+.pp-pick{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:52px;padding:0 12px;border:2px dashed var(--ink);background:#fff;color:var(--ink);font-weight:700}
+.pp-pick:hover{background:var(--yellow)}
+.pp-fav-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.pp-fav-head h2{margin:0}
+.pp-wanted-top{display:flex;align-items:center;justify-content:center;gap:10px}
+.pp-wanted .pp-pick{background:rgba(255,255,255,.6)}

@@ -17,6 +17,9 @@ import './profile-page.css';
 
 export type ProfileView=CollectorProfile&Partial<BusinessSummary>&{extras?:ProfileExtras};
 export type ProfileTab='overview'|'collection'|'wishlist'|'reviews';
+export type PickKind='six'|'character'|'comic'|'grail';
+function EditButton({label,onClick}:{label:string;onClick:()=>void}){return <button type="button" className="pp-edit" aria-label={label} title={label} onClick={onClick}><Pencil size={16} aria-hidden="true"/><span aria-hidden="true">Edit</span></button>}
+function PickButton({onClick}:{onClick:()=>void}){return <button type="button" className="pp-pick" onClick={onClick}><Plus size={18} aria-hidden="true"/> Pick from the Directory</button>}
 
 /** Mr. Huddles, standing at the photo's bottom-right. Decorative only. */
 export function HuddlesCutout({className=''}:{className?:string}){
@@ -46,11 +49,11 @@ function fileButton(label:string,onFile:(file:File)=>void,className:string,conte
 const issueLabel=(ref:{title:string;number:string;year:number|null})=>`${ref.title} #${ref.number}${ref.year?' ('+ref.year+')':''}`;
 
 type Props={p:ProfileView;own:boolean;busy:boolean;wants:Record<number,Issue>;uploading:''|'photo'|'cover';
- onBack:()=>void;onEdit:()=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;onMessage:(context?:string)=>void;onShare:()=>void;onTheme:()=>void;onCollection:()=>void;
+ onBack:()=>void;onEdit:()=>void;onPick:(kind:PickKind)=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;onMessage:(context?:string)=>void;onShare:()=>void;onTheme:()=>void;onCollection:()=>void;
  onPhoto:(file:File)=>void;onCover:(file:File)=>void;onCopyLink:()=>void;
  art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;tabRequest?:{tab:ProfileTab;n:number}|null;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode};
 
-export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,tabRequest}:Props){
+export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onPick,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,tabRequest}:Props){
  const x=p.extras||emptyExtras,look=x.look||DEFAULT_LOOK,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
  // Opening "My collection" from elsewhere selects the Collection tab.
  const [seenRequest,setSeenRequest]=useState(0);
@@ -58,7 +61,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
  const biz:BusinessSummary={isBusiness:!!p.isBusiness,verified:!!p.verified,shopName:p.shopName??null,business:p.business};
  const tabs:{id:ProfileTab;label:string}[]=[{id:'overview',label:'Overview'},{id:'collection',label:'Collection'},{id:'wishlist',label:'Wishlist'},...(own||x.share.reviews?[{id:'reviews' as const,label:'Reviews'}]:[])];
  useEffect(()=>{if(!menu)return;const close=(event:MouseEvent|KeyboardEvent)=>{if(event instanceof KeyboardEvent?event.key==='Escape':!menuRef.current?.contains(event.target as Node))setMenu(false)};document.addEventListener('mousedown',close);document.addEventListener('keydown',close);return()=>{document.removeEventListener('mousedown',close);document.removeEventListener('keydown',close)}},[menu]);
- const favorites=p.showcase.slice(0,6),open=Math.max(0,6-favorites.length),wantList=p.wantIds.slice(0,24);
+ const favorites=p.showcase.slice(0,6),wantList=p.wantIds.slice(0,24);
  const verifiedLabel=biz.verified?(biz.isBusiness?'Verified business':'Verified collector'):null;
  const select=(next:ProfileTab)=>{setTab(next);requestAnimationFrame(()=>document.getElementById(ids+'-tab-'+next)?.focus())};
  return <article className={'pp pp-world-'+look.world+' pp-ink-'+look.ink} style={lookStyle(look) as CSSProperties} data-world={look.world} aria-labelledby={ids+'-name'}>
@@ -121,33 +124,32 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
    {tab==='overview'&&<>
     {biz.isBusiness&&<BusinessCard summary={biz} own={own}/>}
     <section className="pp-card pp-block" aria-labelledby={ids+'-six'}>
-     <div className="pp-block-head"><h2 id={ids+'-six'}><span className="pp-eyebrow">The six</span>Favorites</h2>{own&&<button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={onEdit}><Pencil size={16} aria-hidden="true"/> Pick favorites</button>}</div>
-     {favorites.length||own?<ul className="nw-books nw-six" aria-label="Six favorites">
-      {favorites.map((b,i)=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)} aria-label={'Peek inside '+b.title+' '+(/^#/.test(b.issue)||!b.issue?b.issue:'#'+b.issue)+': see full details'}><span className="nw-rank" aria-hidden="true">{i+1}</span>{art(b)}<strong>{b.title} {b.issue}</strong>{b.grade&&<small>{b.grade}</small>}<span className="peek-inside nw-peek" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></button></li>)}
-      {own&&Array.from({length:open},(_,i)=><li key={'open-'+i}><button type="button" className="nw-book nw-slot" onClick={onEdit}><span className="nw-slot-art"><Plus size={28} aria-hidden="true"/></span><strong>Add a favorite</strong></button></li>)}
-     </ul>:<p className="nw-empty">No favorites picked yet.</p>}
+     <div className="pp-block-head"><h2 id={ids+'-six'}><span className="pp-eyebrow">The six</span>Favorites</h2>{own&&favorites.length>0&&<EditButton label="Edit favorites" onClick={()=>onPick('six')}/>}</div>
+     {favorites.length?<ul className="nw-books nw-six" aria-label="Six favorites">
+      {favorites.map((b,i)=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)} aria-label={'Peek inside '+b.title+' '+(/^#/.test(b.issue)||!b.issue?b.issue:'#'+b.issue)+': see full details'}><span className="nw-rank" aria-hidden="true">{i+1}</span>{art(b)}<strong>{b.title} {b.issue}</strong><span className="peek-inside nw-peek" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></button></li>)}
+     </ul>:own?<PickButton onClick={()=>onPick('six')}/>:<p className="nw-empty">No favorites picked yet.</p>}
     </section>
 
     <div className="pp-duo">
      <section className="pp-card pp-fav" aria-labelledby={ids+'-char'}>
-      <h2 id={ids+'-char'} className="pp-eyebrow">Favorite character</h2>
+      <div className="pp-fav-head"><h2 id={ids+'-char'} className="pp-eyebrow">Favorite character</h2>{own&&x.favoriteCharacter&&<EditButton label="Edit favorite character" onClick={()=>onPick('character')}/>}</div>
       {x.favoriteCharacter?<a className="pp-fav-link" href={'/characters/'+x.favoriteCharacter.id}><span className="pp-fav-circle" aria-hidden="true">{x.favoriteCharacter.name.slice(0,1)}</span><span><strong>{x.favoriteCharacter.name}</strong><small>{x.favoriteCharacter.firstAppearance?'First appearance: '+issueLabel(x.favoriteCharacter.firstAppearance):'First appearance not verified yet'}</small></span></a>
-      :<p className="pp-empty">{own?<button type="button" className="ds-link" onClick={onEdit}>Pick a favorite character</button>:'Not picked yet.'}</p>}
+      :own?<PickButton onClick={()=>onPick('character')}/>:<p className="pp-empty">Not picked yet.</p>}
      </section>
      <section className="pp-card pp-fav" aria-labelledby={ids+'-comic'}>
-      <h2 id={ids+'-comic'} className="pp-eyebrow">Favorite comic</h2>
+      <div className="pp-fav-head"><h2 id={ids+'-comic'} className="pp-eyebrow">Favorite comic</h2>{own&&x.favoriteComic&&<EditButton label="Edit favorite comic" onClick={()=>onPick('comic')}/>}</div>
       {x.favoriteComic?<button type="button" className="pp-fav-link" onClick={()=>onIssue(x.favoriteComic!.issueId)}><span className="pp-fav-circle pp-fav-square" aria-hidden="true">#{x.favoriteComic.number.slice(0,4)}</span><span><strong>{x.favoriteComic.title} #{x.favoriteComic.number}</strong><small>{[x.favoriteComic.year,x.favoriteComic.keyNote].filter(Boolean).join(' · ')||'Directory issue'}</small></span></button>
-      :<p className="pp-empty">{own?<button type="button" className="ds-link" onClick={onEdit}>Pick a favorite comic</button>:'Not picked yet.'}</p>}
+      :own?<PickButton onClick={()=>onPick('comic')}/>:<p className="pp-empty">Not picked yet.</p>}
      </section>
     </div>
 
     {(x.grail||own)&&<section className="pp-wanted" aria-labelledby={ids+'-wanted'}>
-     <p className="pp-wanted-head" id={ids+'-wanted'}>WANTED</p>
+     <div className="pp-wanted-top"><p className="pp-wanted-head" id={ids+'-wanted'}>WANTED</p>{own&&x.grail&&<EditButton label="Edit wanted poster" onClick={()=>onPick('grail')}/>}</div>
      {x.grail?<>
       <button type="button" className="pp-wanted-title" onClick={()=>onIssue(x.grail!.issueId)}>{issueLabel(x.grail)}</button>
-      <p className="pp-wanted-reward">Reward: {x.grail.reward||'Make me an offer'}</p>
+      {x.grail.reward&&<p className="pp-wanted-reward">Reward: {x.grail.reward}</p>}
       {!own&&<button type="button" className="ds-btn ds-btn-primary" disabled={!p.dmOpen||busy} onClick={()=>onMessage('Grail: '+issueLabel(x.grail!))}>I have one — make an offer</button>}
-     </>:<p className="pp-wanted-reward"><button type="button" className="ds-link" onClick={onEdit}>Put your grail on a wanted poster</button></p>}
+     </>:<PickButton onClick={()=>onPick('grail')}/>}
     </section>}
 
     {p.favorite&&<div className="pp-bubble"><p className="pp-eyebrow">Now reading</p><p className="pp-bubble-text">{p.favorite}</p></div>}

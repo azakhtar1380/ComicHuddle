@@ -6,10 +6,7 @@ import ResolvedComicCover from './resolved-comic-cover';
 import {accountSignInPath} from '../lib/account-intent';
 import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
 import {ArrowRight,ArrowUpRight,Check,Flag,Layers,MessageCircle,RefreshCw,Search,X} from 'lucide-react';
-import ComicPicker from './comic-picker';
-import {SelectedComicList} from './comic-multi-picker';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
-import {directoryGrail,featuredIssueId} from '../lib/profile-grails';
 import {listingDirectoryId} from '../lib/shared-catalog';
 import {catalog,type Issue} from '../lib/catalog';
 import {bookIssue} from '../lib/trades';
@@ -23,7 +20,8 @@ export {countUnread} from '../components/messages/format';
 import {LoadingState} from '../components/states';
 import type {Vault} from '../lib/vault';
 import BusinessFields from '../components/profile/business-fields';
-import ProfilePage from '../components/profile/profile-page';
+import ProfilePage,{type PickKind} from '../components/profile/profile-page';
+import {CharacterSheet,FavoritesSheet,IssueSheet} from '../components/profile/directory-pickers';
 import ProfileShare from '../components/profile/profile-share';
 import ThemeScreen from '../components/profile/theme-screen';
 import {TrophyPreview} from '../components/trophies/trophy-ui';
@@ -96,8 +94,7 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
  const {data,busy}=net;function gate(){const okay=parentGate();if(!okay)setNewChat(false);return okay;}const [search,setSearch]=useState('');
  const [threadId,setThreadId]=useState(''),[newChat,setNewChat]=useState(false),[pendingRef,setPendingRef]=useState<PendingRef|null>(null);
  const [profile,setProfile]=useState<CollectorProfile|null>(null),[share,setShare]=useState<CollectorProfile|null>(null);
- const [report,setReport]=useState<{type:string;id:string}|null>(null),[featureIds,setFeatureIds]=useState<string[]>([]);
- const [grailRecords,setGrailRecords]=useState<Record<number,Issue>>({});
+ const [report,setReport]=useState<{type:string;id:string}|null>(null);
  const profileRequest=useRef(0),currentProfileSelection=useRef('');
  const [profileLoading,setProfileLoading]=useState(false);
  // Collector, workshop provider or Business (round 4). Business details save through /api/business after the profile saves.
@@ -111,7 +108,6 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
  useEffect(()=>()=>{profileRequest.current++},[]);
  useEffect(()=>{setSearch('')},[tab,marketIssue]);
  useEffect(()=>{if(incomingThread.id)setThreadId(incomingThread.id)},[incomingThread.version]);
- useEffect(()=>{if(profileOpen){setFeatureIds(me?.featured||[]);net.clearActionError()}},[profileOpen,me?.featured.join(',')]);
  // Reset the account-type choice each time the form opens (adjusting state during render, not in an effect).
  const bizOpenKey=profileOpen&&signedIn?'open':'',[bizSeenKey,setBizSeenKey]=useState(''),[details,setDetails]=useState<DetailsDraft>(draftFromExtras(undefined));
  if(bizOpenKey!==bizSeenKey){setBizSeenKey(bizOpenKey);if(bizOpenKey){setDetails(draftFromExtras((me as ProfileView|null)?.extras));setBizError('');setAccountRole(me?.provider?'provider':!me&&rememberedAccountType()==='business'?'business':preferredRole);if(!me)setMyBusiness(null);setBizDraft(draftFrom(me?myBusiness:null))}}
@@ -122,9 +118,6 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
   return()=>controller.abort();
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[profileOpen,signedIn,me?.id]);
- useEffect(()=>{if(!profileOpen)return;const ids=[...new Set(featureIds.flatMap(key=>{const id=featuredIssueId(key,vault.books);return id===null||grailRecords[id]||catalog[id]?[]:[id]}))];if(!ids.length)return;const controller=new AbortController();void fetch('/api/catalog?ids='+ids.join(','),{signal:controller.signal}).then(async response=>{if(!response.ok)throw Error();return parseCatalogSearchPage(await response.json())}).then(page=>{if(!controller.signal.aborted)setGrailRecords(previous=>({...previous,...Object.fromEntries(page.issues.map(issue=>[issue.id,issue]))}))}).catch(()=>undefined);return()=>controller.abort()},[profileOpen,featureIds.join(','),vault.books,grailRecords]);
- function chooseGrail(issue:Issue|null){if(!issue)return;if(featureIds.length>=6&&!featureIds.some(key=>featuredIssueId(key,vault.books)===issue.id)){notice('You can show six favorites. Remove one to add another.');return}setGrailRecords(previous=>({...previous,[issue.id]:issue}));setFeatureIds(previous=>{if(previous.some(key=>featuredIssueId(key,vault.books)===issue.id))return previous;if(previous.length>=6)return previous;const owned=vault.books.find(book=>listingDirectoryId(book)===issue.id);return [...previous,owned?.id||directoryGrail(issue.id)]})}
- const grailChoices=featureIds.map(key=>{const copy=vault.books.find(book=>book.id===key),id=featuredIssueId(key,vault.books),record=id===null?undefined:grailRecords[id]||catalog[id];return {id:key,title:record?.title||copy?.title||'Loading…',issue:record?.number||copy?.issue||'',subtitle:record?[record.publisher,record.year||null,record.variant].filter(Boolean).join(' · '):copy?.grade,cover:copy?.photoId?'/api/media?id='+copy.photoId:record?.cover}});
  // Clean links (/@handle) open that profile; the browser Back button to a /@handle address does too.
  useEffect(()=>{if(initialCollector)void loadProfile(initialCollector,false);const open=(event:Event)=>{const handle=(event as CustomEvent<string>).detail;if(typeof handle==='string')void loadProfile(handle,false)};window.addEventListener('ch:open-collector',open);return()=>window.removeEventListener('ch:open-collector',open)},[]);
  function selectProfile(value:CollectorProfile|null){profileRequest.current++;currentProfileSelection.current='';setProfileLoading(false);setProfile(value)}
@@ -151,6 +144,7 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
  },[tab,signedIn,net.ready,busy,me?.id]);
  const currentProfile=profile||me,own=!!currentProfile&&currentProfile.id===me?.id,viewingOther=!!profile&&profile.id!==me?.id;
  const profileHeader=profileLoading||currentProfile?null:<PageHeader id="nw-profile-title" eyebrow="My profile" title="Your shelf." accent="Your story." lede='Pick a name. Show off six favorite books. It’s free.' pose="profile" caption="YOUR SHELF" line="Pick six favorites to show off." actions={<><button type="button" className="ds-btn ds-btn-primary" onClick={()=>{selectProfile(null);setProfileOpen(true)}}>Create my profile <ArrowRight size={18} aria-hidden="true"/></button><button type="button" className="ds-btn ds-btn-secondary" onClick={openCollection}><Layers size={18} aria-hidden="true"/> My collection</button></>}/>;
+ const [picking,setPicking]=useState<PickKind|null>(null);
  const [uploading,setUploading]=useState<''|'photo'|'cover'>(''),[themeOpen,setThemeOpen]=useState(false);
  async function upload(kind:'photo'|'cover',file:File){
   if(uploading)return;if(!/^image\/(jpeg|png|webp)$/.test(file.type)){notice('Pick a JPEG, PNG or WebP photo.');return}if(file.size>4194304){notice('That photo is over 4 MB. Try a smaller one.');return}
@@ -178,7 +172,7 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
    {profileHeader}
    {currentProfile?<ProfilePage p={currentProfile as ProfileView} own={own} busy={busy} wants={wantRecords} uploading={uploading}
      onBack={()=>{if(viewingOther)go('My Profile');else if(window.history.length>1)window.history.back();else go('Home')}}
-     onEdit={()=>setProfileOpen(true)} onBook={openBook} onIssue={openIssue} onReport={()=>{if(gate())setReport({type:'profile',id:currentProfile.id})}}
+     onEdit={()=>setProfileOpen(true)} onPick={setPicking} onBook={openBook} onIssue={openIssue} onReport={()=>{if(gate())setReport({type:'profile',id:currentProfile.id})}}
      onMessage={context=>void startMessage(currentProfile.id,context||'')} onShare={()=>setShare(currentProfile)} onTheme={()=>setThemeOpen(true)} onCollection={openCollection}
      onPhoto={file=>void upload('photo',file)} onCover={file=>void upload('cover',file)} onCopyLink={()=>void copyProfileLink(currentProfile)} art={b=><ComicArt book={b}/>}
      tabRequest={profileTabRequest&&own?{tab:'collection',n:profileTabRequest.n}:null}
@@ -211,7 +205,7 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
    <p className="nw-join-lede">Pick a name. Show off six favorite books. It’s free.</p>
    <form className="nw-join-form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);setBizError('');
     const asBusiness=accountRole==='business';if(asBusiness){const problem=businessDraftProblem(bizDraft);if(problem){setBizError(problem);return}}
-    const r=await net.act({action:'profile',handle:String(f.get('handle')),name:String(f.get('name')),bio:String(f.get('bio')),tagline:String(f.get('tagline')),location:String(f.get('location')),favorite:String(f.get('favorite')),since:Number(f.get('since')),color:String(f.get('color')),featured:featureIds,visible:f.get('visible')==='on',dmOpen:f.get('dmOpen')==='on',accept:f.get('accept')==='on'});
+    const r=await net.act({action:'profile',handle:String(f.get('handle')),name:String(f.get('name')),bio:String(f.get('bio')),tagline:String(f.get('tagline')),location:String(f.get('location')),favorite:String(f.get('favorite')),since:Number(f.get('since')),color:String(f.get('color')),featured:me?.featured||[],visible:f.get('visible')==='on',dmOpen:f.get('dmOpen')==='on',accept:f.get('accept')==='on'});
     if(r&&(asBusiness||myBusiness?.accountType==='business')){setBizSaving(true);try{const saved=await saveMyBusiness(asBusiness?'business':'collector',bizDraft);setMyBusiness(saved.business);forgetAccountType();void net.refresh();if(saved.verificationCleared)notice('Your verified tick was removed because your shop details changed. An admin will check again.')}catch(err){setBizError((err instanceof Error&&err.message?err.message:'Couldn’t save your shop details.')+' Your profile itself was saved.');void net.refresh();return}finally{setBizSaving(false)}}
     if(r&&me){try{await saveDetails(details);await refreshOwn()}catch(err){notice((err instanceof Error?err.message:'Your profile details could not be saved.')+' The rest of your profile was saved.')}}
     if(r){onAccountProfileSaved();setProfileOpen(false);selectProfile(null);if(f.get('accountRole')==='provider'&&(!me?.provider||preferredRole==='provider'))onProviderProfileCreated();notice(me?'Showcase saved.':'Your profile is ready. Welcome to ComicHuddle!')}}}>
@@ -222,7 +216,6 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
     <label className="ds-field"><span>Display name <span className="required-mark" aria-hidden="true">*</span></span><input name="name" required maxLength={60} defaultValue={me?.name||(name.includes('@')?'Collector':name)} placeholder="The name on your shelf"/></label>
     <label className="ds-field"><span>City and state <span className="required-mark" aria-hidden="true">*</span></span><input name="location" required minLength={2} maxLength={60} defaultValue={me?.location||''} placeholder="Minneapolis, MN" aria-describedby="nw-location-help"/><small id="nw-location-help">City and state only, like Minneapolis, MN. Never a street address.</small></label>
     <label className="ds-field"><span>Collecting since <span className="required-mark" aria-hidden="true">*</span></span><input name="since" type="number" inputMode="numeric" min="1930" max={new Date().getFullYear()} defaultValue={me?.since||new Date().getFullYear()} required/></label>
-    <div className="nw-join-picker"><h3>Six favorites</h3><p>Search the directory and add up to six.</p><ComicPicker value={null} onChange={chooseGrail} disabled={busy} clearOnChoose label="Find a favorite"/><SelectedComicList items={grailChoices} disabled={busy} label="Your favorites" onRemove={id=>setFeatureIds(previous=>previous.filter(key=>key!==id))}/></div>
     {me&&<ProfileDetailsFields value={details} onChange={setDetails} disabled={busy||bizSaving}/>}
     <details className="nw-join-more"><summary>More about you (optional)</summary>
      <label className="ds-field"><span>Tagline</span><input name="tagline" maxLength={100} defaultValue={me?.tagline||''} placeholder="One line about your collecting"/></label>
@@ -246,6 +239,13 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
   <ul className="nw-people">{data.people.filter(p=>p.id!==me?.id&&p.dmOpen&&(p.name+' '+p.handle).toLowerCase().includes(search.toLowerCase())).map(p=><li key={p.id}><button type="button" className="nw-thread" disabled={busy} onClick={()=>void startMessage(p.id)}>{p.avatarUrl?<span className="nw-avatar nw-avatar-photo" aria-hidden="true"><img src={p.avatarUrl} alt="" width={40} height={40}/></span>:<span className="nw-avatar" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</span>}<span className="nw-thread-copy"><strong>{p.name}</strong><small>@{p.handle}</small></span><MessageCircle size={18} aria-hidden="true"/></button></li>)}</ul>
   {!data.people.some(p=>p.id!==me?.id&&p.dmOpen)&&<p className="nw-empty">No collectors are taking messages yet.</p>}
  </div></Modal>}
+ {picking&&me&&(()=>{const x=(me as ProfileView).extras,close=()=>setPicking(null),saved=(message:string)=>{notice(message);void refreshOwn()};
+  const asIssue=(r:{issueId:number;title:string;number:string;year:number|null})=>({id:r.issueId,title:r.title,number:r.number,year:r.year||0,publisher:'',era:'',characters:[],writer:'',artist:'',note:'',kind:'',variant:'',source:''}) as Issue;
+  if(picking==='six')return <FavoritesSheet initial={(me.showcase||[]).slice(0,6).map(b=>({key:b.id,issueId:b.directoryIssueId??null,label:b.title+' '+(/^#/.test(b.issue)||!b.issue?b.issue:'#'+b.issue)}))} onClose={close} onSaved={saved}/>;
+  if(picking==='character')return <CharacterSheet current={x?.favoriteCharacter?{id:x.favoriteCharacter.id,name:x.favoriteCharacter.name}:null} onClose={close} onSaved={saved}/>;
+  if(picking==='comic')return <IssueSheet kind="comic" current={x?.favoriteComic?asIssue(x.favoriteComic):null} onClose={close} onSaved={saved}/>;
+  return <IssueSheet kind="grail" current={x?.grail?asIssue(x.grail):null} reward={x?.grail?.reward||''} onClose={close} onSaved={saved}/>;
+ })()}
  {share&&<Modal label="Share your profile" wide onClose={()=>setShare(null)}><div className="form-dialog nw-join"><ProfileShare p={share as ProfileView} own={share.id===me?.id} trophy={share.id===me?.id?shareTrophy:null} notice={notice} onSettingsSaved={()=>void refreshOwn()}/></div></Modal>}
  {themeOpen&&me&&<Modal label="Pick your world" wide onClose={()=>setThemeOpen(false)}><div className="form-dialog nw-join"><ThemeScreen name={me.name} avatarUrl={me.avatarUrl||null} initial={(me as ProfileView).extras?.look||DEFAULT_LOOK} notice={notice} onCancel={()=>setThemeOpen(false)} onSaved={()=>{setThemeOpen(false);void refreshOwn()}}/></div></Modal>}
  {report&&<Modal label="Report this" onClose={()=>setReport(null)}><div className="form-dialog nw-join">
