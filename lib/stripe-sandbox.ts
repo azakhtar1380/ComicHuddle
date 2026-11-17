@@ -576,6 +576,38 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         fail('stripe_order_mismatch', 'Checkout does not match this support payment.', 502);
       return session;
     },
+    /** Verified checkmark fee: a one-time payment to the platform account (no Connect). Refunded in full if declined. */
+    async createVerificationCheckout(input: {verificationId: string; amountCents: number; successUrl: string; cancelUrl: string; email?: string}, key: string) {
+      assertReady(); localId(input.verificationId); cents(input.amountCents, 100); idempotencyKey(key);
+      if (input.amountCents > 10_000) fail('invalid_amount', 'The verification fee is $100 or less.');
+      const fields: Record<string, string> = {
+        mode: 'payment', ui_mode: 'hosted_page', client_reference_id: input.verificationId,
+        success_url: returnUrl(new URL(input.successUrl, origin!).href, origin!), cancel_url: returnUrl(new URL(input.cancelUrl, origin!).href, origin!),
+        'line_items[0][price_data][currency]': 'usd', 'line_items[0][price_data][unit_amount]': String(input.amountCents),
+        'line_items[0][price_data][product_data][name]': 'ComicHuddle verification (refunded if declined)', 'line_items[0][quantity]': '1',
+        'metadata[purpose]': 'verification', 'metadata[verification_id]': input.verificationId,
+        'payment_intent_data[metadata][purpose]': 'verification', 'payment_intent_data[metadata][verification_id]': input.verificationId,
+        'payment_intent_data[description]': 'ComicHuddle verified checkmark review · refunded in full if declined',
+        'payment_intent_data[statement_descriptor_suffix]': 'VERIFY',
+      };
+      if (input.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email) && input.email.length <= 254) fields.customer_email = input.email;
+      const session = object(await request('POST', 'checkout/sessions', fields, key), 'checkout.session');
+      stripeId(session.id, sessionPrefix);
+      if (session.currency !== 'usd' || session.amount_total !== input.amountCents || session.mode !== 'payment' || session.client_reference_id !== input.verificationId)
+        fail('stripe_order_mismatch', 'Checkout does not match this verification payment.', 502);
+      return session;
+    },
+    /** Full refund of a verification fee. Checks the payment intent belongs to this verification first. */
+    async refundVerification(input: {paymentIntentId: string; verificationId: string; amountCents: number}, key: string) {
+      assertReady(); stripeId(input.paymentIntentId, 'pi_'); localId(input.verificationId); cents(input.amountCents, 100); idempotencyKey(key);
+      const intent = object(await request('GET', 'payment_intents/' + encodeURIComponent(input.paymentIntentId)), 'payment_intent');
+      const meta = (intent.metadata || {}) as Record<string, unknown>;
+      if (meta.purpose !== 'verification' || meta.verification_id !== input.verificationId || intent.amount !== input.amountCents || intent.currency !== 'usd')
+        fail('stripe_order_mismatch', 'That payment is not this verification fee.', 409);
+      const refund = object(await request('POST', 'refunds', {payment_intent: input.paymentIntentId, amount: String(input.amountCents), reason: 'requested_by_customer', 'metadata[purpose]': 'verification', 'metadata[verification_id]': input.verificationId}, key), 'refund', false);
+      stripeId(refund.id, 're_');
+      return refund;
+    },
     /** Seller trust tier → bank payout timing on their connected account: manual (we pay out 7 days after
      *  delivery/pickup) for new sellers, daily automatic payouts for trusted ones. */
     async setPayoutSchedule(accountId: string, interval: 'manual' | 'daily', key: string) {

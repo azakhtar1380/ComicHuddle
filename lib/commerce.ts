@@ -3,6 +3,7 @@ import {and,desc,eq,inArray,or,sql,type SQL} from 'drizzle-orm';
 import {z} from 'zod';
 import {chooseShippingOption,parcelFor,quoteShippingRates,ShippingQuoteError} from './shipping-rates';
 import {applySupportEvent} from './support-payments';
+import {applyVerificationEvent} from './verification-payments';
 import {applyPayoutEvent,payoutProblem,sellerTier,syncPayoutSchedule} from './seller-payouts';
 import {buyShippingLabel,labelAddressSchema,LabelError,type PurchasedLabel} from './shipping-labels';
 import {getDb} from '../db';
@@ -883,6 +884,8 @@ export async function commerceApplyWebhook(db:Db,event:StripeVerifiedEvent,rawBo
  const processor=stripeSandbox(environment);
  // Support ComicHuddle payments go to the platform itself; they are never marketplace orders.
  {const support=await applySupportEvent(event,sandbox?1:0);if(support)return {...support,sandbox}}
+ // Verified checkmark fee (platform account): paid → the request goes to review; refunds are recorded.
+ {const fee=await applyVerificationEvent(event,sandbox?1:0);if(fee)return {...fee,sandbox}}
  // Saved cards for auctions: Checkout in setup mode. Confirmed by re-retrieving the session from Stripe.
  {const saved=await applySavedCardEvent(processor,event,sandbox?1:0);if(saved)return {...saved,sandbox}}
  if(event.type==='account.updated')return await sellerAccountUpdated(db,providerId(event.data.object),processor,mode,environment);

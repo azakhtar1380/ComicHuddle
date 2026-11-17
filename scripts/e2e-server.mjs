@@ -19,7 +19,8 @@ const env={...process.env,
  LOCAL_QA_EMAIL:'',LOCAL_QA_PASSWORD:'',LOCAL_QA_NAME:'',
  NEXT_TELEMETRY_DISABLED:'1',
  // Emails are kept in memory, never sent.
- EMAIL_TEST_OUTBOX:'1',RESEND_API_KEY:'',EMAIL_FROM:'',
+ EMAIL_TEST_OUTBOX:'1',VERIFICATION_FEE_CENTS:'0', // no Stripe locally: verification requests go straight to review
+RESEND_API_KEY:'',EMAIL_FROM:'',
 };
 // Without .env.local (for example on a build server) sessions are signed with a test-only secret.
 if(!env.BETTER_AUTH_SECRET&&!existsSync('.env.local'))env.BETTER_AUTH_SECRET='e2e-only-session-secret-never-used-in-production';

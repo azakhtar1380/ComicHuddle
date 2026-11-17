@@ -12,11 +12,13 @@ Branch `launch-v2`. Six phases, one commit each. Migrations are additive (safe t
 | 054 | `054_person_verification.sql` | `person_verifications`: the verified check for individual collectors. |
 | 055 | `055_trophies.sql` | `user_trophies`, `trophy_prefs`, `trophy_stats`, and `vault_wants` (wishlist history for Grail Hunter). |
 | 056 | `056_origin_story_nudge.sql` | `profile_extras.origin_nudged_at`, `origin_snoozed_at`. |
+| 057 | `057_verification_payments.sql` | `verification_payments`: the verification fee (paid, kept on approval, refunded on decline). |
 
 ## Settings (Vercel environment variables)
 
 | Setting | Value / note |
 |---|---|
+| `VERIFICATION_FEE_CENTS` | **new**, optional. The verification fee in cents; default `1000` ($10). `0` turns the fee off (the local test server uses this). |
 | `FOUNDING_HUDDLER_UNTIL` | **new**, not set. ISO date (e.g. `2027-03-01T00:00:00Z`). Accounts created before it earn Founding Huddler. Unset = nobody earns it. Never earnable after the date. |
 
 No other new settings. The daily trophy sweep runs inside the existing daily `/api/cron/enrichment` job (no new cron).
@@ -31,15 +33,15 @@ No other new settings. The daily trophy sweep runs inside the existing daily `/a
 - Shop front (`components/collection/shop-front.tsx`): awning, sign, Stock comics (Scan / From Directory / Import list), search, section chips, New arrivals, glass case, trade bin, runs wall, back-issue bins, the register (value hidden until tapped; only existing Directory estimates), shop window. Every section opens the existing list views.
 - Runs (`lib/collection-runs.ts`, `/api/collection-runs`): owned and missing always computed from the vault; "Add missing to wishlist".
 - Public Collection tab (`/api/collection-shop?handle=`) follows the shop window. Never value, price, notes, certs or the member's photos.
-- Vault cap stays 1,000 (see the open question below).
+- Vault cap stays 1,000 (owner: no extra cost). Each save re-sends the whole collection (about 0.5 MB at 1,000 detailed comics). Raising it to 5,000 would mean about 2.5 MB per save and a higher upload limit; the better route then is saving changes per comic instead of the whole collection.
 
 ## Phase 3: Worlds
 - `lib/profile-worlds.ts` is the one definition for the profile, Theme screen, share cards and OG image. Ten worlds (all free), five inks, four frames (the starburst only when picked), six sound effects.
 
 ## Phase 4: Verified people and businesses
-- Collectors ask from the Account panel ("Get verified") → pending → we contact them → an admin turns the check on in /admin (Verified collectors). Logged in the verification events and admin audit log; the collector is notified.
+- Collectors choose "Get verified" in the Account panel and pay the **$10 fee first** (Stripe Checkout on the platform account, like Support payments). The request reaches the admin queue only when the signed Stripe webhook confirms the payment. We contact them; the admin **approves** (fee kept) or **declines and refunds** (full refund through Stripe; if Stripe fails, nothing changes and the admin can retry). Logged in the verification events and admin audit log; the collector is notified.
 - `components/verified-badge.tsx` takes `kind="person" | "business"`; same blue; accessible name and label "Verified collector" / "Verified business"; businesses also get the blue "Shop" tag.
-- **Not built: the $10 fee.** There is no existing verification payment in the code, and new charges need the owner's OK (see open questions).
+- Stripe: uses the existing `checkout.session.completed`, `checkout.session.expired` and `charge.refunded` events on the platform webhook endpoint. No Stripe setting changes. Businesses are still verified by hand without a fee (owner decision pending).
 
 ## Phase 5: Trophies
 - Definitions and fair-play rules: `lib/trophy-defs.ts`. Counting and awards: `lib/trophies.ts` (`computeTrophyProgress`, `awardTrophies`, idempotent).
@@ -47,7 +49,7 @@ No other new settings. The daily trophy sweep runs inside the existing daily `/a
 - Notifications: kind `achievement`, trophy icon and yellow highlight, filter chips (All · Trophies · Orders · Offers · Community), "Almost there" with a progress bar, switches on /trophies (Unlocks on, Almost there on, Weekly recap off; the weekly recap email itself is not sent yet).
 - Unlock screen once per unseen unlock; percentage shown only with 50+ collectors (computed daily).
 - Admin can revoke or restore a tier in /admin (Trophies), logged in the audit log.
-- **Push notifications:** the app has no push yet, so unlocks are in-app only.
+- **Push notifications:** owner decision: in-app notifications only.
 
 ## Phase 6: Origin story nudge
 - One `system` notification for members whose Origin Story isn't earned, linking to `/origin-story` (the "ORIGIN STORY #1" card). "Remind me after my next haul" snoozes until they next add comics.

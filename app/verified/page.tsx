@@ -42,11 +42,11 @@ export default function VerifiedPage(){
    <section className="vf-card" aria-labelledby="vf-person">
     <h2 id="vf-person">How a collector gets the check</h2>
     <ol>
-     <li>Open your account panel and choose <b>Get verified</b>.</li>
+     <li>Open your account panel and choose <b>Get verified</b>, then pay the $10 verification fee through Stripe.</li>
      <li>We contact you to confirm you’re a real person.</li>
      <li>A ComicHuddle admin turns the check on by hand, and you get a notification.</li>
     </ol>
-    <p className="vf-quiet">Admins can remove the check, and you’re told when that happens.</p>
+    <p className="vf-quiet">If we decline your request, the $10 fee is refunded in full. Admins can remove the check later, and you’re told when that happens.</p>
    </section>
 
    <section className="vf-card" aria-labelledby="vf-get">
