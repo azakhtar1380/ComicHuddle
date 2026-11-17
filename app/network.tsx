@@ -28,8 +28,8 @@ import ProfileShare from '../components/profile/profile-share';
 import ThemeScreen from '../components/profile/theme-screen';
 import {TrophyPreview} from '../components/trophies/trophy-ui';
 import {DEFAULT_LOOK} from '../lib/profile-worlds';
-import PublicCollectionTab from '../components/collection/public-collection';
-import type {CollectionRun} from '../lib/collection-runs';
+import CollectionTab from '../components/collection/collection-tab';
+import {handOffBooksForSale} from '../lib/listing-draft';
 import ProfileDetailsFields,{draftFromExtras,saveDetails,type DetailsDraft} from '../components/profile/profile-details-fields';
 import type {ProfileExtras} from '../lib/profile-page-types';
 import {businessDraftProblem,draftFrom,fetchMyBusiness,forgetAccountType,rememberedAccountType,saveMyBusiness,type BusinessDraft,type BusinessSummary,type OwnBusiness} from '../components/profile/business-client';
@@ -91,8 +91,8 @@ export async function uploadPhoto(file:File){
 function BookGrid({books,onBook,label}:{books:ShowcaseBook[];onBook:(b:ShowcaseBook)=>void;label:string}){
  return <ul className="nw-books" aria-label={label}>{books.map(b=><li key={b.id}><button type="button" className="nw-book" onClick={()=>onBook(b)} aria-label={'Peek inside '+b.title+' '+(/^#/.test(b.issue)||!b.issue?b.issue:'#'+b.issue)+': see full details'}><ComicArt book={b}/><strong>{b.title} {b.issue}</strong>{b.grade&&<small>{b.grade}</small>}<span className="peek-inside nw-peek" aria-hidden="true">Peek inside <ArrowRight size={14}/></span></button></li>)}</ul>;
 }
-type Props={initialCollector?:string;onAddComic?:()=>void;addComicOpen?:boolean;myProfileRequest:number;tab:string;net:Net;vault:Vault;commit:(v:Vault)=>Promise<boolean>;go:(s:string)=>void;openIssue:(id:number)=>void;openCollection:()=>void;notice:(s:string)=>void;signedIn:boolean;name:string;gate:()=>boolean;profileOpen:boolean;setProfileOpen:(v:boolean)=>void;marketIssue:number|null;clearMarketIssue:()=>void;incomingThread:{id:string;version:number};preferredRole:'collector'|'provider';onProviderProfileCreated:()=>void;onAccountProfileSaved:()=>void};
-export default function CollectorNetwork({initialCollector,onAddComic,addComicOpen,myProfileRequest,tab,net,vault,commit,go,openIssue,openCollection,notice,signedIn,name,gate:parentGate,profileOpen,setProfileOpen,marketIssue,clearMarketIssue,incomingThread,preferredRole,onProviderProfileCreated,onAccountProfileSaved}:Props){
+type Props={initialCollector?:string;profileTabRequest?:{tab:'collection';chip:'all'|'trade';n:number}|null;onEditBook?:(id:string)=>void;onScanComic?:()=>void;saving?:boolean;onAddComic?:()=>void;addComicOpen?:boolean;myProfileRequest:number;tab:string;net:Net;vault:Vault;commit:(v:Vault)=>Promise<boolean>;go:(s:string)=>void;openIssue:(id:number)=>void;openCollection:()=>void;notice:(s:string)=>void;signedIn:boolean;name:string;gate:()=>boolean;profileOpen:boolean;setProfileOpen:(v:boolean)=>void;marketIssue:number|null;clearMarketIssue:()=>void;incomingThread:{id:string;version:number};preferredRole:'collector'|'provider';onProviderProfileCreated:()=>void;onAccountProfileSaved:()=>void};
+export default function CollectorNetwork({initialCollector,profileTabRequest,onEditBook,onScanComic,saving=false,onAddComic,addComicOpen,myProfileRequest,tab,net,vault,commit,go,openIssue,openCollection,notice,signedIn,name,gate:parentGate,profileOpen,setProfileOpen,marketIssue,clearMarketIssue,incomingThread,preferredRole,onProviderProfileCreated,onAccountProfileSaved}:Props){
  const {data,busy}=net;function gate(){const okay=parentGate();if(!okay)setNewChat(false);return okay;}const [search,setSearch]=useState('');
  const [threadId,setThreadId]=useState(''),[newChat,setNewChat]=useState(false),[pendingRef,setPendingRef]=useState<PendingRef|null>(null);
  const [profile,setProfile]=useState<CollectorProfile|null>(null),[share,setShare]=useState<CollectorProfile|null>(null);
@@ -159,12 +159,13 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
  }
  // Your own profile opened from /@handle is a loaded copy: after a change, show the refreshed one.
  async function refreshOwn(){await net.refresh();if(profile&&profile.id===me?.id)selectProfile(null)}
- async function addRunToWishlist(run:CollectionRun){if(!gate())return;const add=(run.missingIds||[]).filter(id=>!vault.wants.includes(id));if(!add.length){notice(run.missingIds?.length?'Those issues are already on your wishlist.':'We couldn’t match these issues in the Directory yet.');return}if(await commit({...vault,wants:[...vault.wants,...add].slice(0,1000)}))notice(add.length+(add.length===1?' issue':' issues')+' added to your wishlist.')}
  const [shareTrophy,setShareTrophy]=useState<{name:string;tier:string}|null>(null);
  // Reads the address once the account has loaded (it is only known in the browser), then clears it.
  // eslint-disable-next-line react-hooks/set-state-in-effect
  useEffect(()=>{const q=new URLSearchParams(window.location.search);if(q.get('share')!=='1'||!me)return;const [name,tier]=(q.get('trophy')||'').split('|');if(name&&tier)setShareTrophy({name:name.slice(0,40),tier:tier.slice(0,20)});setShare(me);const url=new URL(window.location.href);url.searchParams.delete('share');url.searchParams.delete('trophy');window.history.replaceState(window.history.state,'',url.pathname+url.search)},[me?.id]);
  async function copyProfileLink(p:CollectorProfile){try{await navigator.clipboard.writeText(window.location.origin+'/@'+p.handle);notice('Profile link copied.')}catch{notice('Copy didn’t work. Your link is comichuddle.com/@'+p.handle)}}
+ // Copies in an active listing can't be removed or sold twice.
+ const listedIds=new Set(data.listings.filter(l=>l.status==='active'&&l.sellerId===me?.id).flatMap(l=>[l.bookId,...l.items.map(item=>item.bookId)].filter((id):id is string=>!!id)));
  const [wantRecords,setWantRecords]=useState<Record<number,Issue>>({});
  const wantKey=tab==='Collectors'&&currentProfile?currentProfile.wantIds.slice(0,12).filter(id=>!catalog[id]&&!wantRecords[id]).join(','):'';
  useEffect(()=>{if(!wantKey)return;const controller=new AbortController();void fetch('/api/catalog?ids='+wantKey,{signal:controller.signal}).then(async response=>{if(!response.ok)throw Error();return parseCatalogSearchPage(await response.json())}).then(page=>{if(!controller.signal.aborted)setWantRecords(previous=>({...previous,...Object.fromEntries(page.issues.map(issue=>[issue.id,issue]))}))}).catch(()=>undefined);return()=>controller.abort()},[wantKey]);
@@ -180,7 +181,9 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
      onEdit={()=>setProfileOpen(true)} onBook={openBook} onIssue={openIssue} onReport={()=>{if(gate())setReport({type:'profile',id:currentProfile.id})}}
      onMessage={context=>void startMessage(currentProfile.id,context||'')} onShare={()=>setShare(currentProfile)} onTheme={()=>setThemeOpen(true)} onCollection={openCollection}
      onPhoto={file=>void upload('photo',file)} onCover={file=>void upload('cover',file)} onCopyLink={()=>void copyProfileLink(currentProfile)} art={b=><ComicArt book={b}/>}
-     collectionTab={<PublicCollectionTab key={currentProfile.handle} handle={currentProfile.handle} own={own} dmOpen={currentProfile.dmOpen} signedIn={signedIn} onIssue={openIssue} onMessage={context=>void startMessage(currentProfile.id,context)} onAddToWishlist={run=>void addRunToWishlist(run)} favorites={currentProfile.showcase.length?<><h3>Favorites</h3><BookGrid books={currentProfile.showcase.slice(0,6)} onBook={openBook} label="Favorites"/></>:null}/>}
+     tabRequest={profileTabRequest&&own?{tab:'collection',n:profileTabRequest.n}:null}
+     collectionTab={<CollectionTab key={currentProfile.handle+(profileTabRequest?.n||0)} handle={currentProfile.handle} own={own} dmOpen={currentProfile.dmOpen} notice={notice} onIssue={openIssue} initialChip={own&&profileTabRequest?.chip==='trade'?'trade':'all'}
+      owner={own?{vault,commit,saving,listedIds,onEditCopy:id=>onEditBook?.(id),onScan:()=>onScanComic?.(),onSell:ids=>{const free=ids.filter(id=>!listedIds.has(id));if(!free.length){notice('That comic is already listed for sale.');return}handOffBooksForSale(free);window.location.assign('/?'+new URLSearchParams({section:'Marketplace',sell:free.length>1?'collection':'single'}))}}:undefined}/>}
      trophyPreview={<TrophyPreview key={currentProfile.handle} handle={currentProfile.handle} own={own}/>}
      reviewsTab={<section className="pp-card pp-block" aria-label="Seller feedback"><SellerFeedback profileId={currentProfile.id}/></section>}
      ownerExtras={own?<section className="pp-card pp-block" aria-labelledby="nw-wallet"><div className="pp-block-head"><h2 id="nw-wallet"><span className="pp-eyebrow">Only you can see this</span>Wallet</h2><a className="ds-link" href="/wallet">How rewards work <ArrowUpRight size={16} aria-hidden="true"/></a></div><CollectorWallet key={currentProfile.id} showInfoLink={false}/></section>:undefined}/>

@@ -26,7 +26,7 @@ export async function POST(req:Request){
  try{
   const user=await getChatGPTUser();if(!user)return json('Sign in to continue.',401);requireAdmin(user);
   if(req.headers.get('origin')!==new URL(req.url).origin)return json('Request origin rejected.',403);
-  const a=z.object({handle:z.string().max(30),trophy:z.string().max(40),tier:z.enum(['bronze','silver','golden','single']),revoke:z.boolean(),note:z.string().trim().min(3).max(500)}).parse(await req.json());
+  const a=z.object({handle:z.string().max(30),trophy:z.string().max(40),tier:z.enum(['bronze','silver','golden','single']),revoke:z.boolean(),note:z.string().trim().min(3).max(500)}).parse(await req.json().catch(()=>null));
   const p=await member(a.handle);if(!p)return json('No member with that handle.',404);
   await adminSetTrophy(user.userId,p.userId,a.trophy,a.tier,a.revoke);
   await logAdminAction({admin:user,action:a.revoke?'trophy_revoked':'trophy_restored',targetType:'user_trophy',targetId:`${p.handle}:${a.trophy}:${a.tier}`,detail:{note:a.note}});

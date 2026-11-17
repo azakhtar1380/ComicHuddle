@@ -3,7 +3,7 @@
 // top changes. Personal tools live in the account panel (components/account-panel.tsx), not here.
 // On phones, links that are already in the bottom bar are hidden.
 import type {ComponentType, ReactNode} from 'react';
-import {BookOpen, ChevronRight, FileText, Info, Layers, LifeBuoy, MessageCircle, Package, ScanLine, ShieldCheck, ShoppingBag, Store, Users, Wallet, Wrench} from 'lucide-react';
+import {BookOpen, ChevronRight, FileText, Info, LifeBuoy, MessageCircle, Package, ScanLine, ShieldCheck, ShoppingBag, Store, Users, Wallet, Wrench} from 'lucide-react';
 import Image from 'next/image';
 import UserAvatar from './user-avatar';
 import {operator} from '../lib/operator';
@@ -73,7 +73,6 @@ export default function MoreMenu({signedIn, name, handle, avatarUrl, unread = 0,
       <h3 id="mm-yours" className="mm-heading">Yours</h3>
       <div className="mm-list">
         {row('Messages', 'Messages', MessageCircle, {badge: unread})}
-        {row('Collection', 'My collection', Layers)}
         {row('Wallet', 'Wallet & rewards', Wallet)}
         {row('Orders', 'Orders', Package)}
       </div>

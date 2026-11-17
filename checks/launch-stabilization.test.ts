@@ -42,7 +42,7 @@ test('deferred FMV/Pulse routes and producers do not access a database or provid
  const config=JSON.parse(readFileSync('vercel.json','utf8'));assert.ok(!config.crons.some((job:{path:string})=>job.path==='/api/cron/fmv'));
 });
 test('public product entry modules contain no active valuation or Market Pulse component/request',()=>{
- for(const file of ['app/hub.tsx','app/collector-home.tsx','app/my-collection.tsx','app/shared-directory.tsx','app/comic-picker.tsx','app/network.tsx','app/marketplace.tsx','app/listing-builder.tsx','app/scan-comic.tsx','architecture/platform-v2/ui/Homepage.tsx','architecture/platform-v2/ui/DirectoryCard.tsx']){
+ for(const file of ['app/hub.tsx','app/collector-home.tsx','components/collection/collection-tab.tsx','app/shared-directory.tsx','app/comic-picker.tsx','app/network.tsx','app/marketplace.tsx','app/listing-builder.tsx','app/scan-comic.tsx','architecture/platform-v2/ui/Homepage.tsx','architecture/platform-v2/ui/DirectoryCard.tsx']){
   const source=readFileSync(file,'utf8');assert.doesNotMatch(source,/<(?:EstimatedValue|ListingEstimatedValue|CatalogFmv|MarketPulse|IssueValues|CombinedValue)\b|fetch\(['"]\/api\/(?:estimates|home-feed|recognition\/vision|activity)/,file);
  }
  // The live home page (app/collector-home.tsx): directory glimpse, no value promos, no retired Upcoming/Community links.

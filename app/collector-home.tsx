@@ -2,7 +2,7 @@
 // Home: hero with search, what you can do, a glimpse of the directory, fresh listings (real only),
 // SafePurchase (only when live), rewards, and a join band.
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
-import {Archive,ArrowRight,BookOpen,Plus,Search,Store,Users,Wallet,Wrench,X} from 'lucide-react';
+import {ArrowRight,BookOpen,Plus,Search,Store,Users,Wallet,Wrench,X} from 'lucide-react';
 import ListingCardActions from '../components/cards/listing-card-actions';
 import {requestCollectOnOpen} from '../components/cards/collect-intent';
 import Link from 'next/link';
@@ -61,7 +61,6 @@ export default function CollectorHome({go,onScan,onOpenComic,signedIn,listings,s
       <button type="button" className="home-chip" onClick={()=>go('Marketplace')}><Store size={18} aria-hidden="true"/> Marketplace</button>
       <button type="button" className="home-chip" onClick={()=>go('Pressing')}><Wrench size={18} aria-hidden="true"/> Comic Workshop</button>
       <button type="button" className="home-chip" onClick={()=>go('Wallet')}><Wallet size={18} aria-hidden="true"/> Wallet</button>
-      <button type="button" className="home-chip" onClick={()=>go('Collection')}><Archive size={18} aria-hidden="true"/> My Collection</button>
      </div>
     </nav>
     <div className="ds-actions home-hero-actions">

@@ -38,7 +38,7 @@ export async function POST(req:Request){
  try{
   const user=await getChatGPTUser();if(!user)return json('Sign in first.',401);
   if(req.headers.get('origin')!==new URL(req.url).origin)return json('Request origin rejected.',403);
-  const a=body.parse(await req.json()),db=getDb();
+  const a=body.parse(await req.json().catch(()=>null)),db=getDb();
   if(a.action==='decide'){
    requireAdmin(user);
    const before=await personVerification(a.profileId);

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const jobs: {pose: HuddlesPose; title: string; line: string; href?: string; cta?: string}[] = [
   {pose: 'directory', title: 'Finds any issue', line: 'Search the whole directory in seconds.', href: '/?section=Directory', cta: 'Search the directory'},
   {pose: 'scanner', title: 'Scans your books', line: 'Point your phone. Add your comic.', href: '/?section=Scan', cta: 'Scan a comic'},
-  {pose: 'add-comic', title: 'Keeps your longbox tidy', line: 'Every copy, every detail, all in one place.', href: '/?section=Collection', cta: 'Open your collection'},
+  {pose: 'add-comic', title: 'Keeps your longbox tidy', line: 'Every copy, every detail, all in one place.', href: '/?section=My%20Profile&ptab=collection', cta: 'Open your collection'},
   {pose: 'characters', title: 'Meets the characters', line: 'Every hero. Every villain.', href: '/characters', cta: 'Browse characters'},
   {pose: 'marketplace', title: 'Hunts the market', line: 'One grail or the whole longbox.', href: '/?section=Marketplace', cta: 'Visit the marketplace'},
   {pose: 'safepurchase', title: 'Guards your purchase', line: 'We check it before it ships.', href: '/safepurchase', cta: 'How SafePurchase works'},

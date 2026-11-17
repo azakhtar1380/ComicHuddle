@@ -1,0 +1,59 @@
+/* Profile Collection tab: simple header, search, chips, 2-column grid. */
+.ct{display:grid;gap:12px;color:var(--ink);margin:16px 14px 0;padding:14px;background:var(--cream);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.ct .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.ct-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ct-head h2{margin:0;font:800 28px/1.1 'Barlow Condensed',sans-serif;color:var(--ink)}
+.ct-head h2 small{font:600 15px 'DM Sans',sans-serif;color:var(--muted)}
+.ct-add{min-height:44px}
+.ct-vis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;padding:0;border:0;min-width:0}
+.ct-vis legend{grid-column:1/-1;margin-bottom:6px;padding:0;font-weight:700;font-size:14px;color:var(--ink)}
+.ct-vis label{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 6px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:700;font-size:14px;text-align:center;cursor:pointer}
+.ct-vis label+label{border-left:0}
+.ct-vis label.is-on{background:var(--ink);color:var(--yellow)}
+.ct-vis input{position:absolute;opacity:0;pointer-events:none}
+.ct-vis label:focus-within{outline:3px solid var(--red);outline-offset:2px}
+.ct-search{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 6px 0 12px;border:2px solid var(--ink);background:#fff}
+.ct-search input{flex:1;min-width:0;min-height:44px;border:0;background:transparent;color:var(--ink);font-size:16px;outline:none}
+.ct-search button{display:grid;place-items:center;width:44px;height:44px}
+.ct-chips{gap:6px;padding:0 2px 4px;touch-action:pan-x pan-y}
+.ct-chips button{border-radius:0;min-height:44px;padding:0 16px;border:2px solid var(--ink);background:#fff;font-weight:700;font-size:14px;white-space:nowrap;color:var(--ink)}
+.ct-chips button[aria-pressed="true"]{background:var(--ink);color:var(--yellow)}
+.ct-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ct-estimate{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;font-size:13px;color:var(--ink);text-align:left}
+.ct-bulk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;background:var(--yellow);border:2px solid var(--ink)}
+.ct-danger{color:var(--red)}
+.ct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;list-style:none;margin:0;padding:0}
+@media (min-width:720px){.ct-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ct-card{position:relative;content-visibility:auto;contain-intrinsic-size:auto 320px;border:2px solid var(--ink);background:#fff;box-shadow:3px 3px 0 var(--ink)}
+.ct-card.is-selected{outline:3px solid var(--red);outline-offset:-3px}
+.ct-open{display:grid;gap:4px;width:100%;padding:8px;text-align:left;color:var(--ink)}
+.ct-cover{position:relative;display:grid;place-items:center;aspect-ratio:2/3;width:100%;overflow:hidden;background:var(--paper);border:1px solid var(--ink)}
+.ct-cover img{width:100%;height:100%;object-fit:cover}
+.ct-cover-empty{font:800 40px 'Barlow Condensed',sans-serif}
+.ct-check{position:absolute;top:6px;left:6px;display:grid;place-items:center;width:28px;height:28px;border:2px solid var(--ink);background:#fff;font-weight:800}
+.ct-title{font-size:14px;line-height:1.3;overflow-wrap:anywhere;padding-right:34px}
+.ct-year{font-size:12px;color:var(--muted)}
+.ct-key{font-size:12px;font-weight:700;color:var(--red)}
+.ct-pills{display:flex;flex-wrap:wrap;gap:4px}
+.ct-pill{display:inline-block;padding:1px 8px;border:1.5px solid var(--ink);background:var(--paper);font-size:12px;font-weight:700}
+.ct-pill-trade{background:#e6f0e8;border-color:#2f7d4f;color:#1f5a37}
+.ct-menu{position:absolute;right:2px;bottom:2px}
+.ct-menu-btn{display:grid;place-items:center;width:44px;height:44px;color:var(--ink)}
+.ct-menu-list{position:absolute;right:0;bottom:46px;z-index:20;display:grid;min-width:200px;padding:6px;background:var(--cream);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.ct-menu-list button{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;text-align:left;font-weight:600}
+.ct-menu-list button:hover,.ct-menu-list button:focus-visible{background:var(--yellow)}
+.ct-empty{display:grid;justify-items:center;gap:10px;padding:24px 8px;text-align:center;color:var(--ink);font-weight:700;margin:0}
+.ct-empty p{margin:0;font-size:16px;color:var(--ink)}
+.ct-note{margin:16px 14px 0;color:var(--ink)}
+.ct-confirm{position:sticky;bottom:12px;display:grid;gap:8px;padding:12px;background:var(--cream);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.ct-confirm p{margin:0;font-weight:700;color:var(--ink)}
+/* Add comics sheet */
+.ac2-choices{display:grid;gap:10px}
+.ac2-choice{display:flex;align-items:center;gap:14px;min-height:72px;padding:12px 14px;border:3px solid var(--ink);background:#fff;text-align:left;color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.ac2-choice strong{display:block;font:800 22px 'Barlow Condensed',sans-serif}.ac2-choice small{color:var(--muted)}
+.ac2-grades{display:grid;gap:6px;list-style:none;margin:12px 0 0;padding:0}
+.ac2-grades li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border:2px solid var(--ink);background:#fff}
+.ac2-name{display:grid;min-width:0}.ac2-name strong{font-size:14px;overflow-wrap:anywhere}.ac2-name small{font-size:12px;color:var(--red);font-weight:700}
+.ac2-grades select{min-height:44px;max-width:150px;border:2px solid var(--ink);background:#fff;color:var(--ink)}
+.ac2-note{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.ac2-error{flex-basis:100%;margin:0}

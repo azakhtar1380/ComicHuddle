@@ -26,7 +26,7 @@ export async function POST(req:Request){
   if(!profile)return json('Create your free collector profile first.',403);
   if(profile.moderated||await isRestricted(db,user.userId))return json('Your account is restricted pending moderation review.',403);
   const limited=await enforceWriteLimits(db,user.userId,'collection:runs',40);if(limited)return limited;
-  const body=await req.json(),a=action.parse(body),vault=await vaultOf(user.userId);
+  const body=await req.json().catch(()=>null),a=action.parse(body),vault=await vaultOf(user.userId);
   if(a.action==='create'){const {action:_,...rest}=body as Record<string,unknown>;void _;const id=await createRun(db as never,user.userId,runInput.parse(rest));return privateJson({id,runs:await listRuns(db as never,user.userId,vault)})}
   if(a.action==='delete'){await deleteRun(db as never,user.userId,a.id);return privateJson({runs:await listRuns(db as never,user.userId,vault)})}
   return privateJson({issueIds:await missingIssueIds(db as never,user.userId,a.id,vault)});

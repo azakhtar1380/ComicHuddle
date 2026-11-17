@@ -3,7 +3,7 @@ import {operator} from '../lib/operator';
 const columns:[string,[string,string][]][]=[
  ['Find',[['Comic Directory','/?section=Directory'],['Characters','/characters'],['Scan a comic','/?section=Scan']]],
  ['Buy & sell',[['Marketplace','/?section=Marketplace'],['Sell a comic','/?section=Marketplace&sell=single'],['Sell a collection','/?section=Marketplace&sell=collection'],['SafePurchase','/safepurchase']]],
- ['Collect',[['My collection','/?section=Collection'],['Comic Workshop','/?section=Comic+Workshop'],['Wallet & rewards','/wallet']]],
+ ['Collect',[['My collection','/?section=My%20Profile&ptab=collection'],['Comic Workshop','/?section=Comic+Workshop'],['Wallet & rewards','/wallet']]],
  ['Help',[['About us','/about'],['Meet Huddles','/about-huddles'],['Collector rules','/?section=Rules'],['Contact us','/contact'],['Sign in','/sign-in']]],
 ];
 export default function SiteFooter(){return <footer className="ch-footer">

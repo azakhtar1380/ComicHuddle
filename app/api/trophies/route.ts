@@ -36,7 +36,7 @@ export async function POST(req:Request){
  try{
   const user=await getChatGPTUser();if(!user)return json('Sign in first.',401);
   if(req.headers.get('origin')!==new URL(req.url).origin)return json('Request origin rejected.',403);
-  const a=body.parse(await req.json());
+  const a=body.parse(await req.json().catch(()=>null));
   if(a.action==='seen'){await markSeen(user.userId,a.trophy,a.tier);return privateJson({ok:true})}
   if(a.action==='prefs'){await saveTrophyPrefs(user.userId,a);return privateJson({prefs:a})}
   const result=await awardTrophies(user.userId);await nudgeOriginStory(user.userId).catch(()=>undefined);return privateJson({earned:result.earned.length});

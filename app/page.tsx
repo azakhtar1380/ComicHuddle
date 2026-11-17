@@ -7,4 +7,6 @@ export const dynamic='force-dynamic';
 export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){const query=await searchParams,collector=query.collector;
  // Old share links (/?collector=handle) now open the clean profile link.
  if(typeof collector==='string'&&/^[a-z][a-z0-9_]{2,23}$/i.test(collector))redirect('/@'+collector.toLowerCase());
+ // The Collection page now lives on the profile's Collection tab.
+ if(query.section==='Collection'||query.section==='My Collection')redirect('/?section=My%20Profile&ptab=collection'+(query.tab==='trade'?'&chip=trade':''));
  const user=await getChatGPTUser(),section=query.section;return <Hub name={user?.displayName || 'Collector'} signedIn={!!user} isOwner={user?.userId===ownerAccountId} initialSection={typeof section==='string'?section.slice(0,40):undefined}/>;}

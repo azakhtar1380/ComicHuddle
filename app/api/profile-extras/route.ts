@@ -19,7 +19,7 @@ export async function POST(req:Request){
   if(!profile)return json('Create your free collector profile first.',403);
   if(profile.moderated||await isRestricted(db,user.userId))return json('Your account is restricted pending moderation review.',403);
   const limited=await enforceWriteLimits(db,user.userId,'profile:extras',30);if(limited)return limited;
-  const input=extrasInput.parse(await req.json());
+  const input=extrasInput.parse(await req.json().catch(()=>null));
   await saveExtras(db as never,{id:profile.id,userId:user.userId},input);
   queueTrophies([user.userId]);
   return privateJson({saved:true});

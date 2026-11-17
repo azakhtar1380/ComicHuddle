@@ -48,10 +48,13 @@ const issueLabel=(ref:{title:string;number:string;year:number|null})=>`${ref.tit
 type Props={p:ProfileView;own:boolean;busy:boolean;wants:Record<number,Issue>;uploading:''|'photo'|'cover';
  onBack:()=>void;onEdit:()=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;onMessage:(context?:string)=>void;onShare:()=>void;onTheme:()=>void;onCollection:()=>void;
  onPhoto:(file:File)=>void;onCover:(file:File)=>void;onCopyLink:()=>void;
- art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode};
+ art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;tabRequest?:{tab:ProfileTab;n:number}|null;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode};
 
-export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview}:Props){
+export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,tabRequest}:Props){
  const x=p.extras||emptyExtras,look=x.look||DEFAULT_LOOK,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
+ // Opening "My collection" from elsewhere selects the Collection tab.
+ const [seenRequest,setSeenRequest]=useState(0);
+ if(tabRequest&&tabRequest.n!==seenRequest){setSeenRequest(tabRequest.n);setTab(tabRequest.tab)}
  const biz:BusinessSummary={isBusiness:!!p.isBusiness,verified:!!p.verified,shopName:p.shopName??null,business:p.business};
  const tabs:{id:ProfileTab;label:string}[]=[{id:'overview',label:'Overview'},{id:'collection',label:'Collection'},{id:'wishlist',label:'Wishlist'},...(own||x.share.reviews?[{id:'reviews' as const,label:'Reviews'}]:[])];
  useEffect(()=>{if(!menu)return;const close=(event:MouseEvent|KeyboardEvent)=>{if(event instanceof KeyboardEvent?event.key==='Escape':!menuRef.current?.contains(event.target as Node))setMenu(false)};document.addEventListener('mousedown',close);document.addEventListener('keydown',close);return()=>{document.removeEventListener('mousedown',close);document.removeEventListener('keydown',close)}},[menu]);

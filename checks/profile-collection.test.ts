@@ -1,5 +1,5 @@
-// My Collection as a comic shop (migration 052): runs computed from the vault, the per-copy ledger,
-// and the public Collection tab following the Shop window without ever exposing value or private details.
+// The profile Collection tab (migration 052 tables): runs computed from the vault (hidden from the UI but still
+// counted for trophies), the per-copy ledger, and the visitor view following "Show my collection".
 import {before,after,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -9,7 +9,7 @@ import {nativeGcdFixture} from './native-gcd-fixture';
 import {getDb} from '../db';
 import {createRun,listRuns,missingIssueIds,deleteRun,runInput} from '../lib/collection-runs';
 import {syncVaultLedger,addedDates,normalizeCert} from '../lib/vault-ledger';
-import {publicCollection} from '../lib/collection-shop';
+import {collectionCopies,publicCollectionView,columnToVisibility,VISIBILITY_TO_COLUMN} from '../lib/profile-collection';
 import {emptyVault,type Vault} from '../lib/vault';
 
 let engine:PGlite;const pool=new Pool(),db=getDb();
@@ -59,17 +59,18 @@ test('ledger: added dates, removals, re-adds and normalized certs',async()=>{
  assert.equal(normalizeCert(' 000123-4567 '),'1234567');assert.equal(normalizeCert('12'),null);
 });
 
-test('public collection follows the shop window and never exposes value or private details',async()=>{
+test('visitors see Everyone / Keys only / Only me, never value or private details',async()=>{
+ assert.deepEqual([columnToVisibility('open'),columnToVisibility('window'),columnToVisibility('closed'),columnToVisibility(undefined)],['everyone','keys','me','keys'],'old shop window values map; default Keys only');
+ assert.deepEqual(VISIBILITY_TO_COLUMN,{everyone:'open',keys:'window',me:'closed'});
  const secret=gcdCopy('s',9001,{price:950,grade:'CGC 9.6',photoId:'11111111-1111-4111-8111-111111111111',ownership:{format:'GRADED',rawCondition:null,gradingCompany:'CGC',grade:'9.6',labelType:'Universal',certificationNumber:'7777777',purchasePriceCents:'95000',acquiredOn:'2024-01-02',notes:'Paid too much at the con'}});
  const vault:Vault={...emptyVault('P'),books:[secret,gcdCopy('r',9002)],tradeBookIds:['r']};
- const profile={id:'profile-p',userId:'user-p'};
- const shown=await publicCollection(db as never,profile,vault,'open');
- assert.equal(shown.comics.length,2);assert.equal(shown.glass.length,1,'graded copies go in the glass case');
- assert.equal(shown.comics.find(c=>c.id==='r')?.openToTrade,true);
- const text=JSON.stringify(shown);
- for(const leak of ['95000','950','7777777','Paid too much','2024-01-02','11111111-1111-4111-8111-111111111111','photoId','price','notes'])assert.ok(!text.includes(leak),'never exposes '+leak);
- const window=await publicCollection(db as never,profile,vault,'window');
- assert.equal(window.comics.length,0,'window display shows only the glass case, runs and favorites');assert.equal(window.glass.length,1);
- const closed=await publicCollection(db as never,profile,vault,'closed');
- assert.deepEqual([closed.window,closed.comics.length,closed.glass.length,closed.runs.length],['closed',0,0,0]);
+ const copies=await collectionCopies(db as never,vault);
+ assert.deepEqual(copies.map(c=>[c.id,c.grade,c.graded,c.forTrade]),[['s','CGC 9.6',true,false],['r','Raw',false,true]]);
+ for(const [col,expected] of [['open',2],['window',0],['closed',0]] as const){
+  await engine.query('INSERT INTO ch_web.profile_extras(profile_id,user_id,shop_window) VALUES($1,$2,$3) ON CONFLICT(profile_id) DO UPDATE SET shop_window=EXCLUDED.shop_window',['profile-p','user-p',col]);
+  const view=await publicCollectionView(db as never,'profile-p',vault);
+  assert.equal(view.copies.length,expected,col);
+  const text=JSON.stringify(view);
+  for(const leak of ['95000','950','7777777','Paid too much','2024-01-02','11111111-1111-4111-8111-111111111111','photoId','price','notes'])assert.ok(!text.includes(leak),'never exposes '+leak);
+ }
 });
