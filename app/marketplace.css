@@ -38,7 +38,7 @@
 /* Tiny covers in the "what's included" list */
 .mp-item-art{width:42px;height:58px;overflow:hidden;flex-shrink:0}
 .mp-item-art .comic-photo,.mp-item-art .archive-card{width:100%;height:100%;min-height:0;margin:0;border-radius:var(--radius-sm);padding:0}
-.mp-item-art .comic-photo>span,.mp-item-art .archive-top,.mp-item-art .archive-bottom{display:none}
+.mp-item-art .comic-photo>span:not(.resolved-cover),.mp-item-art .archive-top,.mp-item-art .archive-bottom{display:none}
 .mp-item-art .comic-photo img{width:100%;height:100%;object-fit:contain}
 .mp-item-art .archive-card{padding:4px}
 .mp-item-art .archive-name{font-size:12px;line-height:1}
@@ -76,3 +76,10 @@
 .mpx-set-badge,.mpx-photo-count{position:absolute;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border:2px solid var(--ink);border-radius:999px;font:700 12px/1.2 var(--font-body,'DM Sans',sans-serif);color:var(--ink)}
 .mpx-set-badge{left:8px;bottom:8px;background:var(--yellow)}
 .mpx-photo-count{right:8px;bottom:8px;background:var(--cream)}
+
+/* Listing page order (cleanup round 2): photos, title/price/buy, comics in this listing, description, shipping, seller. */
+.mpx-detail-info .mpx-manifest{margin:16px 0 0}
+.mpx-detail-info .mpx-manifest-items{max-height:none;overflow:visible}
+
+/* The cover inside a small item thumbnail fills it (the old caption rules no longer hit the cover wrapper). */
+.mp-item-art .resolved-cover,.mp-item-art .resolved-cover-frame{width:100%;height:100%}
