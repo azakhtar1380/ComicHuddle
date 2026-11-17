@@ -12,6 +12,7 @@ import {vaultSchema,type Vault} from './vault';
 import {freshValue,marketKey} from './market-data';
 import {ApiRequestError,chunks,isRestricted,readBytes} from './api-security';
 import {blocked} from './conversations';
+import {offensiveReason} from './name-rules';
 import {listingDirectoryId} from './shared-catalog';
 import {linkedCatalogIssue} from './catalog-search';
 import {conditionalGuard as guard,operationGuardFailed as marketplaceGuardFailed} from './operation-guard';
@@ -33,7 +34,9 @@ const citySchema=z.string().trim().max(80).refine(v=>!v||/^[\p{L}][\p{L}\p{M} .'
 const conditionSchema=z.object({mode:z.enum(['Raw','CGC']),grade:z.string().refine(s=>grades.includes(s)),label:z.enum(['Raw','Universal','Signature Series','Qualified','Restored','Conserved']),printing:z.enum(['First printing','Second printing','Third printing','Later printing','Facsimile','Reprint']),language:z.string().max(40).optional(),signatureStatus:z.string().max(50).optional(),restorationStatus:z.string().max(50).optional(),certificationNumber:z.string().max(40).optional()}).strict().refine(v=>(v.mode==='Raw')===(v.label==='Raw'),'Raw condition must use the Raw label.');
 const creationSchema=z.object({
  action:z.literal('listing'),safePurchaseOptIn:z.boolean().default(false),coverOptOut:z.boolean().default(true),shippingCalculated:z.boolean().default(false),weightOz:z.number().int().min(1).max(2400).optional(),lengthIn:z.number().int().min(1).max(108).optional(),widthIn:z.number().int().min(1).max(108).optional(),heightIn:z.number().int().min(1).max(108).optional(),locationZip:z.string().regex(/^\d{5}$/).optional(),kind:z.enum(['single','collection']).default('single'),saleType:z.enum(['fixed','auction']).default('fixed'),
- bookId:bookId.optional(),bookIds:z.array(bookId).min(1).max(1000).refine(ids=>new Set(ids).size===ids.length).optional(),
+ bookId:bookId.optional(),bookIds:z.array(bookId).min(0).max(1000).refine(ids=>new Set(ids).size===ids.length).optional(),
+ // "Can't find the comic? Add your own": typed-in comics that live only on this listing.
+ customItems:z.array(z.object({title:z.string().trim().min(3).max(120),description:z.string().trim().max(1000).default('')}).strict()).max(50).default([]),
  conditions:z.record(bookId,conditionSchema).refine(v=>Object.keys(v).length<=1000).default({}),title:z.string().trim().min(1).max(200).optional(),
  description:z.string().trim().min(1).max(2000),price:cents,shipping:z.number().int().min(0).max(100000),
  photos:z.array(z.string().uuid()).min(1).max(6).refine(ids=>new Set(ids).size===ids.length),cert:z.string().max(40).default(''),attest:z.literal(true),usaAttest:z.boolean().optional(),
@@ -69,9 +72,11 @@ export function listingItems(row:ListingRow):ListingItem[]{
  if(!stored.length){if(row.bookId==='deleted')return [];return [{id:row.bookId,bookId:row.bookId,title:row.title,issue:'',grade:row.grade,...(row.issueId===null?{}:{catalogId:row.issueId})}]}
  return stored.map(raw=>{
   if(!raw||typeof raw!=='object')throw new ApiRequestError('The listing record is unavailable.',500);
-  const item=raw as Record<string,unknown>,id=typeof item.bookId==='string'?item.bookId:typeof item.id==='string'?item.id:'';
+  const item=raw as Record<string,unknown>,custom=item.source==='custom',id=typeof item.bookId==='string'&&item.bookId?item.bookId:typeof item.id==='string'?item.id:'';
   if(!id||typeof item.title!=='string'||typeof item.issue!=='string'||typeof item.grade!=='string')throw new ApiRequestError('The listing record is unavailable.',500);
   const condition=conditionSchema.safeParse(item.condition),externalCatalog=externalCatalogSchema.safeParse(item.externalCatalog);
+  // A custom comic ("Add your own") has no copy behind it: bookId stays '', and it carries its own description.
+  if(custom)return {id,bookId:'',title:item.title,issue:item.issue,grade:item.grade,source:'custom' as const,...(typeof item.description==='string'&&item.description?{description:item.description.slice(0,1000)}:{})};
   return {id,bookId:id,title:item.title,issue:item.issue,grade:item.grade,...(externalCatalog.success?{externalCatalog:externalCatalog.data}:{}),...(!externalCatalog.success&&typeof item.catalogId==='number'&&Number.isInteger(item.catalogId)&&catalog.some(c=>c.id===item.catalogId)?{catalogId:item.catalogId}:{}),...(typeof item.photoId==='string'&&z.string().uuid().safeParse(item.photoId).success?{photoId:item.photoId}:{}),...(condition.success?{condition:condition.data}:{})};
  });
 }
@@ -161,18 +166,21 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  // enabled, synced from account.updated) before publishing. Switched on per deployment.
  if(process.env.COMMERCE_LISTING_REQUIRES_PAYOUTS==='true'&&!await sellerPayoutsReady(db,me.userId))throw new ApiRequestError('Set up payment onboarding in Orders before you list. That’s how buyers pay you and how your money reaches your bank.',409);
  await ensureSellerPhotos(me.userId,value.photos);
- if(!selected.length||value.kind==='single'&&selected.length!==1)throw new ApiRequestError('Choose one owned copy for a single listing, or up to 1,000 copies for a collection.',400);
+ const customCount=value.customItems.length,totalCount=selected.length+customCount;
+ if(!totalCount||value.kind==='single'&&totalCount!==1||totalCount>1000)throw new ApiRequestError('Choose one comic for a single listing, or up to 1,000 for a collection.',400);
+ for(const item of value.customItems){const why=offensiveReason(item.title)||offensiveReason(item.description);if(why)throw new ApiRequestError('“'+item.title.slice(0,40)+'”: '+why,400)}
+ {const why=(value.title?offensiveReason(value.title):null)||offensiveReason(value.description);if(why)throw new ApiRequestError(why,400)}
  if(value.bookIds&&value.bookId&&value.bookId!==selected[0])throw new ApiRequestError('Check the selected copies before publishing.',400);
  const modern=['kind','saleType','bookIds','conditions','title','durationHours','bidIncrement','usaAttest','fulfillment','pickupCity','pickupState'].some(key=>Object.hasOwn(raw,key));
  if(modern&&value.usaAttest!==true)throw new ApiRequestError('Confirm USA-only eligibility and shipping before publishing.',400);
  if(!me.visible)throw new ApiRequestError('Enable your collector showcase before publishing a listing.',400);
  await initializeSellerListings(db,me);
  const [source]=await db.select().from(collections).where(eq(collections.userId,me.userId));
- if(!source)throw new ApiRequestError('Add your owned comics to your collection first.',400);
- const vault=vaultSchema.parse(JSON.parse(source.data)),owned=new Map(vault.books.map(copy=>[copy.id,copy]));
+ if(!source&&selected.length)throw new ApiRequestError('Add your owned comics to your collection first.',400);
+ const vault=source?vaultSchema.parse(JSON.parse(source.data)):{profile:me.name,books:[]} as unknown as ReturnType<typeof vaultSchema.parse>,owned=new Map(vault.books.map(copy=>[copy.id,copy]));
  if(selected.some(id=>!owned.has(id)))throw new ApiRequestError('Only copies in your own current collection may be listed.',400);
  if(Object.keys(value.conditions).some(id=>!selected.includes(id)))throw new ApiRequestError('Set conditions only for the selected copies.',400);
- const copies=selected.map(id=>owned.get(id)!),items=copies.map(copy=>snapshot(copy,value.conditions[copy.id]));
+ const copies=selected.map(id=>owned.get(id)!),items:ListingItem[]=[...copies.map(copy=>snapshot(copy,value.conditions[copy.id])),...value.customItems.map(item=>({id:'custom-'+crypto.randomUUID(),bookId:'',title:item.title,issue:'',grade:'Not graded',source:'custom' as const,...(item.description?{description:item.description}:{})}))];
  const externalIds=[...new Set(copies.flatMap(copy=>{const id=copy.externalCatalog?listingDirectoryId(copy):null;return id===null?[]:[id]}))],externalRows=new Map<number,{id:number;metronId:number|null;gcdId:number|null;title:string;number:string}>();
  for(const batch of chunks(externalIds)){const rows=await catalogIssuesById(db,batch);for(const row of rows)externalRows.set(row.id,{id:row.id,metronId:row.metronId??null,gcdId:row.gcdId??null,title:row.title,number:row.number})}
  const legacyAliases=new Map<number,string>();for(const batch of chunks(externalIds)){const aliases=await db.execute(sql`SELECT id,title FROM ch_web.catalog_issues WHERE id IN (${sql.join(batch.map(id=>sql`${id}`),sql`, `)})`);for(const alias of aliases.rows)legacyAliases.set(Number(alias.id),String(alias.title))}
@@ -187,13 +195,13 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
  if(termsReady)await resolveEndedAuctions(db);
  const noTerms=(alias:string)=>termsReady?sql`NOT EXISTS (SELECT 1 FROM ch_web.marketplace_auction_terms t WHERE t.listing_id = ${sql.raw(alias)})`:sql`true`;
  const stamp=new Date().toISOString(),selectedJSON=JSON.stringify(selected);
- const checked=guard(db,sql`EXISTS (SELECT 1 FROM profiles p JOIN collections c ON c.user_id = p.user_id
+ const checked=guard(db,sql`EXISTS (SELECT 1 FROM profiles p ${source?sql`JOIN collections c ON c.user_id = p.user_id`:sql``}
   WHERE p.id = ${me.id} AND p.user_id = ${me.userId} AND p.visible = 1 AND p.moderated = 0 AND p.deletion_started_at IS NULL
-   AND c.revision = ${source.revision} AND NOT EXISTS
+   AND ${source?sql`c.revision = ${source.revision}`:sql`true`} AND NOT EXISTS
     (SELECT 1 FROM account_restrictions r WHERE r.user_id = p.user_id AND r.scope = 'account'))
   AND (${identitiesCurrent})
-  AND json_array_length(${selectedJSON}) BETWEEN 1 AND 1000
-  AND (${value.kind} != 'single' OR json_array_length(${selectedJSON}) = 1)
+  AND json_array_length(${selectedJSON}) BETWEEN ${customCount?0:1} AND 1000
+  AND (${value.kind} != 'single' OR json_array_length(${selectedJSON}) = ${customCount?0:1})
   AND (SELECT count(DISTINCT item.value) FROM json_each(${selectedJSON}) item) = ${selected.length}
   AND NOT EXISTS (SELECT 1 FROM json_each(${selectedJSON}) item WHERE item.type != 'text' OR length(trim(item.value)) = 0
    OR item.value NOT IN (SELECT json_extract(copy.value, '$.id') FROM collections c, json_each(c.data, '$.books') copy WHERE c.user_id = ${me.userId}))
@@ -205,7 +213,7 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
     AND NOT (occupied.sale_type = 'auction' AND occupied.status = 'active' AND occupied.end_at <= ${stamp} AND ${noTerms('occupied.id')})
     AND reserved.book_id IN (SELECT item.value FROM json_each(${selectedJSON}) item))`);
  const location=value.locationZip?await resolveLocation(db,value.locationZip):null;
- const listingId=crypto.randomUUID(),first=copies[0],legacyAuction=noTerms('listings.id');
+ const listingId=crypto.randomUUID(),first=copies[0] as typeof copies[number]|undefined,custom=value.customItems[0],legacyAuction=noTerms('listings.id');
  try{
   await db.batch([
    checked.start,
@@ -214,8 +222,8 @@ export async function createListing(db:Db,me:Profile,raw:Record<string,unknown>)
    // Only legacy previews end here; binding auctions are resolved first by resolveEndedAuctions.
    db.update(listings).set({status:'ended'}).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'active'),lte(listings.endAt,stamp),legacyAuction)),
    db.delete(listingInventory).where(and(eq(listingInventory.sellerId,me.id),inArray(listingInventory.listingId,db.select({id:listings.id}).from(listings).where(and(eq(listings.sellerId,me.id),eq(listings.saleType,'auction'),eq(listings.status,'ended'),lte(listings.endAt,stamp),legacyAuction))))),
-   db.insert(listings).values({id:listingId,sellerId:me.id,bookId:first.id,issueId:value.kind==='single'?first.externalCatalog?listingDirectoryId(first):linkedCatalogIssue(first)?.id??null:null,title:value.title||(value.kind==='single'?first.title+' '+first.issue:vault.profile+"'s "+items.length+'-comic collection'),grade:value.kind==='single'?first.grade:'Mixed conditions · see each copy',description:value.description,price:value.price,shipping:value.shipping,photos:JSON.stringify(value.photos),cert:value.cert,status:'active',createdAt:stamp,safePurchaseOptIn:value.safePurchaseOptIn?1:0,coverOptOut:value.coverOptOut?1:0,shippingCalculated:value.shippingCalculated&&value.fulfillment!=='pickup'?1:0,weightOz:value.weightOz??null,lengthIn:value.lengthIn??null,widthIn:value.widthIn??null,heightIn:value.heightIn??null,...(location?{locationZip:location.zip,locationCity:location.city,locationState:location.state,latitude:location.latitude,longitude:location.longitude}:{}),kind:value.kind,saleType:value.saleType,items:JSON.stringify(items),itemCount:items.length,endAt:value.saleType==='auction'?new Date(Date.parse(stamp)+value.durationHours*3600000).toISOString():'',bidIncrement:auctionIncrement(value.price),vaultRevision:source.revision,usaAttestedAt:value.usaAttest===true?stamp:'',fulfillment:value.fulfillment,pickupCity:value.pickupCity,pickupState:value.pickupState}),
-   db.insert(listingInventory).select(db.select({sellerId:sql<string>`${me.id}`.as('seller_id'),bookId:sql<string>`json_extract(item.value, '$.bookId')`.as('book_id'),listingId:sql<string>`${listingId}`.as('listing_id')}).from(sql`json_each(${JSON.stringify(items)}) item`).where(sql`true`)),
+   db.insert(listings).values({id:listingId,sellerId:me.id,bookId:first?.id??'',issueId:value.kind==='single'&&first?first.externalCatalog?listingDirectoryId(first):linkedCatalogIssue(first)?.id??null:null,title:value.title||(value.kind==='single'?first?first.title+' '+first.issue:custom!.title:vault.profile+"'s "+items.length+'-comic collection'),grade:value.kind==='single'?first?.grade??'Not graded':'Mixed conditions · see each copy',description:value.description,price:value.price,shipping:value.shipping,photos:JSON.stringify(value.photos),cert:value.cert,status:'active',createdAt:stamp,safePurchaseOptIn:value.safePurchaseOptIn?1:0,coverOptOut:value.coverOptOut?1:0,shippingCalculated:value.shippingCalculated&&value.fulfillment!=='pickup'?1:0,weightOz:value.weightOz??null,lengthIn:value.lengthIn??null,widthIn:value.widthIn??null,heightIn:value.heightIn??null,...(location?{locationZip:location.zip,locationCity:location.city,locationState:location.state,latitude:location.latitude,longitude:location.longitude}:{}),kind:value.kind,saleType:value.saleType,items:JSON.stringify(items),itemCount:items.length,endAt:value.saleType==='auction'?new Date(Date.parse(stamp)+value.durationHours*3600000).toISOString():'',bidIncrement:auctionIncrement(value.price),vaultRevision:source?.revision??'',usaAttestedAt:value.usaAttest===true?stamp:'',fulfillment:value.fulfillment,pickupCity:value.pickupCity,pickupState:value.pickupState}),
+   db.insert(listingInventory).select(db.select({sellerId:sql<string>`${me.id}`.as('seller_id'),bookId:sql<string>`json_extract(item.value, '$.bookId')`.as('book_id'),listingId:sql<string>`${listingId}`.as('listing_id')}).from(sql`json_each(${JSON.stringify(items)}) item`).where(sql`json_extract(item.value, '$.bookId') != ''`)),
    ...(value.saleType==='auction'?[auctionTermsInsert(db,listingId,value.reserveCents??null,stamp)]:[]),
    checked.finish
   ] as never);

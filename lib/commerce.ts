@@ -236,7 +236,7 @@ async function reserveCheckoutOrder(db:Db,profile:Profile,input:z.infer<typeof c
   if(input.storeCreditCents>itemAmount||total<50)throw new ApiRequestError('Credit can reduce the item subtotal. At least $0.50 must remain for the card payment.',400);
   if(!items.length||items.length!==listing.itemCount||!Number.isSafeInteger(total)||itemAmount<100||shippingAmount<0||total>99_999_999)throw new ApiRequestError('Listing needs a valid bounded price and complete copy snapshot.',409);
   const [source]=await db.select().from(collections).where(eq(collections.userId,seller.userId));
-  const selected=JSON.stringify(items.map(copy=>copy.bookId));
+  const selected=JSON.stringify(items.filter(copy=>copy.source!=='custom').map(copy=>copy.bookId)); // custom comics have no copy behind them
   if(!source)throw new ApiRequestError('The seller’s source collection is unavailable.',409);
   const orderId=crypto.randomUUID(),stamp=new Date(Math.floor(Date.now()/1000)*1000).toISOString();
   const state:State=createCommerceState({orderId,buyerId:profile.id,sellerId:seller.id,sellerAccountId,currency:'USD',totalCents:total,sellerTransferCents:gross,storeCreditCents:input.storeCreditCents,createdAt:stamp,paymentIntentId:null,chargeId:null,paidAt:null,fulfillment:input.fulfillment},plan.policy);
@@ -973,7 +973,7 @@ export async function commerceOfferCheckout(db:Db,profile:Profile,email:string,r
  const sellerAccountId=await boundSeller(db,seller,processor,environment),items=listingItems(listing),gross=sale.sellerNetCents,total=itemAmount+shippingAmount+plan.feeCents;
  if(!items.length||items.length!==listing.itemCount||!Number.isSafeInteger(total)||itemAmount<100||total<50||shippingAmount<0||total>99_999_999)throw new ApiRequestError('Listing needs a valid bounded price and complete copy snapshot.',409);
  const [source]=await db.select().from(collections).where(eq(collections.userId,seller.userId));
- const selected=JSON.stringify(items.map(copy=>copy.bookId));
+ const selected=JSON.stringify(items.filter(copy=>copy.source!=='custom').map(copy=>copy.bookId)); // custom comics have no copy behind them
  if(!source)throw new ApiRequestError('The seller’s source collection is unavailable.',409);
  const orderId=crypto.randomUUID(),stamp=new Date(Math.floor(Date.now()/1000)*1000).toISOString();
  const state:State=createCommerceState({orderId,buyerId:profile.id,sellerId:seller.id,sellerAccountId,currency:'USD',totalCents:total,sellerTransferCents:gross,storeCreditCents:0,createdAt:stamp,paymentIntentId:null,chargeId:null,paidAt:null,fulfillment:input.fulfillment},plan.policy);

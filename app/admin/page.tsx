@@ -4,6 +4,7 @@ import VerifyBusinessPanel from '../../components/profile/verify-business-panel'
 import VerifyPersonPanel from '../../components/profile/verify-person-panel';
 import AdminTrophiesPanel from '../../components/trophies/admin-trophies-panel';
 import MemberNamesPanel from '../../components/profile/member-names-panel';
+import {listingsWithCustomItems} from '../../lib/custom-listings';
 import {adminEmails,adminLimit} from '../../lib/admin';
 import {adminAuditReady} from '../../lib/admin-audit';
 import {protectionConfig,type ProtectionEnv} from '../../lib/commerce-protection';
@@ -18,6 +19,7 @@ export default async function AdminHome(){
   const protection=protectionConfig(process.env as ProtectionEnv),auditReady=await adminAuditReady();
   const configured=adminEmails().length,limit=adminLimit();
   const support=await supportPaymentsForOwner(stripeMode(process.env as never)==='live'?0:1);
+  const customListings=await listingsWithCustomItems();
   const usd=(cents:number)=>'$'+(cents/100).toFixed(2);
   return <AdminShell current="/admin" title="Admin" accent=" tools." founder={founder} lede="Only admins can see these pages. Every action is checked on the server and written to the audit log.">
     {!auditReady&&<p className="adm-warn" role="note">Database migration 040 (audit log and SafePurchase updates) isn’t applied yet. Admin actions are refused until it is.</p>}
@@ -29,6 +31,10 @@ export default async function AdminHome(){
     </div>
     <section id="verified-businesses" aria-labelledby="adm-verified" style={{margin:'0 0 32px'}}><h2 id="adm-verified" className="adm-title" style={{fontSize:28}}>Verified businesses</h2><VerifyBusinessPanel/></section>
     <section id="verified-collectors" aria-labelledby="adm-verified-people" style={{margin:'0 0 32px'}}><h2 id="adm-verified-people" className="adm-title" style={{fontSize:28}}>Verified collectors</h2><VerifyPersonPanel/></section>
+    <section id="custom-comics" aria-labelledby="adm-custom" style={{margin:'0 0 32px'}}><h2 id="adm-custom" className="adm-title" style={{fontSize:28}}>Listings with custom comics</h2>
+      <p className="adm-lede">Comics sellers typed in themselves (not in the Directory). They go through the same listing checks; review them here.</p>
+      {customListings.length?<div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>Listing</th><th>Seller</th><th>Custom comics</th><th>Status</th></tr></thead><tbody>{customListings.map(row=><tr key={row.id}><td><a href={'/?section=Marketplace&listing='+encodeURIComponent(row.id)}>{row.title}</a></td><td><a href={'/@'+row.handle}>@{row.handle}</a></td><td>{row.customCount}: {row.customTitles.join(', ')}</td><td>{row.status}</td></tr>)}</tbody></table></div>:<p className="adm-lede">None yet.</p>}
+    </section>
     <section id="member-names" aria-labelledby="adm-names" style={{margin:'0 0 32px'}}><h2 id="adm-names" className="adm-title" style={{fontSize:28}}>Member names</h2><MemberNamesPanel/></section>
     <section id="trophies" aria-labelledby="adm-trophies" style={{margin:'0 0 32px'}}><h2 id="adm-trophies" className="adm-title" style={{fontSize:28}}>Trophies</h2><AdminTrophiesPanel/></section>
     <section aria-labelledby="adm-support" style={{margin:'0 0 32px'}}><h2 id="adm-support" className="adm-title" style={{fontSize:28}}>Support payments</h2>
