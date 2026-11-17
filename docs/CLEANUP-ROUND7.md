@@ -110,3 +110,9 @@ Plurals fixed where a count was printed with a fixed word (Directory results, ch
 
 ## Listing photos
 A listing with seller photos shows the real photo on its card (a set gets a "Set of N" badge and a photo count) instead of pasting the photo onto a fake stack of covers; the detail shows every photo with thumbnails, then the comics in the set. Listings already take up to 6 photos at once; the upload box now says so.
+
+## Production-build check (QA preview, 2026-11-17)
+Phone emulation (Pixel 7), CPU slowed 4×, as a guest on a public profile:
+- Share window: tap → card painted 46–98 ms (median 68 ms); no main-thread task over 50 ms except one 53 ms task on the very first (cold) open; Save card PNG ready in 176–218 ms.
+- Scrolling top to bottom: Home, Directory, Marketplace and a profile — no task over 50 ms, CLS 0, about 60 fps.
+- The account panel needs a signed-in account, so it was measured only on the dev server (see section 8).
