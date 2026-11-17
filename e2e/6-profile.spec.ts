@@ -123,7 +123,7 @@ test.describe('My profile',()=>{
   await open(page,'/');await addComicToCollection(page);              // the chips show once there is a comic
   await open(page,'/@'+ACCOUNTS.seller.handle);
   await page.getByRole('tab',{name:'Collection'}).click();          // the filter chips are a scroll row
-  const row=page.locator('.ch-hscroll').first();
+  const row=page.getByRole('toolbar',{name:'Filter comics'});
   await expect(row).toBeVisible();
   await page.mouse.move(0,0);
   await expect(row,'at rest (not mid-scroll)').not.toHaveClass(/is-scrolling/);

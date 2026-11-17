@@ -36,3 +36,6 @@ Measured with `e2e`-style timing on the local dev server, CPU slowed 4× to stan
 | Tap Save card → PNG downloaded | 549 ms | 553 ms | ≤1.5 s |
 
 The remaining open task is mostly React's development-mode work (`jsxDEV`, prop validation) that a production build doesn't run; a production build couldn't be measured locally because the in-memory test database is disabled in production mode. Re-measure on the QA deployment with the browser performance panel.
+
+## 7. Notifications panel
+Under 640px the bell always opens the bottom sheet (full width, max 85vh, grab handle, Notifications, Mark all read, close; body scroll locked). On desktop the dropdown is anchored under the bell with `position:fixed`, kept 12px inside the window, above the header. Filter chips scroll sideways inside the panel (shared hidden-scroll-bar row). Titles wrap, bodies clamp to 2 lines, time on its own line; the unread dot and trophy icon share one 28px slot. Escape, outside tap and the close button close it and focus returns to the bell. Test: `e2e/14-notifications.spec.ts`.

@@ -1,9 +1,10 @@
 'use client';
 // Notification bell (round 4). <NotificationBell variant="header"/> sits with the header icons (uses the
-// header's .chx-icon/.chx-badge styles); <NotificationBell variant="dock"/> is a phone-bar tab (.dock3-*)
-// that opens a bottom sheet. Renders nothing for guests. Data: /api/notifications.
+// header's .chx-icon/.chx-badge styles) and opens a dropdown on desktop, a bottom sheet under 640px;
+// <NotificationBell variant="dock"/> is a phone-bar tab (.dock3-*) that always opens the bottom sheet. Renders nothing for guests. Data: /api/notifications.
 import {useCallback,useEffect,useId,useRef,useState} from 'react';
 import {Bell,CheckCheck,Trophy,X} from 'lucide-react';
+import {activateDialog} from '../../lib/dialog-focus';
 import './bell.css';
 import '../../app/design-system-hscroll.css';
 
@@ -61,34 +62,49 @@ function List({data,markRead,onClose,titleId}:{data:Data|null;markRead:(ids?:str
  </>;
 }
 
+/** True under 640px wide (kept in sync with the window). */
+function usePhoneWidth(){
+ const [phone,setPhone]=useState(false);
+ useEffect(()=>{const query=window.matchMedia('(max-width: 639px)'),sync=()=>setPhone(query.matches);sync();query.addEventListener('change',sync);return()=>query.removeEventListener('change',sync)},[]);
+ return phone;
+}
+/** The phone bottom sheet: a native modal dialog (focus trap, Escape) plus the shared body scroll lock. */
+function Sheet({open,onClose,titleId,data,markRead}:{open:boolean;onClose:()=>void;titleId:string;data:Data|null;markRead:(ids?:string[])=>Promise<void>}){
+ const sheet=useRef<HTMLDialogElement>(null);
+ useEffect(()=>{const node=sheet.current;if(!node)return;if(open&&!node.open)node.showModal();else if(!open&&node.open)node.close()},[open]);
+ useEffect(()=>{if(!open)return;return activateDialog(sheet.current,onClose)},[open,onClose]);
+ return <dialog ref={sheet} className="nb-sheet" aria-labelledby={titleId} onClose={onClose} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+  <div className="nb-sheet-body"><span className="nb-grip" aria-hidden="true"/><List data={data} markRead={markRead} onClose={onClose} titleId={titleId}/></div>
+ </dialog>;
+}
+
 export function NotificationBell({variant='header'}:{variant?:'header'|'dock'}){
- const {data,guest,reload,markRead}=useNotifications(),[open,setOpen]=useState(false),titleId=useId();
- const wrap=useRef<HTMLDivElement>(null),button=useRef<HTMLButtonElement>(null),sheet=useRef<HTMLDialogElement>(null);
- const close=useCallback(()=>{setOpen(false);button.current?.focus()},[]);
+ const {data,guest,reload,markRead}=useNotifications(),[open,setOpen]=useState(false),titleId=useId(),phone=usePhoneWidth();
+ const wrap=useRef<HTMLDivElement>(null),button=useRef<HTMLButtonElement>(null),panel=useRef<HTMLDivElement>(null);
+ const [place,setPlace]=useState<{top:number;right:number}|null>(null);
+ const close=useCallback(()=>{setOpen(false);requestAnimationFrame(()=>button.current?.focus())},[]);
+ const asSheet=variant==='dock'||phone;
  useEffect(()=>{if(open)void reload()},[open,reload]);
- // Header dropdown: close on outside click / Escape.
- useEffect(()=>{if(!open||variant!=='header')return;
+ // Desktop dropdown: anchored under the bell, kept 12px inside the window; closes on outside click / Escape.
+ useEffect(()=>{if(!open||asSheet)return;
+  const position=()=>{const b=button.current?.getBoundingClientRect();if(b)setPlace({top:Math.round(b.bottom+8),right:Math.max(12,Math.round(window.innerWidth-b.right))})};position();
   const down=(e:MouseEvent)=>{if(wrap.current&&!wrap.current.contains(e.target as Node))setOpen(false)};
   const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();close()}};
-  document.addEventListener('mousedown',down);document.addEventListener('keydown',key);
-  return()=>{document.removeEventListener('mousedown',down);document.removeEventListener('keydown',key)}},[open,variant,close]);
- // Phone sheet: native modal dialog (focus trap + Escape for free).
- useEffect(()=>{const node=sheet.current;if(variant!=='dock'||!node)return;if(open&&!node.open)node.showModal();else if(!open&&node.open)node.close()},[open,variant]);
+  document.addEventListener('mousedown',down);document.addEventListener('keydown',key);window.addEventListener('resize',position,{passive:true});
+  return()=>{document.removeEventListener('mousedown',down);document.removeEventListener('keydown',key);window.removeEventListener('resize',position)}},[open,asSheet,close]);
  if(guest)return null;
  const unread=data?.unread||0,label='Notifications'+(unread?` (${unread} unread)`:'');
+ const sheet=<Sheet open={open} onClose={close} titleId={titleId} data={data} markRead={markRead}/>;
  if(variant==='dock')return <>
   <button ref={button} type="button" className={'dock3-tab nb-dock-tab'+(open?' active':'')} aria-label={label} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)}>
    <span className="dock3-icon"><Bell size={22} strokeWidth={2.2}/>{unread>0&&<span className="nb-dock-badge" aria-hidden="true">{unread>9?'9+':unread}</span>}</span><span className="dock3-label">Alerts</span>
-  </button>
-  <dialog ref={sheet} className="nb-sheet" aria-labelledby={titleId} onClose={()=>{setOpen(false);button.current?.focus()}} onClick={e=>{if(e.target===e.currentTarget)setOpen(false)}}>
-   <div className="nb-sheet-body"><span className="nb-grip" aria-hidden="true"/><List data={data} markRead={markRead} onClose={()=>setOpen(false)} titleId={titleId}/></div>
-  </dialog>
+  </button>{sheet}
  </>;
  return <div className="nb-wrap" ref={wrap}>
   <button ref={button} type="button" className="chx-icon nb-bell" aria-label={label} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(value=>!value)}>
    <Bell size={22}/>{unread>0&&<span className="chx-badge">{unread>99?'99+':unread}</span>}<span className="chx-icon-label">Alerts</span>
   </button>
-  {open&&<div className="nb-panel" role="dialog" aria-labelledby={titleId}><List data={data} markRead={markRead} onClose={close} titleId={titleId}/></div>}
+  {asSheet?sheet:open&&<div ref={panel} className="nb-panel" role="dialog" aria-labelledby={titleId} style={place?{top:place.top,right:place.right}:{visibility:'hidden'}}><List data={data} markRead={markRead} onClose={close} titleId={titleId}/></div>}
  </div>;
 }
 export default NotificationBell;
