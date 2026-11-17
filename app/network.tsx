@@ -210,7 +210,7 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
    <p className="nw-note">Your password is stored securely. Nobody can read it.</p>
   </>:<>
    <p className="ds-eyebrow">{me?'Your showcase':'Free profile'}</p><h2 className="nw-join-title">{me?<>Edit your <span>showcase.</span></>:<>Set up your <span>profile.</span></>}</h2>
-   <p className="nw-join-lede">Pick a name. Show off six favorite books. It’s free.</p>
+   <p className="nw-join-lede">{me?'Your name, handle, city and origin story. Favorites, your grail and the rest are picked right on your profile.':'Pick a name. Show off six favorite books. It’s free.'}</p>
    <form className="nw-join-form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);setBizError('');
     const asBusiness=accountRole==='business';if(asBusiness){const problem=businessDraftProblem(bizDraft);if(problem){setBizError(problem);return}}
     // Name and handle changes are limited: say what's left and confirm first.

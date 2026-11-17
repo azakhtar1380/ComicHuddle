@@ -150,3 +150,9 @@
 
 /* Every page leaves room for the dock (66px + its 10px gap) and the Scan button, plus the safe area. */
 @media (max-width:760px){body:has(.dock3){padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}}
+/* The close button no longer floats: a float made the whole panel (a grid, so its own block formatting context)
+   about 60px narrower than the drawer. It sits in its own row at the top-right, sticky, and the content moves up
+   under it (the header leaves room on the right). */
+.drawer-overlay .account-drawer.am-drawer>.close{float:none;margin:-8px -6px 0 auto}
+.drawer-overlay .account-drawer.am-drawer>.close+*{margin-top:-36px}
+.am-drawer-title{padding-right:52px}

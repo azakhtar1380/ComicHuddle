@@ -129,3 +129,6 @@
 .pp-stats dd{color:var(--red);font-size:clamp(24px,7vw,34px)}
 .pp-stats dt{font-size:12px}
 .pp-stats div{display:flex;flex-direction:column-reverse;align-items:center}
+/* Narrow phones: stat labels fit their boxes; tab segments are square inside the control. */
+.pp-stats dt{font-size:clamp(10px,2.9vw,12px);letter-spacing:.4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+.pp-tabs button{border-radius:0}
