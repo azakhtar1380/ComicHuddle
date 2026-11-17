@@ -1,13 +1,12 @@
 'use client';
 // The My Profile page (Overview · Collection · Wishlist · Reviews). Used for your own profile and anyone else's.
 // Data: CollectorProfile from /api/social plus `extras` (lib/profile-extras.ts). Text always sits on cream cards.
-import {useEffect,useId,useRef,useState,type CSSProperties,type ReactNode} from 'react';
-import {ArrowLeft,ArrowRight,Camera,Flag,Link2,MessageCircle,MoreHorizontal,Palette,Pencil,Plus,Share2,Star,Wrench} from 'lucide-react';
+import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {ArrowLeft,ArrowRight,Camera,Flag,Link2,MessageCircle,MoreHorizontal,Pencil,Plus,Share2,Star,Wrench} from 'lucide-react';
 import type {CollectorProfile,ShowcaseBook} from '../../lib/community';
 import type {Issue} from '../../lib/catalog';
 import {catalog} from '../../lib/catalog';
 import {emptyExtras,profilePath,type ProfileExtras} from '../../lib/profile-page-types';
-import {DEFAULT_LOOK,lookStyle} from '../../lib/profile-worlds';
 import {VerifiedBadge} from '../verified-badge';
 import AdminBadge from '../admin-badge';
 import HScroll from '../h-scroll';
@@ -26,9 +25,9 @@ export function HuddlesCutout({className=''}:{className?:string}){
  // eslint-disable-next-line @next/next/no-img-element
  return <img className={'pp-huddles '+className} src="/mascot/huddles-cutout.webp" alt="" aria-hidden="true" width={59} height={84} draggable={false}/>;
 }
-/** Profile photo in its frame, with the empty-state outline and Mr. Huddles. */
-export function ProfilePhoto({url,name,frame='circle',children}:{url:string|null|undefined;name:string;frame?:string;children?:ReactNode}){
- return <div className={'pp-photo-wrap pp-frame-'+frame}>
+/** Round profile photo, with the empty-state outline and Mr. Huddles. */
+export function ProfilePhoto({url,name,children}:{url:string|null|undefined;name:string;children?:ReactNode}){
+ return <div className="pp-photo-wrap">
   <span className="pp-ring" aria-hidden="true"/>
   <div className="pp-photo">{url
    // eslint-disable-next-line @next/next/no-img-element
@@ -49,12 +48,12 @@ function fileButton(label:string,onFile:(file:File)=>void,className:string,conte
 const issueLabel=(ref:{title:string;number:string;year:number|null})=>`${ref.title} #${ref.number}${ref.year?' ('+ref.year+')':''}`;
 
 type Props={p:ProfileView;own:boolean;busy:boolean;wants:Record<number,Issue>;uploading:''|'photo'|'cover';
- onBack:()=>void;onEdit:()=>void;onPick:(kind:PickKind)=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;onMessage:(context?:string)=>void;onShare:()=>void;onTheme:()=>void;onCollection:()=>void;
+ onBack:()=>void;onEdit:()=>void;onPick:(kind:PickKind)=>void;onBook:(b:ShowcaseBook)=>void;onIssue:(id:number)=>void;onReport:()=>void;onMessage:(context?:string)=>void;onShare:()=>void;onCollection:()=>void;
  onPhoto:(file:File)=>void;onCover:(file:File)=>void;onCopyLink:()=>void;
  art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;tabRequest?:{tab:ProfileTab;n:number}|null;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode};
 
-export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onPick,onBook,onIssue,onReport,onMessage,onShare,onTheme,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,tabRequest}:Props){
- const x=p.extras||emptyExtras,look=x.look||DEFAULT_LOOK,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
+export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onPick,onBook,onIssue,onReport,onMessage,onShare,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,tabRequest}:Props){
+ const x=p.extras||emptyExtras,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
  // Opening "My collection" from elsewhere selects the Collection tab.
  const [seenRequest,setSeenRequest]=useState(0);
  if(tabRequest&&tabRequest.n!==seenRequest){setSeenRequest(tabRequest.n);setTab(tabRequest.tab)}
@@ -64,7 +63,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
  const favorites=p.showcase.slice(0,6),wantList=p.wantIds.slice(0,24);
  const verifiedLabel=biz.verified?(biz.isBusiness?'Verified business':'Verified collector'):null;
  const select=(next:ProfileTab)=>{setTab(next);requestAnimationFrame(()=>document.getElementById(ids+'-tab-'+next)?.focus())};
- return <article className={'pp pp-world-'+look.world+' pp-ink-'+look.ink} style={lookStyle(look) as CSSProperties} data-world={look.world} aria-labelledby={ids+'-name'}>
+ return <article className="pp" aria-labelledby={ids+'-name'}>
   <div className="pp-topbar">
    <button type="button" className="pp-icon-btn" onClick={onBack} aria-label="Back"><ArrowLeft size={22} aria-hidden="true"/></button>
    <p className="pp-topbar-title">{own?'MY PROFILE':'PROFILE'}</p>
@@ -82,16 +81,16 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
 
   <div className="pp-cover" style={x.coverUrl?{backgroundImage:`url(${x.coverUrl})`}:undefined}>
    {!x.coverUrl&&<span className="pp-cover-empty" aria-hidden="true"/>}
-   <span className="pp-sfx" aria-hidden="true">{look.sfx}</span>
    {own&&fileButton(x.coverUrl?'Change cover photo':'Add a cover photo',onCover,'pp-cover-change',<><Camera size={16} aria-hidden="true"/> {uploading==='cover'?'Uploading…':'Change'}</>,busy||!!uploading)}
   </div>
 
+  <div className="pp-head">
   <div className="pp-avatar-row">
    <button type="button" className="pp-round pp-round-share" onClick={onShare}><Share2 size={22} aria-hidden="true"/><span>Share</span></button>
-   <ProfilePhoto url={p.avatarUrl} name={p.name} frame={look.frame}>
+   <ProfilePhoto url={p.avatarUrl} name={p.name}>
     {own&&fileButton(p.avatarUrl?'Replace profile photo':'Upload a profile photo',onPhoto,'pp-photo-camera',<Camera size={18} aria-hidden="true"/>,busy||!!uploading)}
    </ProfilePhoto>
-   {own?<button type="button" className="pp-round pp-round-theme" onClick={onTheme}><Palette size={22} aria-hidden="true"/><span>Theme</span></button>:<span className="pp-round pp-round-spacer" aria-hidden="true"/>}
+   <span className="pp-round pp-round-spacer" aria-hidden="true"/>
   </div>
   {p.staff?.founder&&<p className="pp-staff"><AdminBadge founder showLabel size={18}/></p>}
   {uploading==='photo'&&<p className="pp-uploading" role="status">Uploading your photo…</p>}
@@ -106,6 +105,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
    {own&&!p.visible&&<p className="pp-hidden-note">Hidden. Only you can see this profile.</p>}
    {p.provider&&<a className="ds-link" href={'/?section=Pressing&provider='+p.provider.id}><Wrench size={16} aria-hidden="true"/> Comic Workshop pro · {p.provider.name}</a>}
   </section>
+  </div>
 
   {(p.bio||own)&&<div className="pp-origin"><p className="pp-caption-tag">Origin story</p><p className="pp-origin-text">{p.bio||'Tell collectors how you got into comics. Edit your profile to write your origin story.'}</p></div>}
 

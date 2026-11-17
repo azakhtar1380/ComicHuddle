@@ -20,7 +20,7 @@ const nudges=async()=>(await engine.query<{kind:string;href:string}>("SELECT kin
 
 test('five panels; the nudge is sent once; snooze until the next haul',async()=>{
  const s=await originStory('u1');
- assert.deepEqual(s.steps.map(x=>[x.label,x.done]),[['Profile photo',false],['Handle',true],['Cover photo',false],['Favorite character',false],['Grail + world',false]]);
+ assert.deepEqual(s.steps.map(x=>[x.label,x.done]),[['Profile photo',false],['Cover photo',false],['Favorite character',false],['Favorite comic',false],['Grail',false]]);
  assert.equal(await nudgeOriginStory('u1'),true);assert.equal(await nudgeOriginStory('u1'),false,'only once');
  assert.deepEqual(await nudges(),[{kind:'system',href:'/origin-story'}]);
  await snoozeOriginStory('u1');assert.equal((await originStory('u1')).snoozed,true);

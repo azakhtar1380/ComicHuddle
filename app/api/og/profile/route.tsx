@@ -1,8 +1,7 @@
 // Open Graph / Twitter image for a public profile (1200×630): name, verified check, @handle, comics, keys,
-// star rating, on the member's world background. Hidden or unknown profiles get 404 and no image.
+// star rating on the ComicHuddle yellow. Hidden or unknown profiles get 404 and no image.
 import {ImageResponse} from 'next/og';
 import {publicProfileSummary} from '../../../../lib/public-profile';
-import {worldFor} from '../../../../lib/profile-worlds';
 import sharp from 'sharp';
 import {env} from '../../../../lib/runtime-env';
 
@@ -17,10 +16,10 @@ export async function GET(req:Request){
  const handle=new URL(req.url).searchParams.get('handle')||'';
  const p=await publicProfileSummary(handle);
  if(!p)return new Response('Not found',{status:404,headers:{'Cache-Control':'no-store'}});
- const world=worldFor(p.world),avatar=await avatarData(p.avatarUrl);
+ const avatar=await avatarData(p.avatarUrl);
  const stat=(label:string,value:string)=><div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'10px 26px',background:'#f9f6ef',border:'5px solid #20201f',boxShadow:'6px 6px 0 #20201f'}}><span style={{fontSize:58,fontWeight:800,lineHeight:1}}>{value}</span><span style={{fontSize:24,fontWeight:700,textTransform:'uppercase',letterSpacing:2}}>{label}</span></div>;
  const rating=p.rating?(p.rating.stars!==null?`${p.rating.stars.toFixed(1)}★`:`${p.rating.percent}%`):null;
- return new ImageResponse(<div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:48,background:`linear-gradient(180deg, ${world.sky[0]}, ${world.sky[1]})`,color:'#20201f',fontFamily:'sans-serif'}}>
+ return new ImageResponse(<div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:48,background:'#efd369',color:'#20201f',fontFamily:'sans-serif'}}>
   <div style={{display:'flex',alignItems:'center',gap:36,background:'#f9f6ef',border:'6px solid #20201f',boxShadow:'10px 10px 0 #20201f',padding:'28px 36px'}}>
    {avatar?<img src={avatar} width={180} height={180} style={{borderRadius:999,border:'6px solid #20201f'}} alt=""/>:<div style={{width:180,height:180,borderRadius:999,border:'6px solid #20201f',background:'#efd369',display:'flex',alignItems:'center',justifyContent:'center',fontSize:96,fontWeight:800}}>{p.name.slice(0,1).toUpperCase()}</div>}
    <div style={{display:'flex',flexDirection:'column',gap:6}}>

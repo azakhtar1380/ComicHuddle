@@ -17,7 +17,7 @@ test.describe('Origin story',()=>{
   await expect(page.getByText(/Issue #1/)).toBeVisible();
   await expect(page.getByText('1st appearance of @'+ACCOUNTS.admin.handle+'!')).toBeVisible();
   await expect(page.getByText(/of 5 inked/)).toBeVisible();
-  for(const step of ['Profile photo','Handle','Cover photo','Favorite character','Grail + world'])await expect(page.getByText(step,{exact:true})).toBeVisible();
+  for(const step of ['Profile photo','Cover photo','Favorite character','Favorite comic','Grail'])await expect(page.getByText(step,{exact:true})).toBeVisible();
   await expect(page.getByText(/Every hero needs an origin story\. \d more panels? and yours is done!/)).toBeVisible();
   await expect(page.getByText('Unlocks the Origin Story trophy')).toBeVisible();
   await expect(page.getByRole('link',{name:'Finish my origin story'})).toHaveAttribute('href','/@'+ACCOUNTS.admin.handle);

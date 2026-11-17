@@ -7,7 +7,6 @@ import qrcode from 'qrcode-generator';
 import {shareCardSvg,type ShareCardData,type ShareCardStyle} from '../../lib/share-cards';
 import {emptyExtras,profilePath,type ProfileExtras} from '../../lib/profile-page-types';
 import type {ProfileView} from './profile-page';
-import {inkFor,worldFor} from '../../lib/profile-worlds';
 import './profile-share.css';
 
 export type ShareTheme={sky:[string,string];accent:string};
@@ -28,8 +27,7 @@ function FacebookGlyph(){return <svg viewBox="0 0 24 24" width="24" height="24" 
 
 export default function ProfileShare({p,own,theme:given,notice,trophy,onSettingsSaved}:{p:ProfileView;own:boolean;theme?:ShareTheme;notice:(s:string)=>void;trophy?:{name:string;tier:string}|null;onSettingsSaved?:()=>void}){
  const x:ProfileExtras=p.extras||emptyExtras,ids=useId();
- // The card sits on the member's world background, in their ink.
- const theme:ShareTheme=given||(x.look?{sky:worldFor(x.look.world).sky,accent:inkFor(x.look.ink).a}:CLASSIC);
+ const theme:ShareTheme=given||CLASSIC;
  const [style,setStyle]=useState<ShareCardStyle>('slab'),[images,setImages]=useState<{avatar:string|null;cover:string|null;huddles:string}|null>(null),[copied,setCopied]=useState(false),[working,setWorking]=useState(''),[share,setShare]=useState(x.share),[saving,setSaving]=useState('');
  // Client-only (the share screen opens after a tap), so window is available.
  const url=(typeof window==='undefined'?'https://comichuddle.com':window.location.origin)+profilePath(p.handle);

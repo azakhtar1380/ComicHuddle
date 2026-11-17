@@ -45,7 +45,7 @@ There are two layers. Run both before anything goes live.
 5. **Screenshots** (`e2e/5-visual.spec.ts`): home, marketplace, about, contact, sign-in, cart, directory, wallet, sell form.
 6. **Profile** (`e2e/6-profile.spec.ts`): `/@handle` and its link-preview meta, hidden profiles 404, photo upload with Mr. Huddles at the photo’s bottom-right, both share cards and all five share buttons (or their copy-link fallback), scroll rows without a visible scroll bar.
 7. **Comic shop** (`e2e/7-shop.spec.ts`): the shop front, Open / Window display / Closed as a guest sees them, the value never public, runs.
-8. **Worlds** (`e2e/8-worlds.spec.ts`): a theme save shows on the public page.
+8. *(Worlds were removed in the cleanup round; `e2e/8-worlds.spec.ts` is gone.)*
 9. **Verified** (`e2e/9-verified.spec.ts`): a collector goes from pending to verified after admin approval.
 10. **Trophies** (`e2e/10-trophies.spec.ts`): an unlock creates a notification and shows the unlock screen once; the trophy case page.
 11. **Origin story** (`e2e/11-origin.spec.ts`): the one-time nudge and the setup page.

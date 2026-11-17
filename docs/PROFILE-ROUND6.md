@@ -35,8 +35,8 @@ No other new settings. The daily trophy sweep runs inside the existing daily `/a
 - Public Collection tab (`/api/collection-shop?handle=`) follows the shop window. Never value, price, notes, certs or the member's photos.
 - Vault cap stays 1,000 (owner: no extra cost). Each save re-sends the whole collection (about 0.5 MB at 1,000 detailed comics). Raising it to 5,000 would mean about 2.5 MB per save and a higher upload limit; the better route then is saving changes per comic instead of the whole collection.
 
-## Phase 3: Worlds
-- `lib/profile-worlds.ts` is the one definition for the profile, Theme screen, share cards and OG image. Ten worlds (all free), five inks, four frames (the starburst only when picked), six sound effects.
+## Phase 3: Worlds (removed in the cleanup round)
+- Themes are gone: no Theme button, worlds, inks, frames or sound-effect stickers. The page is clean paper with comic dots behind the header only; the share card and OG image use one fixed look. The `profile_extras.world/ink/frame/sfx` columns (migration 053) are left in place and no longer read or written.
 
 ## Phase 4: Verified people and businesses
 - Collectors choose "Get verified" in the Account panel and pay the **$10 fee first** (Stripe Checkout on the platform account, like Support payments). The request reaches the admin queue only when the signed Stripe webhook confirms the payment. We contact them; the admin **approves** (fee kept) or **declines and refunds** (full refund through Stripe; if Stripe fails, nothing changes and the admin can retry). Logged in the verification events and admin audit log; the collector is notified.
@@ -55,5 +55,5 @@ No other new settings. The daily trophy sweep runs inside the existing daily `/a
 - One `system` notification for members whose Origin Story isn't earned, linking to `/origin-story` (the "ORIGIN STORY #1" card). "Remind me after my next haul" snoozes until they next add comics.
 
 ## Tests
-- Logic: `checks/profile-page.test.ts`, `collection-shop.test.ts`, `profile-worlds.test.ts`, `verified-badge.test.ts`, `trophies.test.ts`, `origin-story.test.ts`.
+- Logic: `checks/profile-page.test.ts`, `collection-shop.test.ts`, `verified-badge.test.ts`, `trophies.test.ts`, `origin-story.test.ts`.
 - Browser: `e2e/6-profile.spec.ts` … `e2e/11-origin.spec.ts`.

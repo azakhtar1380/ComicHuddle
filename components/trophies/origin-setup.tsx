@@ -1,6 +1,6 @@
 'use client';
 // "ORIGIN STORY #1": a comic-cover card that walks a member through the 5 panels of their origin story
-// (profile photo, handle, cover photo, favorite character, grail + world). Data: /api/origin-story.
+// (profile photo, cover photo, favorite character, favorite comic, grail). Data: /api/origin-story.
 import {useEffect,useState} from 'react';
 import {Check,Circle} from 'lucide-react';
 import './origin-setup.css';

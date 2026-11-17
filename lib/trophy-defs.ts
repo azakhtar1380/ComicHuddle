@@ -12,7 +12,7 @@ export type TrophyDef={id:string;name:string;group:TrophyGroup;rule:string;thres
 const n=(v:number)=>v.toLocaleString('en-US');
 const plural=(v:number,[one,many]:[string,string])=>n(v)+' '+(v===1?one:many);
 export const TROPHIES:readonly TrophyDef[]=[
- {id:'origin_story',name:'Origin Story',group:'collector',thresholds:null,unit:['step','steps'],rule:'Add a profile photo, a cover photo, a favorite character, a grail and pick a world.',reason:()=>'Your profile’s origin story is complete.'},
+ {id:'origin_story',name:'Origin Story',group:'collector',thresholds:null,unit:['step','steps'],rule:'Add a profile photo, a cover photo, a favorite character, a favorite comic and a grail.',reason:()=>'Your profile’s origin story is complete.'},
  {id:'first_appearance',name:'First Appearance',group:'collector',thresholds:null,unit:['comic','comics'],rule:'Add your first comic that’s linked to a Directory issue.',reason:()=>'Your first Directory comic is in your collection.'},
  {id:'longbox_legend',name:'Longbox Legend',group:'collector',thresholds:[100,500,1000],unit:['comic','comics'],rule:'Directory-linked comics in your collection.',reason:c=>plural(c,['comic','comics'])+' in your collection.',nudge:l=>`${plural(l,['more comic','more comics'])} for Longbox Legend`},
  {id:'key_master',name:'Key Master',group:'collector',thresholds:[5,25,50],unit:['key','keys'],rule:'Copies you own whose Directory issue is a key.',reason:c=>plural(c,['key issue','key issues'])+' in your collection.',nudge:l=>`${plural(l,['more key','more keys'])} for Key Master`},

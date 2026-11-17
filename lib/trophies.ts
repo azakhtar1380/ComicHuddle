@@ -101,12 +101,12 @@ export async function computeTrophyProgress(userId:string,now=Date.now()):Promis
  }
  counts.cover_contributor=Number((await q<{n:string}>(`SELECT count(*)::text AS n FROM ch_web.community_covers WHERE user_id=$1 AND status='approved'`,[userId]))[0]?.n||0);
  const cutoff=foundingCutoff();counts.founding_huddler=cutoff!==null&&Date.parse(profile.created_at)<cutoff?1:0;
- const [origin]=await q<{photo:boolean;cover:boolean;character:boolean;grail:boolean;world:boolean}>(`SELECT EXISTS(SELECT 1 FROM ch_web.profile_avatars WHERE profile_id=$1) AS photo,
+ const [origin]=await q<{photo:boolean;cover:boolean;character:boolean;comic:boolean;grail:boolean}>(`SELECT EXISTS(SELECT 1 FROM ch_web.profile_avatars WHERE profile_id=$1) AS photo,
    COALESCE((SELECT cover_id IS NOT NULL FROM ch_web.profile_extras WHERE profile_id=$1),false) AS cover,
    COALESCE((SELECT favorite_character_id IS NOT NULL FROM ch_web.profile_extras WHERE profile_id=$1),false) AS character,
    COALESCE((SELECT grail_issue_id IS NOT NULL FROM ch_web.profile_extras WHERE profile_id=$1),false) AS grail,
-   COALESCE((SELECT to_jsonb(x)->>'world' NOT IN ('classic','') FROM ch_web.profile_extras x WHERE profile_id=$1),false) AS world`,[profile.id]);
- counts.origin_story=origin&&origin.photo&&origin.cover&&origin.character&&origin.grail&&origin.world?1:0;
+   COALESCE((SELECT favorite_issue_id IS NOT NULL FROM ch_web.profile_extras WHERE profile_id=$1),false) AS comic`,[profile.id]);
+ counts.origin_story=origin&&origin.photo&&origin.cover&&origin.character&&origin.comic&&origin.grail?1:0;
  return counts;
 }
 

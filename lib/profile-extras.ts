@@ -9,7 +9,6 @@ import {feedbackSummary} from './community-feedback';
 import {issueKeys} from './issue-keys';
 import {listingDirectoryId} from './shared-catalog';
 import type {Vault} from './vault';
-import {lookFrom} from './profile-worlds';
 import {MAX_PROFILE_TAGS,defaultShare,emptyExtras,profileTagPattern,type ProfileExtras,type ProfileIssueRef} from './profile-page-types';
 
 export type ExtrasRow={profile_id:string;user_id:string;cover_id:string|null;tags:unknown;favorite_character_id:number|null;favorite_issue_id:string|number|null;grail_issue_id:string|number|null;grail_reward:string;share_wishlist:boolean;share_reviews:boolean;share_city:boolean;world?:string;ink?:string;frame?:string;sfx?:string};
@@ -52,7 +51,6 @@ export async function profileExtras(db:CatalogDb,profile:{id:string;userId:strin
   rating:showReviews&&feedback&&feedback.lifetimeCount>0?{stars:stars.length?Math.round(stars.reduce((a,b)=>a+b,0)/stars.length*10)/10:null,percent:feedback.percentPositive,count:feedback.lifetimeCount}:null,
   latestReview:showReviews&&review?{text:review.comment.slice(0,220),by:review.buyer}:null,
   share,
-  look:lookFrom(extras),
  };
 }
 
@@ -66,10 +64,6 @@ export const extrasInput=z.object({
  featured:z.array(z.string().trim().min(1).max(80)).max(6).refine(keys=>new Set(keys).size===keys.length,'Each favorite once.').optional(),
  shareWishlist:z.boolean().optional(),shareReviews:z.boolean().optional(),shareCity:z.boolean().optional(),
  shopWindow:z.enum(['open','window','closed']).optional(),
- world:z.enum(['classic','gargoyle','sunrise','newyork','cosmic','sanctum','neon','sunken','bayou','frontier']).optional(),
- ink:z.enum(['golden','silver','bronze','modern','noir']).optional(),
- frame:z.enum(['circle','burst','panel','slab']).optional(),
- sfx:z.enum(['POW!','ZAP!','KA-BOOM!','WHAM!','KRAK!','FWOOSH!']).optional(),
 }).strict();
 export type ExtrasInput=z.infer<typeof extrasInput>;
 
@@ -96,7 +90,6 @@ export async function saveExtras(db:CatalogDb,profile:{id:string;userId:string},
  if(input.shareReviews!==undefined)columns.push(['share_reviews',input.shareReviews]);
  if(input.shareCity!==undefined)columns.push(['share_city',input.shareCity]);
  if(input.shopWindow!==undefined)columns.push(['shop_window',input.shopWindow]);
- for(const key of ['world','ink','frame','sfx'] as const)if(input[key]!==undefined)columns.push([key,input[key]]);
  await upsertExtras(profile,columns);
 }
 export class ExtrasError extends Error{status=400}

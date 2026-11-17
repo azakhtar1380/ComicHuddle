@@ -1,8 +1,6 @@
 /* My Profile page. Tokens from app/globals.css; thick ink borders, hard offset shadows; Barlow Condensed for
-   headings and numbers, DM Sans for body text. Worlds (Phase 3) set --pp-sky / --pp-pattern / --pp-skyline. */
-.pp{--pp-ink-a:var(--red);--pp-ink-b:var(--yellow);position:relative;max-width:760px;margin:0 auto 40px;padding:0 0 120px;background:var(--pp-sky,var(--yellow));border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);overflow:hidden;isolation:isolate}
-.pp::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--pp-pattern,radial-gradient(circle,rgba(32,32,31,.16) 1.6px,transparent 1.8px) 0 0/14px 14px);pointer-events:none}
-.pp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:120px;z-index:-1;background:var(--pp-skyline,none) bottom/100% 120px no-repeat;pointer-events:none}
+   headings and numbers, DM Sans for body text. Clean paper page; comic dots only behind the header. */
+.pp{position:relative;max-width:760px;margin:0 auto 40px;padding:0 0 40px;background:var(--paper);border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);overflow:hidden;isolation:isolate}
 .pp-num,.pp-stats dd,.pp-name,.pp-topbar-title,.pp-eyebrow,.pp-round span,.pp-tabs button,.pp-wanted-head,.pp-caption-tag{font-family:'Barlow Condensed','Arial Narrow',Impact,sans-serif}
 .pp-topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--ink);color:var(--cream)}
 .pp-topbar-title{margin:0;color:var(--cream);font-size:22px;font-weight:800;letter-spacing:1.5px}
@@ -22,7 +20,6 @@
 .pp-round svg{box-sizing:content-box;padding:13px;border-radius:999px;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
 .pp-round span{font-size:17px;font-weight:800;letter-spacing:.5px;background:var(--cream);border:2px solid var(--ink);padding:0 8px;color:var(--ink)}
 .pp-round-share svg{background:var(--red);color:#fff}
-.pp-round-theme svg{background:var(--yellow);color:var(--ink)}
 .pp-round:hover svg{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
 .pp-photo-wrap{position:relative;width:124px;height:124px;flex:none}
 .pp-ring{position:absolute;inset:-8px;border-radius:999px;border:2px solid var(--yellow);pointer-events:none}
@@ -32,10 +29,6 @@
 .pp-photo-camera{position:absolute;left:-4px;bottom:-2px;z-index:3;display:grid;place-items:center;width:44px;height:44px;border-radius:999px;background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink);cursor:pointer}
 .pp-photo-camera:focus-within{outline:3px solid var(--red);outline-offset:2px}
 .pp-huddles{position:absolute;right:-40px;bottom:-6px;z-index:2;height:84px;width:auto;pointer-events:none;user-select:none;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff) drop-shadow(2px 2px 0 var(--ink))}
-/* Frames (Phase 3). Default: the thin ring above. */
-.pp-frame-burst .pp-ring{inset:-16px;border:0;background:var(--yellow);clip-path:polygon(50% 0,58% 14%,73% 4%,74% 20%,90% 16%,84% 31%,100% 36%,88% 48%,100% 60%,85% 66%,92% 82%,75% 80%,73% 96%,59% 86%,50% 100%,41% 86%,27% 96%,25% 80%,8% 82%,15% 66%,0 60%,12% 48%,0 36%,16% 31%,10% 16%,26% 20%,27% 4%,42% 14%);z-index:-1}
-.pp-frame-panel .pp-photo,.pp-frame-panel .pp-ring{border-radius:0}.pp-frame-panel .pp-ring{inset:-7px}
-.pp-frame-slab .pp-photo{border-radius:6px;border-width:4px}.pp-frame-slab .pp-ring{border-radius:10px;inset:-9px;border-color:var(--line);border-width:3px}
 .pp-staff{display:flex;justify-content:center;margin:14px 0 0}
 .pp-uploading{text-align:center;margin:8px 0 0;font-weight:700;color:var(--ink)}
 .pp-card{position:relative;margin:16px 14px 0;background:var(--cream);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:16px;color:var(--ink)}
@@ -62,7 +55,7 @@
 .pp-stats dd{margin:0;font-size:30px;font-weight:800;line-height:1.05}
 .pp-tabs{gap:6px;margin:18px 14px 0;padding:2px 2px 6px}
 .pp-tabs button{min-height:44px;padding:0 18px;background:var(--cream);border:3px solid var(--ink);font-size:20px;font-weight:800;letter-spacing:.5px;color:var(--ink)}
-.pp-tabs button[aria-selected="true"]{background:var(--ink);color:var(--yellow);box-shadow:3px 3px 0 var(--pp-ink-a)}
+.pp-tabs button[aria-selected="true"]{background:var(--ink);color:var(--yellow);box-shadow:3px 3px 0 var(--red)}
 .pp-panel{padding-bottom:10px}
 .pp-block-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:12px}
 .pp-block-head h2{margin:0;font-size:32px;font-weight:800}
@@ -93,15 +86,7 @@
 @media (prefers-reduced-motion:no-preference){.pp-round svg{transition:transform .12s,box-shadow .12s}}
 .pp .pp-name>span{color:var(--ink)}.pp h2>span{color:inherit}
 
-/* Worlds (lib/profile-worlds.ts): ink colors for the name banner, badges and buttons; the sound-effect stamp. */
-.pp .pp-name>span{display:inline-block;padding:2px 12px;background:var(--pp-ink-a,var(--red));color:var(--pp-ink-text,#fff);box-shadow:3px 3px 0 var(--pp-ink-b,var(--yellow));border:3px solid var(--ink)}
-.pp .pp-round-share svg{background:var(--pp-ink-a,var(--red));color:var(--pp-ink-text,#fff)}
-.pp .pp-round-theme svg{background:var(--pp-ink-b,var(--yellow))}
-.pp .pp-tags li{background:var(--pp-ink-b,var(--yellow))}
-.pp .pp-tabs button[aria-selected="true"]{box-shadow:3px 3px 0 var(--pp-ink-a,var(--red))}
 .pp-round-spacer{visibility:hidden}
-.pp-sfx{position:absolute;left:12px;top:12px;z-index:2;padding:4px 10px;background:var(--pp-ink-b,var(--yellow));color:var(--ink);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font:900 22px/1 'Barlow Condensed',Impact,sans-serif;transform:rotate(-6deg)}
-.pp-ink-modern .pp-name>span{color:#7fe0d6}.pp-ink-noir .pp-name>span{color:#f9f6ef}
 /* Owner edits picked from the Directory */
 .pp-edit{display:inline-flex;align-items:center;gap:4px;min-height:44px;min-width:44px;padding:0 10px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:700;font-size:13px}
 .pp-pick{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:52px;padding:0 12px;border:2px dashed var(--ink);background:#fff;color:var(--ink);font-weight:700}
@@ -110,3 +95,5 @@
 .pp-fav-head h2{margin:0}
 .pp-wanted-top{display:flex;align-items:center;justify-content:center;gap:10px}
 .pp-wanted .pp-pick{background:rgba(255,255,255,.6)}
+.pp-head{position:relative;isolation:isolate;padding-bottom:16px;border-bottom:3px solid var(--ink)}
+.pp-head::before{content:"";position:absolute;inset:72px 0 0;z-index:-1;background:radial-gradient(circle,rgba(32,32,31,.16) 1.6px,transparent 1.8px) 0 0/14px 14px,var(--yellow);pointer-events:none}
