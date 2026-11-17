@@ -1,6 +1,6 @@
 /* Notification bell (round 4). Header variant reuses .chx-icon/.chx-badge; dock variant reuses .dock3-tab. */
 .nb-wrap{position:relative;display:inline-flex}
-.nb-panel{position:fixed;z-index:120;width:min(380px,calc(100vw - 24px));max-height:min(520px,70vh);display:flex;flex-direction:column;background:var(--cream,#fff);color:var(--ink,#141821);border:2px solid var(--ink,#141821);border-radius:14px;box-shadow:4px 4px 0 var(--ink,#141821);overflow:hidden}
+.nb-panel{position:fixed;z-index:120;width:min(380px,calc(100vw - 24px));max-height:min(520px,75vh);display:flex;flex-direction:column;background:var(--cream,#fff);color:var(--ink,#141821);border:2px solid var(--ink,#141821);border-radius:14px;box-shadow:4px 4px 0 var(--ink,#141821);overflow:visible}
 .nb-head{display:flex;align-items:center;gap:8px;flex:none;padding:12px 14px;border-bottom:1px solid var(--line,#e5e7eb)}
 .nb-head h2{flex:1;margin:0;font:800 17px/1.2 var(--font-body,inherit);letter-spacing:0}
 .nb-mark{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 10px;border:0;border-radius:8px;background:none;color:var(--blue,#1652f0);font:700 13px/1 var(--font-body,inherit);cursor:pointer}
@@ -38,3 +38,13 @@
 .nb-progress{display:block;height:8px;margin:4px 0;border:2px solid var(--ink,#20201f);background:#fff}.nb-progress i{display:block;height:100%;background:var(--red,#c83e30)}
 .nb-wrap .sr-only,.nb-sheet .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media (max-width:639px){.nb-sheet{max-width:none}}
+
+/* Dropdown hanging from the bell on every screen size (cleanup round 2): a pointer lines up with the bell even when
+   the panel is pushed sideways (--nb-arrow is set from the bell's position); fades and slides 6px in, 160ms. */
+.nb-panel{position:fixed;z-index:120;max-height:min(520px,75vh);overflow:visible;background:var(--cream,#f9f6ef);animation:nb-in .16s ease-out;transform-origin:var(--nb-arrow,90%) top}
+.nb-panel::before,.nb-panel::after{content:"";position:absolute;left:var(--nb-arrow,90%);width:0;height:0;border:10px solid transparent;transform:translateX(-50%);pointer-events:none}
+.nb-panel::before{top:-21px;border-bottom-color:var(--ink,#141821)}
+.nb-panel::after{top:-17px;border-bottom-color:var(--cream,#f9f6ef)}
+.nb-panel>.nb-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:0 0 12px 12px}
+@keyframes nb-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.nb-panel{animation:nb-fade .16s ease-out}@keyframes nb-fade{from{opacity:0}to{opacity:1}}}

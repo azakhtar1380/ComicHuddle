@@ -1,0 +1,12 @@
+/* Smoothness (cleanup round 2). Full-screen backdrop blurs repaint on every scroll frame and every animation
+   frame, which made the listing dialog scroll and the account panel slide stutter. Overlays use a solid dim
+   instead; dialogs and drawers animate transform/opacity only; drawers keep their layout to themselves. */
+.overlay{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(22,22,18,.62)}
+.mobile-bottom,html body nav.mobile-bottom.mobile-scan-dock,html[data-app-view=true] body nav.mobile-bottom.mobile-scan-dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.overlay:not(.drawer-overlay){animation:ch-dim .16s ease-out}
+.overlay:not(.drawer-overlay)>.dialog{animation:ch-pop .18s ease-out}
+.account-drawer{contain:layout paint;transform:translateZ(0)}
+.overlay>.dialog{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+@keyframes ch-dim{from{opacity:0}to{opacity:1}}
+@keyframes ch-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.overlay:not(.drawer-overlay),.overlay:not(.drawer-overlay)>.dialog{animation:ch-dim .12s ease-out}}

@@ -1,8 +1,8 @@
 'use client';
 // Notification bell (round 4). <NotificationBell variant="header"/> sits with the header icons (uses the
-// header's .chx-icon/.chx-badge styles) and opens a dropdown on desktop, a bottom sheet under 640px;
+// header's .chx-icon/.chx-badge styles) and opens a dropdown hanging from the bell on every screen size;
 // <NotificationBell variant="dock"/> is a phone-bar tab (.dock3-*) that always opens the bottom sheet. Renders nothing for guests. Data: /api/notifications.
-import {useCallback,useEffect,useId,useRef,useState} from 'react';
+import {useCallback,useEffect,useId,useRef,useState,type CSSProperties} from 'react';
 import {Bell,CheckCheck,Trophy,X} from 'lucide-react';
 import {activateDialog} from '../../lib/dialog-focus';
 import './bell.css';
@@ -62,12 +62,6 @@ function List({data,markRead,onClose,titleId}:{data:Data|null;markRead:(ids?:str
  </>;
 }
 
-/** True under 640px wide (kept in sync with the window). */
-function usePhoneWidth(){
- const [phone,setPhone]=useState(false);
- useEffect(()=>{const query=window.matchMedia('(max-width: 639px)'),sync=()=>setPhone(query.matches);sync();query.addEventListener('change',sync);return()=>query.removeEventListener('change',sync)},[]);
- return phone;
-}
 /** The phone bottom sheet: a native modal dialog (focus trap, Escape) plus the shared body scroll lock. */
 function Sheet({open,onClose,titleId,data,markRead}:{open:boolean;onClose:()=>void;titleId:string;data:Data|null;markRead:(ids?:string[])=>Promise<void>}){
  const sheet=useRef<HTMLDialogElement>(null);
@@ -79,15 +73,17 @@ function Sheet({open,onClose,titleId,data,markRead}:{open:boolean;onClose:()=>vo
 }
 
 export function NotificationBell({variant='header'}:{variant?:'header'|'dock'}){
- const {data,guest,reload,markRead}=useNotifications(),[open,setOpen]=useState(false),titleId=useId(),phone=usePhoneWidth();
+ const {data,guest,reload,markRead}=useNotifications(),[open,setOpen]=useState(false),titleId=useId();
  const wrap=useRef<HTMLDivElement>(null),button=useRef<HTMLButtonElement>(null),panel=useRef<HTMLDivElement>(null);
- const [place,setPlace]=useState<{top:number;right:number}|null>(null);
+ // Where the dropdown sits: under the bell, kept 12px inside the window; the pointer lines up with the bell.
+ const [place,setPlace]=useState<{top:number;left:number;width:number;arrow:number}|null>(null);
  const close=useCallback(()=>{setOpen(false);requestAnimationFrame(()=>button.current?.focus())},[]);
- const asSheet=variant==='dock'||phone;
+ const asSheet=variant==='dock';
  useEffect(()=>{if(open)void reload()},[open,reload]);
  // Desktop dropdown: anchored under the bell, kept 12px inside the window; closes on outside click / Escape.
  useEffect(()=>{if(!open||asSheet)return;
-  const position=()=>{const b=button.current?.getBoundingClientRect();if(b)setPlace({top:Math.round(b.bottom+8),right:Math.max(12,Math.round(window.innerWidth-b.right))})};position();
+  const position=()=>{const b=button.current?.getBoundingClientRect();if(!b)return;const vw=document.documentElement.clientWidth,width=Math.min(380,vw-24),center=b.left+b.width/2;
+   const left=Math.min(Math.max(12,center-width+36),vw-12-width);setPlace({top:Math.round(b.bottom+10),left:Math.round(left),width:Math.round(width),arrow:Math.round(Math.min(Math.max(18,center-left),width-18))})};position();
   const down=(e:MouseEvent)=>{if(wrap.current&&!wrap.current.contains(e.target as Node))setOpen(false)};
   const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();close()}};
   document.addEventListener('mousedown',down);document.addEventListener('keydown',key);window.addEventListener('resize',position,{passive:true});
@@ -104,7 +100,7 @@ export function NotificationBell({variant='header'}:{variant?:'header'|'dock'}){
   <button ref={button} type="button" className="chx-icon nb-bell" aria-label={label} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(value=>!value)}>
    <Bell size={22}/>{unread>0&&<span className="chx-badge">{unread>99?'99+':unread}</span>}<span className="chx-icon-label">Alerts</span>
   </button>
-  {asSheet?sheet:open&&<div ref={panel} className="nb-panel" role="dialog" aria-labelledby={titleId} style={place?{top:place.top,right:place.right}:{visibility:'hidden'}}><List data={data} markRead={markRead} onClose={close} titleId={titleId}/></div>}
+  {asSheet?sheet:open&&<div ref={panel} className="nb-panel" role="dialog" aria-labelledby={titleId} style={place?{top:place.top,left:place.left,width:place.width,'--nb-arrow':place.arrow+'px'} as CSSProperties:{visibility:'hidden'}}><List data={data} markRead={markRead} onClose={close} titleId={titleId}/></div>}
  </div>;
 }
 export default NotificationBell;
