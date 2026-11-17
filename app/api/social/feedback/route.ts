@@ -3,6 +3,7 @@
 // GET ?order=<orderId>                          → private status for a buyer/seller of that order
 // POST {action:'leave',orderId,rating,...}      → buyer→seller (P/N/N + details) or seller→buyer (positive only)
 // POST {action:'reply',feedbackId,reply}        → seller's one public reply
+import {queueTrophies} from '../../../../lib/trophies';
 import {getChatGPTUser} from '../../../chatgpt-auth';
 import {getPool} from '../../../../db/postgres';
 import {getDb} from '../../../../db';
@@ -37,6 +38,9 @@ export async function POST(request:Request){try{
   if(typeof body.feedbackId!=='string'||!/^[A-Za-z0-9_-]{8,80}$/.test(body.feedbackId))return privateJson({error:'Feedback not found.'},404);
   return privateJson(await replyToFeedback(getPool(),user.userId,body.feedbackId,typeof body.reply==='string'?body.reply:''));
  }
- if(body.action==='leave')return privateJson(await leaveFeedback(getPool(),user.userId,validateFeedback(body)));
+ if(body.action==='leave'){const input=validateFeedback(body),saved=await leaveFeedback(getPool(),user.userId,input);
+  // The reviewed member's Five Star / Trusted Seller may change.
+  void getPool().query<{buyer_user_id:string;seller_user_id:string}>('SELECT buyer_user_id,seller_user_id FROM ch_web.commerce_orders WHERE id=$1',[input.orderId]).then(r=>queueTrophies(r.rows.flatMap(o=>[o.buyer_user_id,o.seller_user_id]))).catch(()=>undefined);
+  return privateJson(saved)}
  return privateJson({error:'Unknown action.'},400);
 }catch(error){return failure(error)}}

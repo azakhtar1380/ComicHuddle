@@ -14,6 +14,9 @@ type Problems={errors:string[]};
 export const test=base.extend<{problems:Problems}>({
  problems:[async({page},use,testInfo)=>{
   const problems:Problems={errors:[]};
+  // The full-screen 'Trophy unlocked!' screen shows once on the next page load after a trophy is earned.
+  // Tests that aren't about trophies close it whenever it gets in the way (e2e/10-trophies.spec.ts checks it).
+  await page.addLocatorHandler(page.getByRole('dialog').filter({hasText:'Trophy unlocked!'}),async overlay=>{await overlay.getByRole('button',{name:'Close'}).click()},{noWaitAfter:true});
   page.on('pageerror',error=>problems.errors.push('Page error: '+error.message));
   page.on('console',message=>{if(message.type()==='error'&&!IGNORED.some(rule=>rule.test(message.text())))problems.errors.push('Console error: '+message.text().slice(0,300))});
   page.on('response',response=>{const url=new URL(response.url());if(url.origin===new URL(testInfo.project.use.baseURL!).origin&&response.status()>=500)problems.errors.push('Server error '+response.status()+': '+url.pathname+url.search)});

@@ -3,8 +3,9 @@
 // header's .chx-icon/.chx-badge styles); <NotificationBell variant="dock"/> is a phone-bar tab (.dock3-*)
 // that opens a bottom sheet. Renders nothing for guests. Data: /api/notifications.
 import {useCallback,useEffect,useId,useRef,useState} from 'react';
-import {Bell,CheckCheck,X} from 'lucide-react';
+import {Bell,CheckCheck,Trophy,X} from 'lucide-react';
 import './bell.css';
+import '../../app/design-system-hscroll.css';
 
 type Item={id:string;kind:string;title:string;body:string;href:string;createdAt:string;read:boolean};
 type Data={items:Item[];unread:number};
@@ -42,14 +43,21 @@ export function useNotifications(){
  return {data,guest,reload:load,markRead};
 }
 
+const FILTERS=[['all','All'],['trophies','Trophies'],['orders','Orders'],['offers','Offers'],['community','Community']] as const;
+type Filter=typeof FILTERS[number][0];
+const inFilter=(kind:string,filter:Filter)=>filter==='all'||(filter==='trophies'?kind==='achievement':filter==='orders'?['order','safepurchase','tracking','payout','pickup'].includes(kind):filter==='offers'?['offer','offer_reply','trade'].includes(kind):['verification','system'].includes(kind));
+/** "Almost there" notifications carry progress as "progress:x/y" in the body. */
+const progressOf=(body:string)=>{const m=/^progress:(\d+)\/(\d+)$/.exec(body);return m?{n:Number(m[1]),of:Number(m[2])}:null};
 function List({data,markRead,onClose,titleId}:{data:Data|null;markRead:(ids?:string[])=>Promise<void>;onClose:()=>void;titleId:string}){
+ const [filter,setFilter]=useState<Filter>('all'),items=data?.items.filter(i=>inFilter(i.kind,filter))||[];
  return <>
   <div className="nb-head"><h2 id={titleId}>Notifications</h2>
    {!!data?.unread&&<button type="button" className="nb-mark" onClick={()=>void markRead()}><CheckCheck size={16}/> Mark all read</button>}
    <button type="button" className="nb-close" aria-label="Close notifications" onClick={onClose}><X size={20}/></button></div>
-  {!data?<p className="nb-empty" role="status">Loading…</p>:!data.items.length?<p className="nb-empty">You’re all caught up. Offers, replies and order updates show up here.</p>:
-   <ul className="nb-list">{data.items.map(item=>{const href=safeHref(item.href);const body=<><span className="nb-dot" aria-hidden="true" data-on={!item.read}/><span className="nb-text"><strong>{item.title}</strong>{item.body&&<span>{item.body}</span>}<time dateTime={item.createdAt}>{ago(item.createdAt)}</time></span></>;
-    return <li key={item.id} className={item.read?'':'is-unread'}>{href?<a href={href} onClick={()=>{if(!item.read)void markRead([item.id])}}>{body}{!item.read&&<span className="sr-only"> (unread)</span>}</a>:<button type="button" onClick={()=>{if(!item.read)void markRead([item.id])}}>{body}</button>}</li>})}</ul>}
+  <div className="nb-filters ch-hscroll" role="toolbar" aria-label="Filter notifications">{FILTERS.map(([id,label])=><button key={id} type="button" aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>)}</div>
+  {!data?<p className="nb-empty" role="status">Loading…</p>:!items.length&&data.items.length?<p className="nb-empty">Nothing here yet.</p>:!data.items.length?<p className="nb-empty">You’re all caught up. Offers, replies and order updates show up here.</p>:
+   <ul className="nb-list">{items.map(item=>{const href=safeHref(item.href),trophy=item.kind==='achievement',progress=progressOf(item.body);const body=<>{trophy?<span className="nb-trophy" aria-hidden="true"><Trophy size={16}/></span>:<span className="nb-dot" aria-hidden="true" data-on={!item.read}/>}<span className="nb-text"><strong>{item.title}</strong>{progress?<span className="nb-progress" role="progressbar" aria-label={item.title} aria-valuemin={0} aria-valuemax={progress.of} aria-valuenow={progress.n}><i style={{width:Math.round(progress.n/Math.max(1,progress.of)*100)+'%'}}/></span>:item.body&&<span>{item.body}</span>}<time dateTime={item.createdAt}>{ago(item.createdAt)}</time></span></>;
+    return <li key={item.id} className={(item.read?'':'is-unread')+(trophy?' is-trophy':'')}>{href?<a href={href} onClick={()=>{if(!item.read)void markRead([item.id])}}>{body}{!item.read&&<span className="sr-only"> (unread)</span>}</a>:<button type="button" onClick={()=>{if(!item.read)void markRead([item.id])}}>{body}</button>}</li>})}</ul>}
  </>;
 }
 

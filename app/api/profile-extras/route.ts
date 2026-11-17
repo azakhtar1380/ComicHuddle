@@ -1,5 +1,6 @@
 // Saves the My Profile extras (tags, favorite character and comic, grail + reward, public-link switches).
 // POST JSON with only the fields to change. Owner only; restricted accounts blocked.
+import {queueTrophies} from '../../../lib/trophies';
 import {eq} from 'drizzle-orm';
 import {ZodError} from 'zod';
 import {getChatGPTUser} from '../../chatgpt-auth';
@@ -20,6 +21,7 @@ export async function POST(req:Request){
   const limited=await enforceWriteLimits(db,user.userId,'profile:extras',30);if(limited)return limited;
   const input=extrasInput.parse(await req.json());
   await saveExtras(db as never,{id:profile.id,userId:user.userId},input);
+  queueTrophies([user.userId]);
   return privateJson({saved:true});
  }catch(error){
   if(error instanceof ZodError)return json(error.issues[0]?.message||'Check those profile details.',400);

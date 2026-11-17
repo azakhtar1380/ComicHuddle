@@ -1,6 +1,7 @@
 // Member profile pictures. POST raw image bytes (JPEG, PNG or WebP, ≤ 4 MB) to set or replace,
 // DELETE to remove, GET ?id= to read. Pictures are squared to 320×320 WebP on the server, stored in the
 // existing photo store under avatars/<id>, and linked in ch_web.profile_avatars (migration 033).
+import {queueTrophies} from '../../../lib/trophies';
 import sharp from 'sharp';
 import {eq} from 'drizzle-orm';
 import {getChatGPTUser} from '../../chatgpt-auth';
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
     await pool.query('INSERT INTO ch_web.profile_avatars (profile_id,user_id,avatar_id,updated_at) VALUES ($1,$2,$3,now()) ON CONFLICT (profile_id) DO UPDATE SET avatar_id=EXCLUDED.avatar_id,user_id=EXCLUDED.user_id,updated_at=now()', [profile.id, user.userId, id]);
     const old = previous.rows[0]?.avatar_id;
     if (old && old !== id) await env.BUCKET.delete('avatars/' + old).catch(() => undefined);
+    queueTrophies([user.userId]);
     return privateJson({avatarUrl: avatarUrlFor(id)});
   } catch (error) {
     if (error instanceof ApiRequestError) return json(error.message, error.status);

@@ -26,6 +26,12 @@ export async function syncVaultLedger(userId:string,vault:Vault,now=new Date()){
     removed_at=NULL,added_at=CASE WHEN v.removed_at IS NULL THEN v.added_at ELSE EXCLUDED.added_at END`,[userId,JSON.stringify(rows),now.toISOString(),backfill]);
   await pool.query(`UPDATE ch_web.vault_copies SET removed_at=$3 WHERE user_id=$1 AND removed_at IS NULL AND NOT (book_id = ANY($2::text[]))`,[userId,rows.map(r=>r.book_id),now.toISOString()]);
  }catch{/* ledger not migrated yet: the vault save itself already succeeded */}
+ try{
+  const pool=getPool(),wants=[...new Set(vault.wants)];
+  if(wants.length)await pool.query(`INSERT INTO ch_web.vault_wants AS w (user_id,issue_id,added_at,removed_at) SELECT $1,x,$3::timestamptz,NULL FROM unnest($2::bigint[]) AS x
+   ON CONFLICT (user_id,issue_id) DO UPDATE SET removed_at=NULL,added_at=CASE WHEN w.removed_at IS NULL THEN w.added_at ELSE EXCLUDED.added_at END`,[userId,wants,now.toISOString()]);
+  await pool.query('UPDATE ch_web.vault_wants SET removed_at=$3 WHERE user_id=$1 AND removed_at IS NULL AND NOT (issue_id = ANY($2::bigint[]))',[userId,wants,now.toISOString()]);
+ }catch{/* wishlist history not migrated yet */}
 }
 /** bookId → ISO time the copy was added (current copies only). Backfills on first read. */
 export async function addedDates(userId:string,vault:Vault):Promise<Record<string,{addedAt:string;backfilled:boolean}>>{

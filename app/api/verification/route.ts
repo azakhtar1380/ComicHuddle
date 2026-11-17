@@ -12,6 +12,7 @@ import {enforceWriteLimits,isRestricted,privateJson} from '../../../lib/api-secu
 import {ownBusiness} from '../../../lib/business-profile';
 import {listPersonVerifications,personVerification,requestPersonVerification,setPersonVerified} from '../../../lib/person-verification';
 import {notify} from '../../../lib/notifications';
+import {queueTrophies} from '../../../lib/trophies';
 
 export const dynamic='force-dynamic';
 const json=(error:string,status:number)=>privateJson({error},status);
@@ -40,6 +41,7 @@ export async function POST(req:Request){
    const result=await setPersonVerified(user.userId,a.profileId,a.verified,a.note);
    await logAdminAction({admin:user,action:a.verified?'person_verification_granted':'person_verification_removed',targetType:'profile',targetId:a.profileId,detail:{note:a.note}});
    if(result.changed)await notify({userId:result.userId,kind:'verification',title:a.verified?'You’re verified!':'Your verified check was removed',body:a.verified?'The blue check now shows next to your name.':'Contact support if you think this is a mistake.',href:'/verified'});
+   queueTrophies([result.userId]);
    return privateJson({status:result.status});
   }
   const [p]=await db.select().from(profiles).where(eq(profiles.userId,user.userId));

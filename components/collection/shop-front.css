@@ -63,3 +63,4 @@
 .sf-window-option input{width:20px;height:20px;accent-color:var(--ink)}
 .sf-window-option small{display:block;color:var(--ink);font-size:13px}
 .sf-window-option:focus-within{outline:3px solid var(--red);outline-offset:2px}
+.sf .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

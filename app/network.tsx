@@ -26,6 +26,7 @@ import BusinessFields from '../components/profile/business-fields';
 import ProfilePage from '../components/profile/profile-page';
 import ProfileShare from '../components/profile/profile-share';
 import ThemeScreen from '../components/profile/theme-screen';
+import {TrophyPreview} from '../components/trophies/trophy-ui';
 import {DEFAULT_LOOK} from '../lib/profile-worlds';
 import PublicCollectionTab from '../components/collection/public-collection';
 import type {CollectionRun} from '../lib/collection-runs';
@@ -159,6 +160,10 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
  // Your own profile opened from /@handle is a loaded copy: after a change, show the refreshed one.
  async function refreshOwn(){await net.refresh();if(profile&&profile.id===me?.id)selectProfile(null)}
  async function addRunToWishlist(run:CollectionRun){if(!gate())return;const add=(run.missingIds||[]).filter(id=>!vault.wants.includes(id));if(!add.length){notice(run.missingIds?.length?'Those issues are already on your wishlist.':'We couldn’t match these issues in the Directory yet.');return}if(await commit({...vault,wants:[...vault.wants,...add].slice(0,1000)}))notice(add.length+(add.length===1?' issue':' issues')+' added to your wishlist.')}
+ const [shareTrophy,setShareTrophy]=useState<{name:string;tier:string}|null>(null);
+ // Reads the address once the account has loaded (it is only known in the browser), then clears it.
+ // eslint-disable-next-line react-hooks/set-state-in-effect
+ useEffect(()=>{const q=new URLSearchParams(window.location.search);if(q.get('share')!=='1'||!me)return;const [name,tier]=(q.get('trophy')||'').split('|');if(name&&tier)setShareTrophy({name:name.slice(0,40),tier:tier.slice(0,20)});setShare(me);const url=new URL(window.location.href);url.searchParams.delete('share');url.searchParams.delete('trophy');window.history.replaceState(window.history.state,'',url.pathname+url.search)},[me?.id]);
  async function copyProfileLink(p:CollectorProfile){try{await navigator.clipboard.writeText(window.location.origin+'/@'+p.handle);notice('Profile link copied.')}catch{notice('Copy didn’t work. Your link is comichuddle.com/@'+p.handle)}}
  const [wantRecords,setWantRecords]=useState<Record<number,Issue>>({});
  const wantKey=tab==='Collectors'&&currentProfile?currentProfile.wantIds.slice(0,12).filter(id=>!catalog[id]&&!wantRecords[id]).join(','):'';
@@ -176,6 +181,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
      onMessage={context=>void startMessage(currentProfile.id,context||'')} onShare={()=>setShare(currentProfile)} onTheme={()=>setThemeOpen(true)} onCollection={openCollection}
      onPhoto={file=>void upload('photo',file)} onCover={file=>void upload('cover',file)} onCopyLink={()=>void copyProfileLink(currentProfile)} art={b=><ComicArt book={b}/>}
      collectionTab={<PublicCollectionTab key={currentProfile.handle} handle={currentProfile.handle} own={own} dmOpen={currentProfile.dmOpen} signedIn={signedIn} onIssue={openIssue} onMessage={context=>void startMessage(currentProfile.id,context)} onAddToWishlist={run=>void addRunToWishlist(run)} favorites={currentProfile.showcase.length?<><h3>Favorites</h3><BookGrid books={currentProfile.showcase.slice(0,6)} onBook={openBook} label="Favorites"/></>:null}/>}
+     trophyPreview={<TrophyPreview key={currentProfile.handle} handle={currentProfile.handle} own={own}/>}
      reviewsTab={<section className="pp-card pp-block" aria-label="Seller feedback"><SellerFeedback profileId={currentProfile.id}/></section>}
      ownerExtras={own?<section className="pp-card pp-block" aria-labelledby="nw-wallet"><div className="pp-block-head"><h2 id="nw-wallet"><span className="pp-eyebrow">Only you can see this</span>Wallet</h2><a className="ds-link" href="/wallet">How rewards work <ArrowUpRight size={16} aria-hidden="true"/></a></div><CollectorWallet key={currentProfile.id} showInfoLink={false}/></section>:undefined}/>
    :<div className="nw-invite ds-card"><ul>
@@ -237,7 +243,7 @@ export default function CollectorNetwork({initialCollector,onAddComic,addComicOp
   <ul className="nw-people">{data.people.filter(p=>p.id!==me?.id&&p.dmOpen&&(p.name+' '+p.handle).toLowerCase().includes(search.toLowerCase())).map(p=><li key={p.id}><button type="button" className="nw-thread" disabled={busy} onClick={()=>void startMessage(p.id)}>{p.avatarUrl?<span className="nw-avatar nw-avatar-photo" aria-hidden="true"><img src={p.avatarUrl} alt="" width={40} height={40}/></span>:<span className="nw-avatar" aria-hidden="true">{p.name.slice(0,1).toUpperCase()}</span>}<span className="nw-thread-copy"><strong>{p.name}</strong><small>@{p.handle}</small></span><MessageCircle size={18} aria-hidden="true"/></button></li>)}</ul>
   {!data.people.some(p=>p.id!==me?.id&&p.dmOpen)&&<p className="nw-empty">No collectors are taking messages yet.</p>}
  </div></Modal>}
- {share&&<Modal label="Share your profile" wide onClose={()=>setShare(null)}><div className="form-dialog nw-join"><ProfileShare p={share as ProfileView} own={share.id===me?.id} notice={notice} onSettingsSaved={()=>void refreshOwn()}/></div></Modal>}
+ {share&&<Modal label="Share your profile" wide onClose={()=>setShare(null)}><div className="form-dialog nw-join"><ProfileShare p={share as ProfileView} own={share.id===me?.id} trophy={share.id===me?.id?shareTrophy:null} notice={notice} onSettingsSaved={()=>void refreshOwn()}/></div></Modal>}
  {themeOpen&&me&&<Modal label="Pick your world" wide onClose={()=>setThemeOpen(false)}><div className="form-dialog nw-join"><ThemeScreen name={me.name} avatarUrl={me.avatarUrl||null} initial={(me as ProfileView).extras?.look||DEFAULT_LOOK} notice={notice} onCancel={()=>setThemeOpen(false)} onSaved={()=>{setThemeOpen(false);void refreshOwn()}}/></div></Modal>}
  {report&&<Modal label="Report this" onClose={()=>setReport(null)}><div className="form-dialog nw-join">
   <p className="ds-eyebrow">Report</p><h2 className="nw-join-title">Something <span>not okay?</span></h2>

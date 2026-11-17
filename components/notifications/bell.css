@@ -26,3 +26,12 @@
 .nb-sheet::backdrop{background:rgba(13,17,23,.45)}
 .nb-sheet-body{display:flex;flex-direction:column;max-height:82vh;padding-bottom:env(safe-area-inset-bottom,0)}
 .nb-grip{align-self:center;width:42px;height:5px;margin-top:8px;border-radius:3px;background:var(--line,#d1d5db)}
+
+/* Trophies (achievement): trophy icon, yellow highlight; filter chips; "almost there" progress bar. */
+.nb-filters{gap:6px;padding:4px 12px 8px}
+.nb-filters button{min-height:36px;padding:0 12px;border:2px solid var(--ink,#20201f);background:#fff;font-weight:700;font-size:13px;white-space:nowrap;color:var(--ink,#20201f)}
+.nb-filters button[aria-pressed="true"]{background:var(--ink,#20201f);color:var(--yellow,#efd369)}
+.nb-list li.is-trophy>a,.nb-list li.is-trophy>button{background:#fbefb6}
+.nb-trophy{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:999px;background:var(--yellow,#efd369);border:2px solid var(--ink,#20201f);color:var(--ink,#20201f)}
+.nb-progress{display:block;height:8px;margin:4px 0;border:2px solid var(--ink,#20201f);background:#fff}.nb-progress i{display:block;height:100%;background:var(--red,#c83e30)}
+.nb-wrap .sr-only,.nb-sheet .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

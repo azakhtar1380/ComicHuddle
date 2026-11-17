@@ -2,7 +2,7 @@
 // not undo or block the action that caused it. Recipients are account user ids (profiles.user_id).
 import {getPool} from '../db/postgres';
 
-export type NotificationKind = 'offer' | 'offer_reply' | 'trade' | 'order' | 'safepurchase' | 'tracking' | 'payout' | 'pickup' | 'verification' | 'system';
+export type NotificationKind = 'offer' | 'offer_reply' | 'trade' | 'order' | 'safepurchase' | 'tracking' | 'payout' | 'pickup' | 'verification' | 'system' | 'achievement';
 export type NotificationInput = {userId: string; kind: NotificationKind; title: string; body?: string; href?: string};
 export type NotificationRow = {id: string; kind: NotificationKind; title: string; body: string; href: string; createdAt: string; read: boolean};
 

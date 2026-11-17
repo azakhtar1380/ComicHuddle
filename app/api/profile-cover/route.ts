@@ -1,6 +1,7 @@
 // Profile cover photos (migration 051: ch_web.profile_extras.cover_id). Same rules as profile pictures
 // (app/api/avatar): JPEG, PNG or WebP up to 4 MB, owner only, write limits, restricted accounts blocked.
 // Stored as a 1500×500 WebP in the existing photo store under profile-covers/<id>. GET ?id= reads it.
+import {queueTrophies} from '../../../lib/trophies';
 import sharp from 'sharp';
 import {eq} from 'drizzle-orm';
 import {getChatGPTUser} from '../../chatgpt-auth';
@@ -37,6 +38,7 @@ export async function POST(req:Request){
   await env.BUCKET.put('profile-covers/'+id,image,{httpMetadata:{contentType:'image/webp'}});
   await upsertExtras({id:profile.id,userId:user.userId},[['cover_id',id]]);
   const old=previous.rows[0]?.cover_id;if(old&&old!==id)await env.BUCKET.delete('profile-covers/'+old).catch(()=>undefined);
+  queueTrophies([user.userId]);
   return privateJson({coverUrl:coverUrlFor(id)});
  }catch(error){if(error instanceof ApiRequestError)return json(error.message,error.status);return json('Your cover photo could not be saved. Please try again.',500)}
 }

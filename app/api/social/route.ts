@@ -1,3 +1,4 @@
+import {queueTrophies} from '../../../lib/trophies';
 import {markListingSold,requestSafePurchase} from '../../../lib/marketplace-sales';
 import {catalogIssuesById} from '../../../lib/catalog-store';
 import {directoryGrailId,featuredIssueId,profileGrails} from '../../../lib/profile-grails';
@@ -265,6 +266,7 @@ if(a.action==='profile'){
  const data={...consent,userId:u.userId,handle:v.handle,name:v.name,bio:v.bio,tagline:v.tagline,location:v.location,favorite:v.favorite,since:v.since,color:v.color,featured:JSON.stringify(v.featured),visible:Number(v.visible),dmOpen:Number(v.dmOpen)};
  const [saved]=p?await db.update(profiles).set(data).where(eq(profiles.id,p.id)).returning():await db.insert(profiles).values({...data,id:crypto.randomUUID(),createdAt:now()}).returning();
 
+ queueTrophies([u.userId]);
  return json({saved:true,profile:await profilePageDto(db,saved,true)});
 }
 if(!p)return json({error:'Create your free collector profile first.',code:'profile_required'},403);
