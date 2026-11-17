@@ -7,6 +7,7 @@ import {notify} from './notifications';
 import {issueKeys} from './issue-keys';
 import {listRuns} from './collection-runs';
 import {emptyVault,vaultSchema,type Vault} from './vault';
+import {nudgeOriginStory} from './origin-story';
 import {TIER_NAMES,TROPHIES,nextTier,tiersFor,trophyById,type TierKey,type TrophyStatus} from './trophy-defs';
 
 const HOUR=3600000,DAY=24*HOUR;
@@ -151,7 +152,7 @@ export async function awardTrophies(userId:string,now=Date.now()):Promise<{earne
 /** Runs awardTrophies after the response when called inside a request, else right away. Never throws. */
 export function queueTrophies(userIds:(string|null|undefined)[]){
  const ids=[...new Set(userIds.filter((id):id is string=>!!id))];if(!ids.length)return;
- const run=async()=>{for(const id of ids)await awardTrophies(id).catch(()=>undefined)};
+ const run=async()=>{for(const id of ids){await awardTrophies(id).catch(()=>undefined);await nudgeOriginStory(id).catch(()=>undefined)}};
  void import('next/server').then(({after})=>{try{after(run)}catch{void run()}}).catch(()=>void run());
 }
 export async function trophyStatus(userId:string):Promise<TrophyStatus[]>{
@@ -182,7 +183,7 @@ export async function markSeen(userId:string,trophy:string,tier:string){await q(
 /** Daily: recompute everyone (catches revocations) and refresh the holder percentages. */
 export async function dailyTrophySweep(limit=5000){
  const users=await q<{user_id:string}>(`SELECT p.user_id FROM ch_web.profiles p WHERE p.deletion_started_at IS NULL AND COALESCE(p.moderated,0)=0 ORDER BY p.created_at LIMIT $1`,[limit]);
- for(const u of users)await awardTrophies(u.user_id).catch(()=>undefined);
+ for(const u of users){await awardTrophies(u.user_id).catch(()=>undefined);await nudgeOriginStory(u.user_id).catch(()=>undefined)}
  await q(`INSERT INTO ch_web.trophy_stats(trophy,tier,holders,collectors,computed_at)
   SELECT t.trophy,t.tier,count(*)::int,(SELECT count(*)::int FROM ch_web.profiles WHERE deletion_started_at IS NULL),now() FROM ch_web.user_trophies t WHERE t.earned_at IS NOT NULL AND t.revoked_at IS NULL GROUP BY t.trophy,t.tier
   ON CONFLICT(trophy,tier) DO UPDATE SET holders=EXCLUDED.holders,collectors=EXCLUDED.collectors,computed_at=now()`);

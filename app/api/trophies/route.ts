@@ -9,6 +9,7 @@ import {profiles} from '../../../db/schema';
 import {privateJson} from '../../../lib/api-security';
 import {awardTrophies,markSeen,nextUnseen,saveTrophyPrefs,trophyPrefs,trophyPreview,trophyStatus} from '../../../lib/trophies';
 import {FAIR_PLAY_RULES} from '../../../lib/trophy-defs';
+import {nudgeOriginStory} from '../../../lib/origin-story';
 
 export const dynamic='force-dynamic';
 const json=(error:string,status:number)=>privateJson({error},status);
@@ -38,6 +39,6 @@ export async function POST(req:Request){
   const a=body.parse(await req.json());
   if(a.action==='seen'){await markSeen(user.userId,a.trophy,a.tier);return privateJson({ok:true})}
   if(a.action==='prefs'){await saveTrophyPrefs(user.userId,a);return privateJson({prefs:a})}
-  const result=await awardTrophies(user.userId);return privateJson({earned:result.earned.length});
+  const result=await awardTrophies(user.userId);await nudgeOriginStory(user.userId).catch(()=>undefined);return privateJson({earned:result.earned.length});
  }catch(error){if(error instanceof ZodError)return json('Check that request.',400);return json('That didn’t save. Please retry.',500)}
 }

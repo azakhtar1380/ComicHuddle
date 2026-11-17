@@ -13,13 +13,15 @@ export const isGraded=(book:Book)=>book.ownership?.format==='GRADED'||/^CGC\b/i.
 export const copyCert=(book:Book)=>isGraded(book)?normalizeCert(book.ownership?.certificationNumber):null;
 
 /** Upserts current copies (new ones get added_at now) and stamps removed_at on copies no longer in the vault. */
-export async function syncVaultLedger(userId:string,vault:Vault,now=new Date()){
+export async function syncVaultLedger(userId:string,vault:Vault,now=new Date()):Promise<number>{
+ let added=0;
  try{
   const pool=getPool();
   const rows=vault.books.map(book=>({book_id:book.id,directory_issue_id:copyDirectoryId(book),graded:isGraded(book),cert:copyCert(book)}));
   const existing=await pool.query<{n:string}>('SELECT count(*)::text AS n FROM ch_web.vault_copies WHERE user_id=$1',[userId]);
   // First sync for a collection saved before the ledger existed: its copies are marked as backfilled.
   const backfill=Number(existing.rows[0]?.n||0)===0&&rows.length>1;
+  if(!backfill&&rows.length){const known=await pool.query<{book_id:string}>('SELECT book_id FROM ch_web.vault_copies WHERE user_id=$1 AND removed_at IS NULL AND book_id = ANY($2::text[])',[userId,rows.map(r=>r.book_id)]);added=rows.length-known.rows.length}
   if(rows.length)await pool.query(`INSERT INTO ch_web.vault_copies AS v (user_id,book_id,directory_issue_id,graded,cert,added_at,removed_at,backfilled)
    SELECT $1,x.book_id,x.directory_issue_id,x.graded,x.cert,$3::timestamptz,NULL,$4 FROM jsonb_to_recordset($2::jsonb) AS x(book_id text,directory_issue_id bigint,graded boolean,cert text)
    ON CONFLICT (user_id,book_id) DO UPDATE SET directory_issue_id=EXCLUDED.directory_issue_id,graded=EXCLUDED.graded,cert=EXCLUDED.cert,
@@ -32,6 +34,7 @@ export async function syncVaultLedger(userId:string,vault:Vault,now=new Date()){
    ON CONFLICT (user_id,issue_id) DO UPDATE SET removed_at=NULL,added_at=CASE WHEN w.removed_at IS NULL THEN w.added_at ELSE EXCLUDED.added_at END`,[userId,wants,now.toISOString()]);
   await pool.query('UPDATE ch_web.vault_wants SET removed_at=$3 WHERE user_id=$1 AND removed_at IS NULL AND NOT (issue_id = ANY($2::bigint[]))',[userId,wants,now.toISOString()]);
  }catch{/* wishlist history not migrated yet */}
+ return added;
 }
 /** bookId → ISO time the copy was added (current copies only). Backfills on first read. */
 export async function addedDates(userId:string,vault:Vault):Promise<Record<string,{addedAt:string;backfilled:boolean}>>{

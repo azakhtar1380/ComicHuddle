@@ -1,3 +1,4 @@
+import {originStoryAfterHaul} from '../../../lib/origin-story';
 import {queueTrophies} from '../../../lib/trophies';
 import {catalogIssuesById} from '../../../lib/catalog-store';
 import {getChatGPTUser} from '../../chatgpt-auth';
@@ -56,7 +57,8 @@ export async function POST(req:Request){try{
  if(!changed.length)return privateJson({error:'Your collection changed while saving. Reload it before trying again.'},409);
  const version='"'+revision+'"';
  // Per-copy history (migration 052): when each copy was added or removed. Never blocks the save.
- await syncVaultLedger(user.userId,data);
+ const added=await syncVaultLedger(user.userId,data);
+ if(added>0)void originStoryAfterHaul(user.userId,added).catch(()=>undefined);
  queueTrophies([user.userId]);
  return privateJson({saved:true},200,{ETag:version,[vaultVersionHeader]:version});
 }catch(error){if(error instanceof ApiRequestError)return privateJson({error:error.message},error.status);return privateJson({error:'Could not save your collection. Please retry.'},500)}}
