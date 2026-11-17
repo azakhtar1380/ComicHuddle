@@ -57,3 +57,13 @@ main.signout-v2{padding-top:var(--s6);padding-bottom:var(--s8);font-family:var(-
 .auth-pw-rule{color:var(--muted)}
 .auth-pw-rule.is-met{color:#2f6b3a;font-weight:700}
 @media(max-width:760px){.auth-v2-art{display:none}}
+
+/* Sign in with Apple / Google (brand guidelines: Apple black with white logo; Google white, #747775 border, Roboto-like). */
+.auth-social{display:grid;gap:10px;margin:4px 0 6px}
+.auth-social-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:44px;padding:0 16px;border-radius:999px;font:500 15px/1 Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;cursor:pointer}
+.auth-apple{background:#000;color:#fff;border:1px solid #000}
+.auth-google{background:#fff;color:#1f1f1f;border:1px solid #747775}
+.auth-social-btn:disabled{opacity:.6;cursor:default}
+.auth-social-btn:focus-visible{outline:3px solid #1a73e8;outline-offset:2px}
+.auth-or{display:flex;align-items:center;gap:10px;margin:8px 0 0;color:#5c5a52;font-size:.86rem}
+.auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:currentColor;opacity:.35}

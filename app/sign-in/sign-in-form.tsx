@@ -6,6 +6,7 @@ import {operator} from '../../lib/operator';
 import HuddlesGuide from '../../components/huddles-guide';
 import AccountTypePicker from '../../components/profile/account-type-picker';
 import {rememberAccountType,type AccountType} from '../../components/profile/business-client';
+import SocialButtons from './social-buttons';
 import './sign-in.css';
 
 function returnPath(){
@@ -15,7 +16,7 @@ function returnPath(){
  return parsed.origin===window.location.origin&&!parsed.pathname.startsWith('/sign-')?parsed.pathname+parsed.search:'/';
 }
 function FieldError({id,children}:{id:string;children:string}){return <small id={id} className="ds-error auth-field-error"><AlertCircle size={16} aria-hidden="true"/> {children}</small>}
-export default function SignInForm({initialRegister=false}:{initialRegister?:boolean}){
+export default function SignInForm({initialRegister=false,social={google:false,apple:false}}:{initialRegister?:boolean;social?:{google:boolean;apple:boolean;failed?:boolean}}){
  const [passwordLength,setPasswordLength]=useState(0),[accountType,setAccountType]=useState<AccountType>('collector');const [register,setRegister]=useState(initialRegister),[busy,setBusy]=useState(false),[error,setError]=useState(''),[fieldErrors,setFieldErrors]=useState<AuthFieldErrors>({}),[rulesError,setRulesError]=useState(''),[showPassword,setShowPassword]=useState(false);
  const formRef=useRef<HTMLFormElement>(null),submitting=useRef(false);
  function changeMode(next:boolean){
@@ -31,6 +32,7 @@ export default function SignInForm({initialRegister=false}:{initialRegister?:boo
     <p className="ds-eyebrow">{register?'Free account':'Welcome back'}</p>
     <h1 id="auth-title" className="auth-v2-title">{register?<>Join <span>ComicHuddle.</span></>:<>Good to see <span>you again.</span></>}</h1>
     <p className="auth-v2-lede">{register?'Just an email and a password. Everything else can wait.':'Log in to pick up where you left off.'}</p>
+    <SocialButtons failed={social.failed} google={social.google} apple={social.apple} returnTo={returnPath} disabled={busy}/>
     <form ref={formRef} noValidate className="auth-v2-form" onSubmit={async event=>{
      event.preventDefault();if(submitting.current)return;
      const form=event.currentTarget,data=new FormData(form);
