@@ -44,7 +44,7 @@ test.describe('Listing page',()=>{
   const order=await dialog.evaluate(d=>{const y=(sel:string)=>d.querySelector(sel)?.getBoundingClientRect().top??Infinity;return {comics:y('#listing-comics'),seller:y('.mpx-seller-card')}});
   expect(order.comics).toBeLessThan(order.seller);
   // Tapping a Directory comic opens its issue details.
-  const link=comics.locator('.mpx-manifest-item.is-link').first();
+  const link=comics.locator('.mpx-manifest-item.is-link:not(.is-custom)').first(); // custom comics open their own sheet (e2e/20)
   if(await link.count()){await link.click();await expect(page.getByRole('dialog',{name:'Issue details'}).or(page.locator('.issue-showcase')).first()).toBeVisible()}
   expect(failed,'no image 404s on the listing page').toEqual([]);
  });
