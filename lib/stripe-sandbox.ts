@@ -2,6 +2,8 @@
  * Server-only Stripe adapter. Test mode is the default; live mode requires COMMERCE_STRIPE_MODE=live,
  * live-prefixed keys and COMMERCE_LIVE_REVIEWED=true. No browser secrets or automatic payouts.
  */
+/** Payment methods hidden from the on-page payment form (managed via the Dashboard config otherwise). */
+export const EXCLUDED_ON_PAGE_METHODS=['paypal','amazon_pay','klarna','affirm','afterpay_clearpay','cashapp','us_bank_account'] as const;
 export const STRIPE_SANDBOX_API_VERSION = '2026-09-30.endive';
 export const STRIPE_WEBHOOK_MAX_BYTES = 262_144;
 const API_ORIGIN = 'https://api.stripe.com';
@@ -343,6 +345,13 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
     return dispute;
   }
   return {
+    /** Payment method domains registered for Apple Pay / Google Pay (read-only, for the admin check). */
+    async listPaymentMethodDomains() {
+      const list = await request('GET', 'payment_method_domains?limit=100');
+      const rows = Array.isArray(list.data) ? list.data : [];
+      const status = (value: unknown) => isObject(value) && typeof value.status === 'string' ? value.status : 'unknown';
+      return rows.filter(isObject).map(row => ({domain: String(row.domain_name || ''), enabled: row.enabled === true, applePay: status(row.apple_pay), googlePay: status(row.google_pay)}));
+    },
     configuration: config, mode, retrieveCheckout, retrievePaymentIntent, retrieveCharge, retrieveRefund, retrieveAccount, retrieveDispute,
     async createCheckout(input: StripeCheckoutInput, key: string) {
       assertReady(); localId(input.orderId); cents(input.amountCents, 50); idempotencyKey(key);
@@ -367,6 +376,8 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
         // Do not collect a second shipping address that could contradict it.
         'billing_address_collection': 'required',
         'payment_intent_data[transfer_group]': 'ORDER_' + input.orderId,
+        // On-page payments: card + Apple Pay / Google Pay only (wallets ride on card). No PayPal or pay-later; Link can't be excluded here, so the elements hide it.
+        ...(input.uiMode==='elements'?Object.fromEntries(EXCLUDED_ON_PAGE_METHODS.map((type,index)=>['excluded_payment_method_types['+index+']',type])):{}),
         ...metadata(input.orderId), ...metadata(input.orderId, 'payment_intent_data[metadata]'),
         ...(input.expiresAt !== undefined ? {expires_at: String(input.expiresAt)} : {}),
         // Readable in the owner's Stripe Dashboard and on the buyer's card statement.

@@ -10,3 +10,22 @@
 @keyframes ch-dim{from{opacity:0}to{opacity:1}}
 @keyframes ch-pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.overlay:not(.drawer-overlay),.overlay:not(.drawer-overlay)>.dialog{animation:ch-dim .12s ease-out}}
+
+/* On-page payments: wallets first, then card; "Pay on your phone" QR on computers. */
+.stripe-or{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:var(--muted,#5c5a52);font-size:.86rem}
+.stripe-or::before,.stripe-or::after{content:"";flex:1;height:1px;background:currentColor;opacity:.35}
+.pay-phone{margin-top:12px}
+.pay-phone-open{width:100%;min-height:44px}
+.pay-phone-code{display:grid;grid-template-columns:132px 1fr;gap:12px;align-items:center;padding:12px;border:2px solid var(--ink,#161612);border-radius:12px;background:#fff}
+.pay-phone-qr svg{display:block;width:132px;height:132px}
+.pay-phone-code p{margin:0;font-size:.9rem;line-height:1.45}
+.pay-phone-signin{display:grid;gap:10px;justify-items:start}
+.mpx-saved-address{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px 12px;border:2px solid var(--ink,#161612);border-radius:12px;background:#fff;line-height:1.4}
+.mpx-saved-address button{flex:none}
+
+/* SafePurchase choice (Standard by default), $1,000+ shipped orders only. */
+.mpx-sp-choice{display:grid;gap:8px;margin:10px 0 0;padding:0;border:0;min-width:0}
+.mpx-sp-choice legend{margin-bottom:6px;font-weight:700;color:var(--ink)}
+.mpx-sp-choice label{display:flex;gap:10px;align-items:flex-start;min-height:44px;padding:10px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;line-height:1.4}
+.mpx-sp-choice label.is-on{background:#f6ecc8}
+.mpx-sp-choice input{margin-top:3px;accent-color:var(--ink)}

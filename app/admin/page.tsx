@@ -11,6 +11,7 @@ import {adminAuditReady} from '../../lib/admin-audit';
 import {protectionConfig,type ProtectionEnv} from '../../lib/commerce-protection';
 import {supportPaymentsForOwner} from '../../lib/support-payments';
 import {stripeMode} from '../../lib/stripe-sandbox';
+import {paymentDomainCheck} from '../../lib/payment-domains';
 
 export const dynamic='force-dynamic';
 export const metadata={title:'ComicHuddle',robots:{index:false,follow:false}};
@@ -20,7 +21,7 @@ export default async function AdminHome(){
   const protection=protectionConfig(process.env as ProtectionEnv),auditReady=await adminAuditReady();
   const configured=adminEmails().length,limit=adminLimit();
   const support=await supportPaymentsForOwner(stripeMode(process.env as never)==='live'?0:1);
-  const customListings=await listingsWithCustomItems(),strikes=await sellerStrikes();
+  const customListings=await listingsWithCustomItems(),strikes=await sellerStrikes(),walletDomains=await paymentDomainCheck(process.env as never);
   const usd=(cents:number)=>'$'+(cents/100).toFixed(2);
   return <AdminShell current="/admin" title="Admin" accent=" tools." founder={founder} lede="Only admins can see these pages. Every action is checked on the server and written to the audit log.">
     {!auditReady&&<p className="adm-warn" role="note">Database migration 040 (audit log and SafePurchase updates) isn’t applied yet. Admin actions are refused until it is.</p>}
@@ -32,6 +33,10 @@ export default async function AdminHome(){
     </div>
     <section id="verified-businesses" aria-labelledby="adm-verified" style={{margin:'0 0 32px'}}><h2 id="adm-verified" className="adm-title" style={{fontSize:28}}>Verified businesses</h2><VerifyBusinessPanel/></section>
     <section id="verified-collectors" aria-labelledby="adm-verified-people" style={{margin:'0 0 32px'}}><h2 id="adm-verified-people" className="adm-title" style={{fontSize:28}}>Verified collectors</h2><VerifyPersonPanel/></section>
+    <section id="wallet-domains" aria-labelledby="adm-wallet" style={{margin:'0 0 32px'}}><h2 id="adm-wallet" className="adm-title" style={{fontSize:28}}>Apple Pay &amp; Google Pay domains</h2>
+      <p className="adm-lede">Apple Pay and Google Pay buttons only show on domains registered in Stripe (Settings → Payment method domains), separately for test and live mode. This site: <strong>{walletDomains.host||'unknown'}</strong> — {walletDomains.currentRegistered?'registered ✓':'not registered'}.</p>
+      {walletDomains.error?<p className="adm-warn" role="note">{walletDomains.error}</p>:walletDomains.domains.length?<div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>Domain</th><th>Enabled</th><th>Apple Pay</th><th>Google Pay</th></tr></thead><tbody>{walletDomains.domains.map(d=><tr key={d.domain}><td>{d.domain}</td><td>{d.enabled?'Yes':'No'}</td><td>{d.applePay}</td><td>{d.googlePay}</td></tr>)}</tbody></table></div>:<p className="adm-lede">No domains registered yet.</p>}
+    </section>
     <section id="seller-strikes" aria-labelledby="adm-strikes" style={{margin:'0 0 32px'}}><h2 id="adm-strikes" className="adm-title" style={{fontSize:28}}>Seller strikes</h2>
       <p className="adm-lede">A strike is recorded when a seller misses the shipping deadline on a won auction and the buyer is refunded.</p>
       {strikes.length?<div className="adm-table-wrap"><table className="adm-table"><thead><tr><th>Seller</th><th>Strikes</th><th>Last</th></tr></thead><tbody>{strikes.map(row=><tr key={row.sellerId}><td><a href={'/@'+row.handle}>@{row.handle}</a></td><td>{row.strikes}</td><td>{new Date(row.last).toLocaleDateString('en-US')}</td></tr>)}</tbody></table></div>:<p className="adm-lede">None.</p>}
