@@ -56,3 +56,7 @@ Measured like section 6 (dev server, CPU 4× slower, 5 opens, median):
 | Layout shift while opening | 0 | 0 | 0 |
 
 Most of the remaining task is React development-mode work in the panel's first render; re-measure on the QA deployment. Test: `e2e/15-account-panel.spec.ts`.
+
+## Owner mockups (profile header and slab)
+- Profile header: dark striped band behind the photo row, name card, origin story and stats; red Share and yellow Edit profile buttons with labels; a Founder pill under the photo (founder only); Admin shown as a tag for other admins; four stat boxes with red numbers (Issues, Keys, Wishlist, Trades). "Now reading" is removed from profiles (the saved field stays, unused).
+- Share card: the slab only (no Trading card): night background with soft rays, clear slab with a red offset shadow, label with 9.8 COLLECTOR, name (+ check), @handle · Since, stats line, Fave / Grail, WHITE PAGES · BAGGED & BOARDED; the member's cover in the window with a Founder! sticker for the founder; photo with a yellow ring and Mr. Huddles; comichuddle.com/@handle. Under it: Scan at the con (real QR), the link with Copy link, and Instagram, Facebook, Messages, Save card, More.

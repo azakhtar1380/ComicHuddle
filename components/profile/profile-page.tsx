@@ -2,7 +2,7 @@
 // The My Profile page (Overview · Collection · Wishlist · Reviews). Used for your own profile and anyone else's.
 // Data: CollectorProfile from /api/social plus `extras` (lib/profile-extras.ts). Text always sits on cream cards.
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
-import {ArrowLeft,ArrowRight,Camera,Flag,Link2,MessageCircle,MoreHorizontal,Pencil,Plus,Share2,Star,Wrench} from 'lucide-react';
+import {ArrowLeft,ArrowRight,Camera,Flag,Link2,MessageCircle,MoreHorizontal,Pencil,Plus,Share,Share2,ShieldCheck,Star,Wrench} from 'lucide-react';
 import type {CollectorProfile,ShowcaseBook} from '../../lib/community';
 import type {Issue} from '../../lib/catalog';
 import {catalog} from '../../lib/catalog';
@@ -88,19 +88,20 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
 
   <div className="pp-cover" style={x.coverUrl?{backgroundImage:`url(${x.coverUrl})`}:undefined}>
    {!x.coverUrl&&<span className="pp-cover-empty" aria-hidden="true"/>}
-   {own&&fileButton(x.coverUrl?'Change cover photo':'Add a cover photo',onCover,'pp-cover-change',<><Camera size={16} aria-hidden="true"/> {uploading==='cover'?'Uploading…':'Change cover'}</>,busy||!!uploading)}
+   {!x.coverUrl&&own&&<span className="pp-cover-tag" aria-hidden="true">Cover photo</span>}
+   {own&&fileButton(x.coverUrl?'Change cover photo':'Add a cover photo',onCover,'pp-cover-change',<><Camera size={16} aria-hidden="true"/> {uploading==='cover'?'Uploading…':'Change'}</>,busy||!!uploading)}
   </div>
 
   <div className="pp-head">
   <div className="pp-avatar-row">
-   <button type="button" className="pp-round pp-round-share" onClick={onShare} onPointerEnter={warmProfileShare} onTouchStart={warmProfileShare} onFocus={warmProfileShare}><Share2 size={22} aria-hidden="true"/><span>Share</span></button>
+   <button type="button" className="pp-round pp-round-share" onClick={onShare} onPointerEnter={warmProfileShare} onTouchStart={warmProfileShare} onFocus={warmProfileShare}><Share size={22} aria-hidden="true"/><span>Share</span></button>
    <ProfilePhoto url={p.avatarUrl} name={p.name}>
     {own&&fileButton(p.avatarUrl?'Replace profile photo':'Upload a profile photo',onPhoto,'pp-photo-camera',<Camera size={18} aria-hidden="true"/>,busy||!!uploading)}
    </ProfilePhoto>
    {own?<button type="button" className="pp-round pp-round-edit" onClick={onEdit}><Pencil size={22} aria-hidden="true"/><span>Edit profile</span></button>
    :<button type="button" className="pp-round pp-round-message" disabled={!p.dmOpen||busy} title={p.dmOpen?undefined:'Not taking messages'} onClick={()=>onMessage()}><MessageCircle size={22} aria-hidden="true"/><span>{p.dmOpen?'Message':'No DMs'}</span></button>}
   </div>
-  {p.staff?.founder?<p className="pp-staff"><AdminBadge founder showLabel size={18}/></p>:p.staff?.admin?<p className="pp-staff"><AdminBadge showLabel size={18}/></p>:null}
+  {p.staff?.founder&&<p className="pp-founder"><Star size={14} fill="currentColor" aria-hidden="true"/> Founder</p>}
   {uploading==='photo'&&<p className="pp-uploading" role="status">Uploading your photo…</p>}
 
   <section className="pp-card pp-namecard">
@@ -109,20 +110,20 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
    {own&&!verifiedLabel&&<GetVerified variant="profile" onBusiness={onEdit}/>}
    <p className="pp-meta"><b>@{p.handle}</b> · Collecting since <span className="pp-num">{p.since}</span>{p.location?<> · {p.location}</>:null}</p>
    {x.rating&&<p className="pp-rating">{x.rating.stars!==null?<><span className="pp-stars" aria-hidden="true">{[1,2,3,4,5].map(n=><Star key={n} size={16} fill={n<=Math.round(x.rating!.stars!)?'currentColor':'none'}/>)}</span><span className="pp-num">{x.rating.stars.toFixed(1)}</span><span className="sr-only">out of 5 stars</span></>:<span className="pp-num">{x.rating.percent}% positive</span>} · <span className="pp-num">{x.rating.count}</span> {x.rating.count===1?'review':'reviews'}</p>}
-   {x.tags.length>0&&<ul className="pp-tags" aria-label="Collector tags">{x.tags.map(tag=><li key={tag}>{tag}</li>)}</ul>}
+   {(x.tags.length>0||(p.staff?.admin&&!p.staff.founder))&&<ul className="pp-tags" aria-label="Collector tags">{p.staff?.admin&&!p.staff.founder&&<li className="pp-tag-admin"><ShieldCheck size={14} aria-hidden="true"/> Admin</li>}{x.tags.map(tag=><li key={tag}>{tag}</li>)}</ul>}
    {own&&!p.visible&&<p className="pp-hidden-note">Hidden. Only you can see this profile.</p>}
    {p.provider&&<a className="ds-link" href={'/?section=Pressing&provider='+p.provider.id}><Wrench size={16} aria-hidden="true"/> Comic Workshop pro · {p.provider.name}</a>}
   </section>
-  </div>
 
-  {(p.bio||own)&&<div className="pp-origin"><p className="pp-caption-tag">Origin story</p><p className="pp-origin-text">{p.bio||'Tell collectors how you got into comics. Edit your profile to write your origin story.'}</p></div>}
+  {(p.bio||own)&&<div className="pp-origin"><p className="pp-caption-tag">Origin story…</p><p className="pp-origin-text">{p.bio||'Tell collectors how you got into comics. Edit your profile to write your origin story.'}</p></div>}
 
   <dl className="pp-stats">
-   <div><dt>Comics</dt><dd>{p.stats.comics.toLocaleString('en-US')}</dd></div>
+   <div><dt>Issues</dt><dd>{p.stats.comics.toLocaleString('en-US')}</dd></div>
    <div><dt>Keys</dt><dd>{x.keys.toLocaleString('en-US')}</dd></div>
    <div><dt>Wishlist</dt><dd>{p.stats.wants.toLocaleString('en-US')}</dd></div>
    <div><dt>Trades</dt><dd>{p.stats.trades.toLocaleString('en-US')}</dd></div>
   </dl>
+  </div>
 
   <div className="pp-tabs" role="tablist" aria-label="Profile sections" style={{gridTemplateColumns:`repeat(${tabs.length},minmax(0,1fr))`}}>
    {tabs.map((t,i)=><button key={t.id} id={ids+'-tab-'+t.id} type="button" role="tab" aria-selected={tab===t.id} aria-controls={ids+'-panel'} tabIndex={tab===t.id?0:-1} onClick={()=>setTab(t.id)} onKeyDown={event=>{if(event.key==='ArrowRight')select(tabs[(i+1)%tabs.length].id);if(event.key==='ArrowLeft')select(tabs[(i-1+tabs.length)%tabs.length].id)}}>{t.label}</button>)}
@@ -160,7 +161,6 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
      </>:<PickButton onClick={()=>onPick('grail')}/>}
     </section>}
 
-    {p.favorite&&<div className="pp-bubble"><p className="pp-eyebrow">Now reading</p><p className="pp-bubble-text">{p.favorite}</p></div>}
 
     {trophyPreview}
 

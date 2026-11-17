@@ -102,5 +102,30 @@
 .pp-fav-head h2{margin:0}
 .pp-wanted-top{display:flex;align-items:center;justify-content:center;gap:10px}
 .pp-wanted .pp-pick{background:rgba(255,255,255,.6)}
-.pp-head{position:relative;isolation:isolate;padding-bottom:16px;border-bottom:3px solid var(--ink)}
-.pp-head::before{content:"";position:absolute;inset:62px 0 0;z-index:-1;background:radial-gradient(circle,rgba(32,32,31,.16) 1.6px,transparent 1.8px) 0 0/14px 14px,var(--yellow);pointer-events:none}
+
+/* Header band (owner's mockup): dark ink with diagonal stripes behind the photo row, name card, origin story and
+   stats. Everything on it sits in its own cream/yellow box, so text never sits on the dark stripes. */
+.pp-head{position:relative;isolation:isolate;padding-bottom:18px;border-bottom:3px solid var(--ink)}
+.pp-head::before{content:"";position:absolute;inset:62px 0 0;z-index:-1;background:repeating-linear-gradient(135deg,#2a3340 0 14px,#232b36 14px 28px);pointer-events:none}
+.pp-cover-tag{position:absolute;left:10px;top:10px;padding:3px 10px;background:var(--yellow);border:2px solid var(--ink);font:800 15px/1.2 'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--ink)}
+.pp-round svg{box-sizing:content-box;padding:16px;border-radius:999px;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.pp-round-share svg{background:var(--red);color:#fff}
+.pp-round-edit svg{background:var(--yellow);color:var(--ink)}
+.pp-round-message svg{background:var(--yellow);color:var(--ink)}
+.pp-round span{background:var(--cream);color:var(--ink);border:2px solid var(--ink);text-transform:uppercase;letter-spacing:.8px}
+.pp-founder{position:relative;z-index:3;display:flex;align-items:center;gap:6px;width:max-content;margin:-20px auto 0;padding:6px 14px;background:var(--ink);color:var(--yellow);border:2px solid var(--yellow);border-radius:999px;font:800 16px/1 'Barlow Condensed',sans-serif;letter-spacing:1.2px;text-transform:uppercase}
+.pp-namecard{border-radius:14px}
+.pp-name{text-transform:uppercase}
+.pp-verified-line{color:#174c9e}
+.pp-meta{color:var(--muted)}.pp-meta b{color:var(--muted);font-weight:600}
+.pp-stars{color:var(--red)}
+.pp-tags li{border-radius:999px;background:#f6ecc8;border-width:2px;padding:4px 12px;font-weight:600;color:var(--ink)}
+.pp-tags li.pp-tag-admin{display:inline-flex;align-items:center;gap:5px;background:var(--blue);border-color:var(--ink);color:#fff;font-weight:700}
+.pp-origin{border-radius:12px;padding:14px 18px}
+.pp-caption-tag{background:none;color:var(--ink);padding:0;letter-spacing:1px}
+.pp-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:none;border:0;box-shadow:none}
+.pp-stats div{background:var(--cream);border:3px solid var(--ink);border-radius:12px;box-shadow:3px 3px 0 var(--ink);padding:10px 2px}
+.pp-stats div+div{border-left:3px solid var(--ink)}
+.pp-stats dd{color:var(--red);font-size:clamp(24px,7vw,34px)}
+.pp-stats dt{font-size:12px}
+.pp-stats div{display:flex;flex-direction:column-reverse;align-items:center}

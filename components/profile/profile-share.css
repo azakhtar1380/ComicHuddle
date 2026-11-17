@@ -34,3 +34,31 @@
 .ps-switch input:disabled{cursor:not-allowed;opacity:.6}
 .ps-switch.is-locked span{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .ps-note{margin:4px 0 0;font-size:13px}
+
+/* Slab share screen (owner's mockup): night background with soft rays, the slab, then one cream panel. */
+.share-dialog.dialog{background:#26282e;background-image:repeating-conic-gradient(from 0deg at 50% 38%,#2e3139 0 7.5deg,#26282e 7.5deg 15deg);color:#f9f6ef;border-color:#20201f}
+.share-dialog .close{color:#f9f6ef}
+.share-dialog .form-dialog{background:none;color:#f9f6ef}
+.ps{gap:18px}
+.ps .ps-title{margin:0;text-align:center;font:800 26px/1.1 'Barlow Condensed',sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:#f9f6ef}
+.ps .ps-card{width:min(100%,380px);border-radius:0;box-shadow:none;overflow:visible}
+.ps-panel{display:grid;gap:14px;padding:16px;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:18px}
+.ps-qr-row{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.ps .ps-qr{width:120px;height:120px;padding:8px;background:#fff;border:3px solid var(--ink);border-radius:12px}
+.ps .ps-qr svg{display:block;width:100%;height:100%}
+.ps-qr-title{margin:0 0 4px;font:800 24px/1 'Barlow Condensed',sans-serif;text-transform:uppercase;color:var(--ink)}
+.ps-qr-text{margin:0;font-size:14px;line-height:1.4;color:var(--ink)}
+.ps-link-field{display:flex;align-items:center;gap:6px;padding:5px 5px 5px 16px;background:#f6ecc8;border:3px solid var(--ink);border-radius:999px}
+.ps-link-field input{flex:1;min-width:0;min-height:40px;border:0;background:none;color:var(--ink);font-size:15px;font-weight:700}
+.ps-copy{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:3px solid var(--ink);border-radius:999px;background:var(--cream);color:var(--ink);font-weight:800;font-size:15px;white-space:nowrap}
+.ps .ps-buttons{gap:6px}
+.ps .ps-btn{font-size:12px;font-weight:700;color:var(--ink)}
+.ps .ps-btn-icon{width:54px;height:54px;border-radius:14px;border:3px solid var(--ink);box-shadow:2px 2px 0 var(--ink)}
+.ps .ps-ig .ps-btn-icon{border-color:var(--ink)}
+.ps .ps-fb .ps-btn-icon{border-color:var(--ink)}
+.ps .ps-sms .ps-btn-icon{border-color:var(--ink)}
+.ps .ps-save .ps-btn-icon{background:var(--yellow)}
+.ps .ps-chat,.ps .ps-switches{border-radius:14px}
+.ps .ps-switches{color:var(--ink)}
+@media (max-width:380px){.ps .ps-btn-icon{width:48px;height:48px}.ps .ps-qr{width:100px;height:100px}}
+.share-dialog .form-dialog .ps-title,.share-dialog .ps h2.ps-title{margin:0;font:800 26px/1.1 "Barlow Condensed",sans-serif;letter-spacing:1.5px;color:#f9f6ef}

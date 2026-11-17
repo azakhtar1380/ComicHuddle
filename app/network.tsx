@@ -70,10 +70,10 @@ export function useCollectorNetwork(signedIn:boolean,notify:(s:string)=>void){
  return {data,ready,error,busy,actionError,clearActionError,refresh,act};
 }
 type Net=ReturnType<typeof useCollectorNetwork>;
-export function Modal({children,label,onClose,wide=false}:{children:ReactNode;label:string;onClose:()=>void;wide?:boolean}){
+export function Modal({children,label,onClose,wide=false,className=''}:{children:ReactNode;label:string;onClose:()=>void;wide?:boolean;className?:string}){
  const ref=useRef<HTMLDivElement>(null),close=useRef(onClose);close.current=onClose;
  useEffect(()=>activateDialog(ref.current,()=>close.current()),[]);
- return <div className="overlay" onClick={onClose}><div className={'dialog network-dialog '+(wide?'wide-dialog':'')} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} ref={ref} onClick={e=>e.stopPropagation()}><button className="close" aria-label={'Close '+label} onClick={onClose}><X size={22}/></button>{children}</div></div>;
+ return <div className="overlay" onClick={onClose}><div className={'dialog network-dialog '+(wide?'wide-dialog ':'')+className} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} ref={ref} onClick={e=>e.stopPropagation()}><button className="close" aria-label={'Close '+label} onClick={onClose}><X size={22}/></button>{children}</div></div>;
 }
 export function ComicArt({issue,book,small=false}:{issue?:Issue;book?:ShowcaseBook;small?:boolean}){
  const record=issue||(book?bookIssue(book):undefined),url=book?.photoId?'/api/media?id='+book.photoId+(small?'&size=thumbnail':''):book?.cover||record?.cover,id=record?.id??book?.directoryIssueId??(book?listingDirectoryId(book):null);
@@ -250,7 +250,7 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
   if(picking==='comic')return <IssueSheet kind="comic" current={x?.favoriteComic?asIssue(x.favoriteComic):null} onClose={close} onSaved={saved}/>;
   return <IssueSheet kind="grail" current={x?.grail?asIssue(x.grail):null} reward={x?.grail?.reward||''} onClose={close} onSaved={saved}/>;
  })()}
- {share&&<Modal label="Share your profile" wide onClose={()=>setShare(null)}><div className="form-dialog nw-join"><ProfileShare p={share as ProfileView} own={share.id===me?.id} trophy={share.id===me?.id?shareTrophy:null} notice={notice} onSettingsSaved={()=>void refreshOwn()}/></div></Modal>}
+ {share&&<Modal label="Share your profile" wide className="share-dialog" onClose={()=>setShare(null)}><div className="form-dialog nw-join"><ProfileShare p={share as ProfileView} own={share.id===me?.id} trophy={share.id===me?.id?shareTrophy:null} notice={notice} onSettingsSaved={()=>void refreshOwn()}/></div></Modal>}
  {report&&<Modal label="Report this" onClose={()=>setReport(null)}><div className="form-dialog nw-join">
   <p className="ds-eyebrow">Report</p><h2 className="nw-join-title">Something <span>not okay?</span></h2>
   <form className="nw-join-form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget),r=await net.act({action:'report',targetType:report.type,targetId:report.id,reason:String(f.get('reason'))});if(r){setReport(null);notice('Thanks. We’ll take a look.')}}}>

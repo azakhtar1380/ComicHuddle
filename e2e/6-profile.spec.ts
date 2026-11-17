@@ -93,13 +93,14 @@ test.describe('My profile',()=>{
   await open(page,'/@'+ACCOUNTS.seller.handle);
   await page.getByRole('button',{name:'Share',exact:true}).first().click();
   const dialog=page.getByRole('dialog',{name:'Share your profile'});
-  // One card (no style toggle), drawn as light HTML with the real QR code inside.
+  // One slab card (no style toggle), drawn as light HTML; the real QR code sits under it.
   await expect(dialog.getByText('Trading card',{exact:true})).toHaveCount(0);
   const card=dialog.getByRole('img',{name:/Share card preview for/});
   await expect(card).toBeVisible();
   await expectHuddlesBottomRight(card.locator('.scp-photo'),card.locator('.scp-huddles'));
-  await expect(card.locator('.scp-qr svg')).toBeVisible();
-  await expect(card.getByText('@'+ACCOUNTS.seller.handle,{exact:true})).toBeVisible();
+  await expect(dialog.getByRole('img',{name:/QR code for/})).toBeVisible();
+  await expect(dialog.getByText('Scan at the con')).toBeVisible();
+  await expect(card.getByText('comichuddle.com/@'+ACCOUNTS.seller.handle,{exact:true})).toBeVisible();
   await dialog.getByRole('button',{name:'Copy'}).click();
   await expect(dialog.getByRole('button',{name:'Copied!'})).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Copy'})).toBeVisible({timeout:4000});
