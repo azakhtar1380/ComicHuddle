@@ -1,8 +1,12 @@
 'use client';
-// Saved card + shipping address for auctions. The card itself is typed only on Stripe's page; we keep the
+// Saved card + shipping address for auctions. The card is entered in Stripe's own form on this page (Apple Pay,
+// Google Pay or a card; components/saved-card-elements.tsx), or on Stripe's page as a fallback; we keep only the
 // brand and last 4 digits. Used in the Wallet and in front of the bid form (lib/saved-cards.ts).
 import {useCallback,useEffect,useState,type FormEvent,type ReactNode} from 'react';
+import dynamic from 'next/dynamic';
 import {CreditCard,Lock,MapPin} from 'lucide-react';
+import PayMarks from './pay-marks';
+const SavedCardElements=dynamic(()=>import('./saved-card-elements'),{ssr:false,loading:()=><p className="scard-muted" role="status">Loading Apple Pay, Google Pay and card…</p>});
 import './saved-card.css';
 
 type Address={name:string;line1:string;line2:string;city:string;state:string;postalCode:string;country:'US'};
@@ -29,14 +33,16 @@ export function useSavedCard(enabled=true){
  return {status,setStatus,error,setError,confirming,reload:load};
 }
 
-export function SavedCardPanel({returnTo,heading='Card for auctions',intro,state}:{returnTo?:string;heading?:string;intro?:ReactNode;state?:ReturnType<typeof useSavedCard>}){
+export function SavedCardPanel({returnTo,heading='Card for auctions',intro,state,compact=false}:{returnTo?:string;heading?:string;intro?:ReactNode;state?:ReturnType<typeof useSavedCard>;compact?:boolean}){
  const own=useSavedCard(!state),{status,setStatus,error,setError,confirming}=state||own;
- const [editing,setEditing]=useState(false),[busy,setBusy]=useState(false);
- const card=status?.card,ready=!!card?.ready;
+ const [editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[pay,setPay]=useState<{publishableKey:string;clientSecret:string;done:string}|null>(null);
+ const card=status?.card,ready=!!card?.ready,[opened,setOpened]=useState(!compact);
  const back=()=>returnTo||(typeof window==='undefined'?'/':window.location.pathname+window.location.search);
  const address=(form:HTMLFormElement):Address=>{const f=new FormData(form),v=(k:string)=>String(f.get(k)||'').trim();return {name:v('name'),line1:v('line1'),line2:v('line2'),city:v('city'),state:v('state'),postalCode:v('postalCode'),country:'US'}};
  async function saveCard(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError('');
-  try{const data=await post({action:'save_card',shippingAddress:address(event.currentTarget),returnTo:back()});if(typeof data.url==='string'&&data.url.startsWith('https://checkout.stripe.com/'))window.location.assign(data.url);else throw new Error('Stripe didn’t open. Nothing was saved.')}
+  try{const data=await post({action:'save_card',shippingAddress:address(event.currentTarget),returnTo:back(),inPage:true});
+   if(typeof data.clientSecret==='string'&&typeof data.publishableKey==='string'&&typeof data.done==='string'){setPay({publishableKey:data.publishableKey,clientSecret:data.clientSecret,done:data.done});setBusy(false);return}
+   if(typeof data.url==='string'&&data.url.startsWith('https://checkout.stripe.com/'))window.location.assign(data.url);else throw new Error('Stripe didn’t open. Nothing was saved.')}
   catch(e){setError(e instanceof Error?e.message:'Nothing was saved.');setBusy(false)}}
  async function saveAddress(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError('');
   try{const data=await post({action:'save_address',shippingAddress:address(event.currentTarget)});setStatus(s=>s?{...s,card:data.card}:s);setEditing(false)}catch(e){setError(e instanceof Error?e.message:'Nothing was saved.')}finally{setBusy(false)}}
@@ -54,7 +60,9 @@ export function SavedCardPanel({returnTo,heading='Card for auctions',intro,state
  return <section className="scard" aria-labelledby="scard-title">
   <h3 id="scard-title" className="scard-title"><CreditCard size={19} aria-hidden/> {heading}</h3>
   {intro&&<div className="scard-intro">{intro}</div>}
-  {!status&&!error?<p className="scard-muted">{confirming?'Confirming your card with Stripe…':'Loading…'}</p>
+  {compact&&!opened&&status&&!ready?<div className="scard-summary"><p className="scard-muted">No payment method saved yet. You only need one to bid in auctions.</p><div className="scard-actions"><button type="button" className="ds-btn ds-btn-secondary" onClick={()=>setOpened(true)}>Add Apple Pay, Google Pay or a card</button><PayMarks/></div></div>
+  :pay?<SavedCardElements {...pay} onCancel={()=>setPay(null)}/>
+  :!status&&!error?<p className="scard-muted">{confirming?'Confirming your card with Stripe…':'Loading…'}</p>
   :ready&&!editing?<>
    <p className="scard-card"><strong>{brandName(card!.brand)} ending {card!.last4}</strong>{card!.exp&&<span> · expires {card!.exp}</span>}</p>
    {a&&<p className="scard-address"><MapPin size={15} aria-hidden/> {a.name}, {a.line1}{a.line2?', '+a.line2:''}, {a.city}, {a.state} {a.postalCode}</p>}
@@ -65,9 +73,9 @@ export function SavedCardPanel({returnTo,heading='Card for auctions',intro,state
    {ready&&<form className="scard-form" onSubmit={saveAddress}><p className="scard-muted">Update the address only, and keep your {brandName(card!.brand)} ending {card!.last4}:</p>{fields}<div className="scard-actions"><button className="ds-btn ds-btn-secondary" disabled={busy}>Save address</button><button type="button" className="ds-link" onClick={()=>setEditing(false)}>Cancel</button></div></form>}
    <form className="scard-form" onSubmit={saveCard}>
     {ready&&<p className="scard-muted">Or use a new card (we’ll save this address with it):</p>}
-    {!ready&&<p className="scard-muted">Add your shipping address, then enter your card on Stripe’s secure page. Nothing is charged now.</p>}
+    {!ready&&<p className="scard-muted">Step 1: your shipping address. Step 2: Apple Pay, Google Pay or a card, in Stripe’s secure form. Nothing is charged now.</p>}
     {fields}
-    <div className="scard-actions"><button className="ds-btn ds-btn-primary" disabled={busy||confirming}><Lock size={16} aria-hidden/> {busy?'Opening Stripe…':ready?'Save a new card':'Save card'}</button>{ready&&<button type="button" className="ds-link" onClick={()=>setEditing(false)}>Cancel</button>}</div>
+    <div className="scard-actions"><button className="ds-btn ds-btn-primary" disabled={busy||confirming}><Lock size={16} aria-hidden/> {busy?'Opening…':'Continue to payment'}</button><PayMarks/>{ready&&<button type="button" className="ds-link" onClick={()=>setEditing(false)}>Cancel</button>}</div>
     {status?.sandbox&&<p className="scard-muted">Test mode: use a Stripe test card such as 4242 4242 4242 4242.</p>}
    </form>
   </>}
@@ -79,6 +87,6 @@ export function SavedCardPanel({returnTo,heading='Card for auctions',intro,state
 export function useBidCardGate(active:boolean){
  const state=useSavedCard(active),required=!!state.status?.requiredForBids,ready=!!state.status?.card?.ready&&!!state.status.card.address;
  const blocked=active&&(!state.status?true:required&&!ready);
- const panel=blocked&&state.status?<SavedCardPanel state={state} heading="Save a card to bid" intro={<p>Before your first bid, save a card and your shipping address. If you win, we charge it automatically, so you don’t lose the comic to a missed payment.</p>}/>:blocked?<p className="scard-muted">Checking your saved card…</p>:null;
+ const panel=blocked&&state.status?<SavedCardPanel state={state} heading="Add a payment method to bid" intro={<p>Before your first bid, add Apple Pay, Google Pay or a card, and your shipping address. If you win, we charge it automatically, so you don’t lose the comic to a missed payment.</p>}/>:blocked?<p className="scard-muted">Checking your saved card…</p>:null;
  return {blocked,panel};
 }

@@ -10,3 +10,15 @@
 .scard-fields .scard-wide{grid-column:1/-1}
 .scard-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 @media (max-width:560px){.scard{padding:14px}.scard-fields{grid-template-columns:1fr 1fr}.scard-fields label:first-of-type:not(.scard-wide){grid-column:1/-1}}
+
+/* In-page Apple Pay / Google Pay / card (cleanup round). */
+.scard-pay{display:grid;gap:12px}
+.scard-pay-label{margin:0;font-weight:700;font-size:14px;color:var(--ink)}
+.scard-or{display:flex;align-items:center;gap:10px;margin:2px 0;font-size:13px;color:var(--muted)}
+.scard-or::before,.scard-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.pay-marks{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pay-mark{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border-radius:6px;font:600 12px/1 -apple-system,'Segoe UI',Roboto,sans-serif;white-space:nowrap}
+.pay-mark-apple{background:#000;color:#fff}
+.pay-mark-google{background:#fff;color:#3c4043;border:1px solid #dadce0}
+.pay-mark-google b{background:conic-gradient(from -45deg,#ea4335 0 25%,#4285f4 0 50%,#34a853 0 75%,#fbbc04 0);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.pay-mark-card{background:var(--cream);color:var(--ink);border:1px solid var(--ink)}

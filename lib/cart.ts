@@ -135,6 +135,7 @@ export async function cartView(db:Db,userId:string,environment:StripeSandboxEnv)
 const cartCheckoutSchema=z.object({
  action:z.literal('checkout'),requestId:z.string().uuid(),sandboxAcknowledged:z.literal(true),safePurchaseOptIn:z.boolean().default(false),
  shippingAddress:z.record(z.unknown()),
+ checkoutUiMode:z.enum(['hosted_page','elements']).default('hosted_page'),
  items:z.array(z.object({listingId,priceCents:z.number().int().min(0),shippingCents:z.number().int().min(0)}).strict()).min(1).max(CART_CHECKOUT_MAX_ITEMS)
 }).strict();
 
@@ -167,7 +168,7 @@ export async function cartCheckout(db:Db,profile:Profile,email:string,raw:Record
  for(const requested of input.items){
   const item=byId.get(requested.listingId)!;
   try{
-   const result=await commerceCheckout(db,profile,email,{action:'checkout',listingId:item.listingId,requestId:await itemRequestId(input.requestId,item.listingId),sandboxAcknowledged:true,fulfillment:'shipping',shippingAddress:input.shippingAddress,storeCreditCents:0,checkoutUiMode:'hosted_page',safePurchaseOptIn,waiveSafePurchase:false},environment);
+   const result=await commerceCheckout(db,profile,email,{action:'checkout',listingId:item.listingId,requestId:await itemRequestId(input.requestId,item.listingId),sandboxAcknowledged:true,fulfillment:'shipping',shippingAddress:input.shippingAddress,storeCreditCents:0,checkoutUiMode:input.checkoutUiMode,safePurchaseOptIn,waiveSafePurchase:false},environment);
    const order=result.order;
    if(!before.has(order.id))created.push(order.id);
    if(order.status!=='awaiting_payment')throw new ApiRequestError('This checkout attempt was already used. Start checkout again.',409);

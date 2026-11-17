@@ -12,12 +12,12 @@ export type SavedCard={brand:string;last4:string;exp:string;address:UsAddress|nu
 type CardRow={user_id:string;profile_id:string;stripe_customer_id:string;payment_method_id:string|null;card_brand:string;card_last4:string;card_exp:string;shipping_address:string;setup_session_id:string|null;status:string};
 export type SavedCardProcessor={
  createCustomer(input:{userId:string;profileId:string;email?:string},key:string):Promise<{id?:unknown}>;
- createSetupCheckout(input:{customerId:string;userId:string;successUrl:string;cancelUrl:string},key:string):Promise<{id?:unknown;url?:unknown}>;
+ createSetupCheckout(input:{customerId:string;userId:string;successUrl:string;cancelUrl:string;uiMode?:'hosted_page'|'elements'},key:string):Promise<{id?:unknown;url?:unknown;client_secret?:unknown}>;
  retrieveSavedCard(sessionId:string,binding:{userId:string;customerId:string}):Promise<{paymentMethodId:string;brand:string;last4:string;exp:string}>;
  detachPaymentMethod(paymentMethodId:string,key:string):Promise<unknown>;
 };
 
-export const saveCardSchema=z.object({action:z.literal('save_card'),shippingAddress:usAddressSchema,returnTo:z.string().max(300).optional()}).strict();
+export const saveCardSchema=z.object({action:z.literal('save_card'),shippingAddress:usAddressSchema,returnTo:z.string().max(300).optional(),inPage:z.boolean().optional()}).strict();
 export const saveAddressSchema=z.object({action:z.literal('save_address'),shippingAddress:usAddressSchema}).strict();
 export const confirmCardSchema=z.object({action:z.literal('confirm_card'),sessionId:z.string().regex(/^cs_(?:test|live)_[A-Za-z0-9]+$/).max(255)}).strict();
 export const removeCardSchema=z.object({action:z.literal('remove_card')}).strict();
@@ -48,12 +48,15 @@ async function customerFor(processor:SavedCardProcessor,input:{userId:string;pro
 const safeReturn=(value:string|undefined)=>value&&value.startsWith('/')&&!value.startsWith('//')&&!/[\u0000- \\]/.test(value)?value:'/wallet';
 
 /** Saves the address, then opens Stripe's card page. The current card stays in use until the new one is confirmed. */
-export async function startSaveCard(processor:SavedCardProcessor,input:{userId:string;profileId:string;email?:string|null;sandbox:0|1;raw:Record<string,unknown>}){
+export async function startSaveCard(processor:SavedCardProcessor,input:{userId:string;profileId:string;email?:string|null;sandbox:0|1;raw:Record<string,unknown>;publishableKey?:string|null}){
  const value=saveCardSchema.parse(input.raw),customerId=await customerFor(processor,input),back=safeReturn(value.returnTo);
  const join=back.includes('?')?'&':'?';
- const session=await processor.createSetupCheckout({customerId,userId:input.userId,successUrl:back+join+'card=saved&card_session={CHECKOUT_SESSION_ID}',cancelUrl:back+join+'card=cancelled'},'comichuddle_setup_'+crypto.randomUUID());
- if(typeof session.id!=='string'||typeof session.url!=='string')throw new ApiRequestError('Stripe could not open the card page. Nothing was saved.',502);
+ // In-page (Apple Pay, Google Pay, card) when the publishable key is set; otherwise Stripe's hosted page.
+ const inPage=!!value.inPage&&!!input.publishableKey;
+ const session=await processor.createSetupCheckout({customerId,userId:input.userId,successUrl:back+join+'card=saved&card_session={CHECKOUT_SESSION_ID}',cancelUrl:back+join+'card=cancelled',uiMode:inPage?'elements':'hosted_page'},'comichuddle_setup_'+crypto.randomUUID());
+ if(typeof session.id!=='string'||(inPage?typeof session.client_secret!=='string':typeof session.url!=='string'))throw new ApiRequestError('Stripe could not open the card form. Nothing was saved.',502);
  await getPool().query('UPDATE ch_web.buyer_saved_cards SET shipping_address=$3,setup_session_id=$4,updated_at=now() WHERE user_id=$1 AND sandbox=$2',[input.userId,input.sandbox,JSON.stringify(value.shippingAddress),session.id]);
+ if(inPage)return {clientSecret:session.client_secret as string,publishableKey:input.publishableKey!,done:back+join+'card=saved&card_session='+encodeURIComponent(session.id)};
  return {url:session.url};
 }
 export async function saveShippingAddress(userId:string,sandbox:0|1,raw:Record<string,unknown>){

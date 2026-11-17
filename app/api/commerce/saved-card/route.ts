@@ -7,7 +7,7 @@ import {profiles} from '../../../../db/schema';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../../lib/api-security';
 import {commerceError,savedCardRequiredForBids,type StripeSandboxEnv} from '../../../../lib/commerce';
 import {confirmCardSchema,confirmSavedCard,removeSavedCard,saveShippingAddress,savedCardView,startSaveCard} from '../../../../lib/saved-cards';
-import {stripeMode,stripeSandbox} from '../../../../lib/stripe-sandbox';
+import {stripeMode,stripePublishableKey,stripeSandbox} from '../../../../lib/stripe-sandbox';
 
 export const dynamic='force-dynamic';
 const environment=()=>env as unknown as StripeSandboxEnv;
@@ -28,7 +28,7 @@ export async function POST(req:Request){try{
  const [profile]=await db.select().from(profiles).where(eq(profiles.userId,user.userId));
  if(!profile)throw new ApiRequestError('Create your free collector profile first.',403);
  const flag=sandboxFlag(),processor=stripeSandbox(environment());
- if(action==='save_card')return privateJson(await startSaveCard(processor,{userId:user.userId,profileId:profile.id,email:user.email,sandbox:flag,raw}));
+ if(action==='save_card')return privateJson(await startSaveCard(processor,{userId:user.userId,profileId:profile.id,email:user.email,sandbox:flag,raw,publishableKey:stripePublishableKey(environment() as never)}));
  if(action==='save_address')return privateJson(await saveShippingAddress(user.userId,flag,raw));
  if(action==='confirm_card'){const value=confirmCardSchema.parse(raw);return privateJson(await confirmSavedCard(processor,user.userId,flag,value.sessionId))}
  return privateJson(await removeSavedCard(processor,user.userId,flag));

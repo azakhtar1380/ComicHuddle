@@ -109,7 +109,8 @@ test.describe('signed-in buyer',()=>{
   await open(page,'/?section=Orders');
   await expect(page.getByText(/sign in to/i)).toHaveCount(0);
   await open(page,'/?section=Wallet');
-  await expect(page.getByRole('heading',{name:/card for auctions/i})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/payment method for auctions/i})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Add Apple Pay, Google Pay or a card'})).toBeVisible();
   await open(page,'/?section=Messages');
   await expect(page.getByText(/sign in to view your messages/i)).toHaveCount(0);
  });

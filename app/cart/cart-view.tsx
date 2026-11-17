@@ -3,7 +3,10 @@ import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {AlertTriangle,ArrowUpRight,Bookmark,Clock,LockKeyhole,ShieldCheck,ShoppingCart,Trash2,Undo2} from 'lucide-react';
 import ResolvedComicCover from '../resolved-comic-cover';
+import dynamic from 'next/dynamic';
 import {usePaymentConfiguration} from '../marketplace-checkout';
+import PayMarks from '../../components/pay-marks';
+const StripePaymentElement=dynamic(()=>import('../stripe-payment-element'),{ssr:false,loading:()=><p role="status">Loading Apple Pay, Google Pay and card…</p>});
 import AccountPrompt from '../../components/account-prompt';
 import {notifyCartChanged,readGuestCart,removeFromGuestCart} from '../../components/cart/cart-store';
 import type {CartHold,CartItemView} from '../../lib/cart';
@@ -43,12 +46,15 @@ function ItemRow({item,busy,onAction,guest=false}:{item:CartItemView;busy:boolea
  </li>;
 }
 
-function Holds({holds,live,onChanged}:{holds:CartHold[];live:boolean;onChanged:()=>void}){
- const [busy,setBusy]=useState(''),[error,setError]=useState(''),[clock,setClock]=useState(()=>Date.now());
+function Holds({holds,live,onChanged,autoPay}:{holds:CartHold[];live:boolean;onChanged:()=>void;autoPay?:string|null}){
+ const [paying,setPaying]=useState<{orderId:string;publishableKey:string;clientSecret:string}|null>(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[clock,setClock]=useState(()=>Date.now());
  useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer)},[]);
  async function pay(hold:CartHold){
   setBusy(hold.orderId);setError('');
-  try{const result=await post('/api/commerce',{action:'resume_payment',orderId:hold.orderId}),url=paymentUrl(result.checkoutUrl);if(!url)throw Error('This payment can’t be opened from the cart. Open it from Orders.');window.location.assign(url)}
+  try{const result=await post('/api/commerce',{action:'resume_payment',orderId:hold.orderId});
+   // Same in-page form as Buy: Apple Pay, Google Pay or card.
+   if(typeof result.clientSecret==='string'&&typeof result.publishableKey==='string'){setPaying({orderId:hold.orderId,publishableKey:result.publishableKey,clientSecret:result.clientSecret});setBusy('');return}
+   const url=paymentUrl(result.checkoutUrl);if(!url)throw Error('This payment can’t be opened from the cart. Open it from Orders.');window.location.assign(url)}
   catch(problem){setError(problem instanceof Error?problem.message:'Couldn’t open the payment.');setBusy('');onChanged()}
  }
  async function release(hold:CartHold){
@@ -59,13 +65,17 @@ function Holds({holds,live,onChanged}:{holds:CartHold[];live:boolean;onChanged:(
   finally{setBusy('');onChanged()}
  }
  const total=holds.reduce((sum,hold)=>sum+hold.totalCents,0);
+ const auto=useRef('');
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ useEffect(()=>{const hold=autoPay?holds.find(h=>h.orderId===autoPay):null;if(hold&&auto.current!==autoPay){auto.current=autoPay!;void pay(hold)}},[autoPay,holds]);
  return <section className="cart-holds ds-card" aria-labelledby="cart-holds-title">
   <h2 id="cart-holds-title"><Clock size={18} aria-hidden/> Pay for your held comics</h2>
   <p>Nobody else can buy these while they’re held. Each one is a separate secure payment{live?'':' (test mode: use a Stripe test card)'}. After each payment you land in Orders. Come back here to pay the next one.</p>
   <ol className="cart-steps">{holds.map((hold,index)=>{const left=hold.reservedUntil?Math.max(0,Math.ceil((Date.parse(hold.reservedUntil)-clock)/60000)):null;return <li key={hold.orderId}>
    <span className="cart-step-no">{index+1}</span>
    <span className="cart-step-text"><strong>{hold.title}</strong><small>{usd(hold.totalCents)}{left!==null?` · held ${left} more ${left===1?'minute':'minutes'}`:''}</small></span>
-   <span className="cart-step-actions"><button type="button" className="ds-btn ds-btn-primary ds-btn-sm" disabled={!!busy} onClick={()=>void pay(hold)}>{busy===hold.orderId?'Opening…':'Pay '+usd(hold.totalCents)}<ArrowUpRight size={15} aria-hidden/></button><button type="button" className="ds-link" disabled={!!busy} onClick={()=>void release(hold)}>Release</button></span>
+   <span className="cart-step-actions"><button type="button" className="ds-btn ds-btn-primary ds-btn-sm" disabled={!!busy} onClick={()=>void pay(hold)}>{busy===hold.orderId?'Opening…':'Pay '+usd(hold.totalCents)}</button><button type="button" className="ds-link" disabled={!!busy} onClick={()=>void release(hold)}>Release</button></span>
+   {paying?.orderId===hold.orderId&&<div className="cart-pay-inline"><StripePaymentElement key={hold.orderId} publishableKey={paying.publishableKey} clientSecret={paying.clientSecret} orderId={hold.orderId}/></div>}
   </li>})}</ol>
   {holds.length>1&&<p className="cart-fine">Total for held comics: <strong>{usd(total)}</strong></p>}
   {error&&<p className="ds-error" role="alert">{error} <Link className="ds-link" href="/?section=Account&accountTab=Orders">View Orders</Link></p>}
@@ -76,7 +86,7 @@ export default function CartView(){
  const [data,setData]=useState<CartData|null>(null),[guest,setGuest]=useState(false),[loadError,setLoadError]=useState(''),[busy,setBusy]=useState(''),[notice,setNotice]=useState(''),[actionError,setActionError]=useState(''),[signInPrompt,setSignInPrompt]=useState(false);
  const [checkingOut,setCheckingOut]=useState(false),[submitting,setSubmitting]=useState(false),[checkoutError,setCheckoutError]=useState(''),[safePurchaseOptIn,setSafePurchaseOptIn]=useState(false);
  const intent=useRef<{key:string;id:string}|null>(null),inFlight=useRef(false);
- const payments=usePaymentConfiguration(),live=payments.data?.sandbox===false,checkoutEnabled=!!payments.data?.setup.checkoutEnabled&&!payments.error;
+ const payments=usePaymentConfiguration(),inPage=!!payments.data?.paymentElementEnabled,[autoPay,setAutoPay]=useState<string|null>(null),live=payments.data?.sandbox===false,checkoutEnabled=!!payments.data?.setup.checkoutEnabled&&!payments.error;
  const load=useCallback(async()=>{
   try{const response=await fetch('/api/cart',{credentials:'same-origin',cache:'no-store'}),body=await response.json().catch(()=>({})) as Record<string,unknown>;
    if(!response.ok)throw Error(typeof body.error==='string'?body.error:'Your cart couldn’t load.');
@@ -118,13 +128,14 @@ export default function CartView(){
   inFlight.current=true;setSubmitting(true);setCheckoutError('');
   const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),90000);
   try{
-   const response=await fetch('/api/cart',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:abort.signal,body:JSON.stringify({action:'checkout',requestId:intent.current.id,sandboxAcknowledged:form.get('ack')==='on',safePurchaseOptIn:optIn,shippingAddress,items})});
-   const result=await response.json().catch(()=>({})) as {error?:string;held?:{checkoutUrl:string|null}[]};
+   const response=await fetch('/api/cart',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},signal:abort.signal,body:JSON.stringify({action:'checkout',checkoutUiMode:inPage?'elements':'hosted_page',requestId:intent.current.id,sandboxAcknowledged:form.get('ack')==='on',safePurchaseOptIn:optIn,shippingAddress,items})});
+   const result=await response.json().catch(()=>({})) as {error?:string;held?:{orderId:string;checkoutUrl:string|null}[]};
    // A definitive refusal ends this attempt; a retry after a timeout reuses the same request id (never a second order).
    if(!response.ok){intent.current=null;throw Error(result.error||'Checkout couldn’t start. Nothing was charged.')}
    intent.current=null;notifyCartChanged();setCheckingOut(false);
    const first=paymentUrl(result.held?.[0]?.checkoutUrl);
-   if(first&&result.held?.length===1){window.location.assign(first);return}
+   if(!inPage&&first&&result.held?.length===1){window.location.assign(first);return}
+   if(inPage&&result.held?.[0])setAutoPay(result.held[0].orderId);
    setNotice('Your comics are held. Pay for each one below.');await load();window.scrollTo({top:0,behavior:'smooth'});
   }catch(problem){setCheckoutError(abort.signal.aborted?'Checkout is taking longer than expected. Check the held comics above or Orders before trying again.':problem instanceof Error?problem.message:'Checkout couldn’t start.');await load()}
   finally{clearTimeout(timeout);inFlight.current=false;setSubmitting(false)}
@@ -137,7 +148,7 @@ export default function CartView(){
   <div className="cart-col">
    {notice&&<p className="cart-notice" role="status">{notice}</p>}
    {actionError&&<p className="ds-error" role="alert">{actionError}</p>}
-   {data.holds.length>0&&<Holds holds={data.holds} live={live} onChanged={()=>void load()}/>}
+   {data.holds.length>0&&<Holds holds={data.holds} live={live} autoPay={autoPay} onChanged={()=>void load()}/>}
    {!active.length?<section className="cart-empty ds-card"><ShoppingCart size={34} aria-hidden/><h2>Your cart is empty</h2><p>Find a comic in the Marketplace and tap Add to cart.</p><Link className="ds-btn ds-btn-primary" href="/?section=Marketplace">Browse the Marketplace</Link></section>
    :groups.map(group=>{const shippable=group.items.filter(item=>item.checkoutReady),shipping=shippable.reduce((sum,item)=>sum+item.shippingCents,0),subtotal=shippable.reduce((sum,item)=>sum+item.priceCents,0);return <section key={group.seller.id||'removed'} className="cart-seller ds-card" aria-label={group.seller.name?'From '+group.seller.name:'Removed listings'}>
     <header className="cart-seller-head"><h2>{group.seller.name?<>From {group.seller.name}{group.seller.handle&&<small> @{group.seller.handle}</small>}</>:'Removed listings'}</h2>{group.seller.name&&<span>{group.items.length} {group.items.length===1?'comic':'comics'}</span>}</header>
@@ -161,7 +172,7 @@ export default function CartView(){
    {active.length>ready.length&&<p className="cart-fine">Comics marked above aren’t included in this total.</p>}
    {tooMany&&<p className="ds-error" role="status">Check out up to {data.limits.maxCheckoutItems} comics at a time. Save the rest for later.</p>}
    {guest?<><button type="button" className="ds-btn ds-btn-primary cart-checkout" disabled={!ready.length} onClick={()=>setSignInPrompt(true)}>Sign in to check out</button><p className="cart-fine">Your cart is saved on this device. When you sign in or create an account, it comes with you and you land back here.</p></>
-   :!checkingOut?<button type="button" className="ds-btn ds-btn-primary cart-checkout" disabled={!ready.length||tooMany||!checkoutEnabled} onClick={()=>setCheckingOut(true)}>Checkout</button>
+   :!checkingOut?<><button type="button" className="ds-btn ds-btn-primary cart-checkout" disabled={!ready.length||tooMany||!checkoutEnabled} onClick={()=>setCheckingOut(true)}>Checkout</button><PayMarks className="cart-pay-marks"/></>
    :<form className="cart-checkout-form" onSubmit={event=>void checkout(event)}>
     <h3>Ship to</h3>
     <label className="ds-field"><span>Recipient name *</span><input name="name" autoComplete="shipping name" required maxLength={100}/></label>

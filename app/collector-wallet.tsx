@@ -58,7 +58,7 @@ export default function CollectorWallet({showInfoLink=true}:{showInfoLink?:boole
    {conversionError&&<p role="alert" className="ds-error">{conversionError}</p>}
   </div>}
   <BankPayouts mode={mode}/>
-  <SavedCardPanel heading="Card for auctions" intro={<p>Auction bids need a saved card and shipping address. If you win, we charge it automatically.</p>}/>
+  <SavedCardPanel compact heading="Payment method for auctions" intro={<p>Bidding needs a saved payment method and a shipping address. If you win, we charge it automatically.</p>}/>
   <p className="cw2-note">{test?'Test sales are for trying out checkout. They aren’t real money and can’t be withdrawn.':'Money from comics you sell through checkout shows here once payment clears. Cash sales and books you mark sold yourself don’t count. Withdrawals aren’t available yet.'}</p>
 
   {data&&<div className="cw2-history">

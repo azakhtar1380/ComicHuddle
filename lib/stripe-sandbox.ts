@@ -499,17 +499,19 @@ export function stripeSandbox(env: StripeSandboxEnv, options: AdapterOptions = {
       return customer;
     },
     /** Stripe Checkout in setup mode: the buyer enters a card on Stripe's page; nothing is charged. */
-    async createSetupCheckout(input: {customerId: string; userId: string; successUrl: string; cancelUrl: string}, key: string) {
+    async createSetupCheckout(input: {customerId: string; userId: string; successUrl: string; cancelUrl: string; uiMode?: 'hosted_page'|'elements'}, key: string) {
       assertReady(); stripeId(input.customerId, 'cus_'); localId(input.userId, 'User ID'); idempotencyKey(key);
       const fields: Record<string, string> = {
-        mode: 'setup', ui_mode: 'hosted_page', currency: 'usd', customer: input.customerId, client_reference_id: input.userId,
-        'payment_method_types[0]': 'card',
-        success_url: returnUrl(new URL(input.successUrl, origin!).href, origin!), cancel_url: returnUrl(new URL(input.cancelUrl, origin!).href, origin!),
+        // Payment methods (card, Apple Pay, Google Pay) come from the Dashboard: this API version rejects payment_method_types.
+        mode: 'setup', ui_mode: input.uiMode === 'elements' ? 'elements' : 'hosted_page', currency: 'usd', customer: input.customerId, client_reference_id: input.userId,
+        ...(input.uiMode === 'elements' ? {return_url: returnUrl(new URL(input.successUrl, origin!).href, origin!)} : {success_url: returnUrl(new URL(input.successUrl, origin!).href, origin!), cancel_url: returnUrl(new URL(input.cancelUrl, origin!).href, origin!)}),
         'metadata[purpose]': 'saved_card', 'metadata[user_id]': input.userId,
         'setup_intent_data[metadata][purpose]': 'saved_card', 'setup_intent_data[metadata][user_id]': input.userId,
       };
       const session = object(await request('POST', 'checkout/sessions', fields, key), 'checkout.session');
-      stripeId(session.id, sessionPrefix); providerUrl(session.url, 'checkout.stripe.com');
+      stripeId(session.id, sessionPrefix);
+      if (input.uiMode === 'elements') { if (typeof session.client_secret !== 'string' || !session.client_secret.startsWith(String(session.id) + '_secret_') || session.client_secret.length > 512) fail('stripe_order_mismatch', 'Card setup secret does not match this session.', 502); }
+      else providerUrl(session.url, 'checkout.stripe.com');
       if (session.mode !== 'setup' || session.client_reference_id !== input.userId || objectId(session.customer) !== input.customerId)
         fail('stripe_order_mismatch', 'Card setup does not match this account.', 502);
       return session;
