@@ -56,6 +56,9 @@ There are two layers. Run both before anything goes live.
 16. **Names** (`e2e/16-names.spec.ts`): 2 name and 2 handle changes, staff words blocked, old handle held and redirected, the form shows changes left.
 17. **Founder** (`e2e/17-founder.spec.ts`): the founder email shows the Founder badge only, and the email never reaches the browser.
 18. **Scrolling** (`e2e/18-scroll.spec.ts`): after opening and closing the share window, a picker sheet, notifications and the account panel, the page still scrolls; Home, Directory and Marketplace scroll to the bottom.
+19. **Listing page** (`e2e/19-listing-page.spec.ts`): card images load (no 404s or empty images), the gallery is 4:5, each comic uses its own cover (never the listing photo), comics come before the seller card, and tapping a comic opens the issue.
+20. **Custom comic** (`e2e/20-custom-comic.spec.ts`): a seller adds a comic that isn't in the Directory; it shows a "Not in Directory" tag and never lands in the Directory or their collection.
+21. **Auction rules** (`e2e/21-auction-rules.spec.ts`): a live auction can't be taken down or relisted; notes and photos only; an admin can remove it; members can't.
 
 The "Trophy unlocked!" screen appears on the next page load after a test account earns a trophy; `e2e/fixtures.ts` closes it automatically except in the trophies test.
 
