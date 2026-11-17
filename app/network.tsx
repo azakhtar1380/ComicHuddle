@@ -4,7 +4,7 @@ import {SellerFeedback} from './community-feedback';
 import CollectorWallet from './collector-wallet';
 import ResolvedComicCover from './resolved-comic-cover';
 import {accountSignInPath} from '../lib/account-intent';
-import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {ArrowRight,ArrowUpRight,Check,Flag,Layers,MessageCircle,RefreshCw,Search,X} from 'lucide-react';
 import {parseCatalogSearchPage} from '../lib/catalog-picker-client';
 import {listingDirectoryId} from '../lib/shared-catalog';
@@ -22,7 +22,7 @@ import type {Vault} from '../lib/vault';
 import BusinessFields from '../components/profile/business-fields';
 import ProfilePage,{type PickKind} from '../components/profile/profile-page';
 import {CharacterSheet,FavoritesSheet,IssueSheet} from '../components/profile/directory-pickers';
-import ProfileShare from '../components/profile/profile-share';
+import ProfileShare from '../components/profile/profile-share-loader';
 import {TrophyPreview} from '../components/trophies/trophy-ui';
 import CollectionTab from '../components/collection/collection-tab';
 import {handOffBooksForSale} from '../lib/listing-draft';
@@ -162,6 +162,12 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
  const wantKey=tab==='Collectors'&&currentProfile?currentProfile.wantIds.slice(0,12).filter(id=>!catalog[id]&&!wantRecords[id]).join(','):'';
  useEffect(()=>{if(!wantKey)return;const controller=new AbortController();void fetch('/api/catalog?ids='+wantKey,{signal:controller.signal}).then(async response=>{if(!response.ok)throw Error();return parseCatalogSearchPage(await response.json())}).then(page=>{if(!controller.signal.aborted)setWantRecords(previous=>({...previous,...Object.fromEntries(page.issues.map(issue=>[issue.id,issue]))}))}).catch(()=>undefined);return()=>controller.abort()},[wantKey]);
  const openBook=(b:ShowcaseBook)=>{const id=b.directoryIssueId??listingDirectoryId(b)??bookIssue(b)?.id;if(id!==undefined&&id!==null)openIssue(id)};
+ // Panels that only change with the profile shown: kept as the same elements so opening the share window or a
+ // sheet does not re-render the wallet, payouts and trophy case.
+ const profileKey=currentProfile?.id||'',profileHandle=currentProfile?.handle||'';
+ const trophyEl=useMemo(()=>currentProfile?<TrophyPreview key={currentProfile.handle} handle={currentProfile.handle} own={own}/>:null,[profileHandle,own]); // eslint-disable-line react-hooks/exhaustive-deps
+ const reviewsEl=useMemo(()=>currentProfile?<section className="pp-card pp-block" aria-label="Seller feedback"><SellerFeedback profileId={currentProfile.id}/></section>:null,[profileKey]); // eslint-disable-line react-hooks/exhaustive-deps
+ const ownerEl=useMemo(()=>currentProfile?own?<section className="pp-card pp-block" aria-labelledby="nw-wallet"><div className="pp-block-head"><h2 id="nw-wallet"><span className="pp-eyebrow">Only you can see this</span>Wallet</h2><a className="ds-link" href="/wallet">How rewards work <ArrowUpRight size={16} aria-hidden="true"/></a></div><CollectorWallet key={currentProfile.id} showInfoLink={false}/></section>:undefined:undefined,[profileKey,own]); // eslint-disable-line react-hooks/exhaustive-deps
  return <>
  {['Marketplace','Collectors','Messages'].includes(tab)&&net.error&&<div className="network-error nw-error" role="alert"><strong>{net.error}</strong><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={()=>void net.refresh()}><RefreshCw size={16} aria-hidden="true"/> Try again</button></div>}
  {tab==='Marketplace'&&<Marketplace onOpenIssue={openIssue} commit={commit} onAddComic={onAddComic} addComicOpen={addComicOpen} net={net} vault={vault} gate={gate} notice={notice} openCollection={openCollection} marketIssue={marketIssue} clearIssue={clearMarketIssue} onSeller={handle=>void loadProfile(handle)} onMessage={(id,title)=>void startMessage(id,title)} onReport={id=>setReport({type:'listing',id})}/> }
@@ -176,9 +182,9 @@ export default function CollectorNetwork({initialCollector,profileTabRequest,onE
      tabRequest={profileTabRequest&&own?{tab:'collection',n:profileTabRequest.n}:null}
      collectionTab={<CollectionTab key={currentProfile.handle+(profileTabRequest?.n||0)} handle={currentProfile.handle} own={own} dmOpen={currentProfile.dmOpen} notice={notice} onIssue={openIssue} initialChip={own&&profileTabRequest?.chip==='trade'?'trade':'all'}
       owner={own?{vault,commit,saving,listedIds,onEditCopy:id=>onEditBook?.(id),onScan:()=>onScanComic?.(),onSell:ids=>{const free=ids.filter(id=>!listedIds.has(id));if(!free.length){notice('That comic is already listed for sale.');return}handOffBooksForSale(free);window.location.assign('/?'+new URLSearchParams({section:'Marketplace',sell:free.length>1?'collection':'single'}))}}:undefined}/>}
-     trophyPreview={<TrophyPreview key={currentProfile.handle} handle={currentProfile.handle} own={own}/>}
-     reviewsTab={<section className="pp-card pp-block" aria-label="Seller feedback"><SellerFeedback profileId={currentProfile.id}/></section>}
-     ownerExtras={own?<section className="pp-card pp-block" aria-labelledby="nw-wallet"><div className="pp-block-head"><h2 id="nw-wallet"><span className="pp-eyebrow">Only you can see this</span>Wallet</h2><a className="ds-link" href="/wallet">How rewards work <ArrowUpRight size={16} aria-hidden="true"/></a></div><CollectorWallet key={currentProfile.id} showInfoLink={false}/></section>:undefined}/>
+     trophyPreview={trophyEl}
+     reviewsTab={reviewsEl}
+     ownerExtras={ownerEl}/>
    :<div className="nw-invite ds-card"><ul>
      <li><b>Your collection is private.</b> You choose what to show.</li>
      <li><b>Six favorites.</b> Put your best books up front.</li>

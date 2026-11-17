@@ -37,7 +37,10 @@ const nextConfig: NextConfig = {
       { key: 'Referrer-Policy', value: 'same-origin' },
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
-    ] }];
+    ] },
+    // Mascot and brand art never change in place (new art gets a new file name).
+    { source: '/mascot/:file*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
+    { source: '/brand/:file*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] }];
   },
 };
 

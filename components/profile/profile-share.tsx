@@ -34,6 +34,9 @@ function buildPng(card:ShareCardData,qr:QrMatrix,sources:{avatar:string|null;cov
  pngCache.set(key,job);job.catch(()=>pngCache.delete(key));
  return job;
 }
+type QrCode={svg:string;matrix:QrMatrix};
+const qrCache=new Map<string,QrCode>();
+function qrFor(url:string){const hit=qrCache.get(url);if(hit)return hit;const q=qrcode(0,'M');q.addData(url);q.make();const count=q.getModuleCount(),code={svg:q.createSvgTag({cellSize:4,margin:0,scalable:true}),matrix:{count,dark:(r:number,c:number)=>q.isDark(r,c)}};qrCache.set(url,code);return code}
 const isPhone=()=>typeof navigator!=='undefined'&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 function InstagramGlyph(){return <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.2" fill="none" stroke="#fff" strokeWidth="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="#fff"/></svg>}
 function FacebookGlyph(){return <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="#fff" d="M13.6 21v-7.6h2.6l.4-3h-3V8.5c0-.9.3-1.5 1.5-1.5h1.6V4.3c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H8v3h2.5V21h3.1z"/></svg>}
@@ -49,9 +52,11 @@ export default function ProfileShare({p,own,notice,trophy,onSettingsSaved}:{p:Pr
   verified:p.verified?(p.isBusiness?'business':'person'):null,founder:!!p.staff?.founder,favoriteCharacter:x.favoriteCharacter?.name||null,
   grail:x.grail?`${x.grail.title} #${x.grail.number}`:null,avatar:p.avatarUrl||null,cover:x.coverUrl,trophy:trophy||null}),
  [p.name,p.handle,p.since,p.stats.comics,x.keys,rating,p.verified,p.isBusiness,p.staff?.founder,x.favoriteCharacter?.name,x.grail,p.avatarUrl,x.coverUrl,trophy]);
- const qr=useMemo(()=>{const q=qrcode(0,'M');q.addData(url);q.make();const count=q.getModuleCount();return {svg:q.createSvgTag({cellSize:4,margin:0,scalable:true}),matrix:{count,dark:(r:number,c:number)=>q.isDark(r,c)} as QrMatrix}},[url]);
+ // The QR code is built just after the window first paints, once per link for the session.
+ const [qr,setQr]=useState<QrCode|null>(()=>qrCache.get(url)||null);
+ useEffect(()=>{if(qr)return;const t=setTimeout(()=>setQr(qrFor(url)),0);return()=>clearTimeout(t)},[qr,url]);
  const filename=`comichuddle-${p.handle}.png`;
- const png=()=>buildPng(card,qr.matrix,{avatar:card.avatar,cover:card.cover});
+ const png=()=>buildPng(card,(qr||qrFor(url)).matrix,{avatar:card.avatar,cover:card.cover&&/[?&]id=/.test(card.cover)?card.cover+'&w=1080':card.cover});
  async function copyLink(){try{await navigator.clipboard.writeText(url);setCopied(false);setTimeout(()=>setCopied(true),0)}catch{notice('Copy didn’t work. Select the link and copy it.')}}
  const file=async()=>new File([await png()],filename,{type:'image/png'});
  async function run(name:string,action:()=>Promise<void>){if(working)return;setWorking(name);try{await action()}catch(error){if((error as Error)?.name!=='AbortError')notice(error instanceof Error&&error.message?error.message:'Sharing didn’t go through. Try again.')}finally{setWorking('')}}
@@ -76,7 +81,7 @@ export default function ProfileShare({p,own,notice,trophy,onSettingsSaved}:{p:Pr
  ];
  return <div className="ps">
   <p className="ds-eyebrow">Share</p><h2 className="ps-title">Show off <span>your shelf.</span></h2>
-  <div className="ps-card"><ShareCardPreview d={card} qrSvg={qr.svg} label={'Share card preview for '+p.name}/></div>
+  <div className="ps-card"><ShareCardPreview d={card} qrSvg={qr?.svg||''} label={'Share card preview for '+p.name}/></div>
   <div className="ps-link">
    <label htmlFor={ids+'-url'}>Your profile link</label>
    <div className="ps-link-field"><input id={ids+'-url'} readOnly value={url} onFocus={event=>event.currentTarget.select()}/><button type="button" className="ds-btn ds-btn-secondary ds-btn-sm" onClick={()=>void copyLink()}>{copied?<><Check size={16} aria-hidden="true"/> Copied!</>:<><Copy size={16} aria-hidden="true"/> Copy</>}</button></div>

@@ -21,8 +21,10 @@ export function activateDialog(element:HTMLElement|null,onClose:()=>void){
  const entry:DialogEntry={element,previous:document.activeElement as HTMLElement|null};
  if(!dialogs.length){previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden'}
  dialogs.push(entry);
- // A sliding drawer starts outside the viewport. Default focus scrolls toward it.
- focusInPlace(element);
+ let active=true;
+ // Focus right after the dialog first paints: focusing earlier forces a full-page layout before anything shows.
+ // (A sliding drawer starts outside the viewport; preventScroll keeps the page still.)
+ requestAnimationFrame(()=>setTimeout(()=>{if(active&&!element.contains(document.activeElement))focusInPlace(element)},0));
  const key=(event:KeyboardEvent)=>{
   if(dialogs.at(-1)!==entry)return;
   // A native modal owns its keyboard/focus behavior above this custom overlay.
@@ -39,7 +41,6 @@ export function activateDialog(element:HTMLElement|null,onClose:()=>void){
   }
  };
  document.addEventListener('keydown',key);
- let active=true;
  return()=>{
   if(!active)return;active=false;
   const wasTop=dialogs.at(-1)===entry;

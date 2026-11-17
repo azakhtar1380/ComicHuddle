@@ -55,11 +55,14 @@ export async function DELETE(req:Request){
 }
 export async function GET(req:Request){
  try{
-  const id=new URL(req.url).searchParams.get('id')||'';if(!idPattern.test(id))return json('Picture not found.',404);
+  const url=new URL(req.url),id=url.searchParams.get('id')||'';if(!idPattern.test(id))return json('Picture not found.',404);
+  // ?w=540 or ?w=1080: a smaller copy for the share card (the stored cover is 1500×500).
+  const width=Number(url.searchParams.get('w'));if(url.searchParams.has('w')&&![540,1080].includes(width))return json('Picture not found.',404);
   const row=await getPool().query<{visible:number;moderated:number|boolean|null;deletion_started_at:string|null}>('SELECT p.visible,p.moderated,p.deletion_started_at FROM ch_web.profile_extras x JOIN ch_web.profiles p ON p.id=x.profile_id WHERE x.cover_id=$1',[id]);
   const o=row.rows[0];if(!o||o.moderated||o.deletion_started_at)return json('Picture not found.',404);
   if(!Number(o.visible)&&!await getChatGPTUser())return json('Picture not found.',404);
   const object=await env.BUCKET.get('profile-covers/'+id);if(!object)return json('Picture not found.',404);
-  return new Response(Buffer.from(object.body),{headers:{'Content-Type':'image/webp','Cache-Control':'public, max-age=86400, immutable','X-Content-Type-Options':'nosniff'}});
+  const body=width?await sharp(Buffer.from(object.body)).resize({width}).webp({quality:80}).toBuffer():Buffer.from(object.body);
+  return new Response(new Uint8Array(body),{headers:{'Content-Type':'image/webp','Cache-Control':'public, max-age=86400, immutable','X-Content-Type-Options':'nosniff'}});
  }catch{return json('Picture not found.',404)}
 }

@@ -10,6 +10,9 @@ import {emptyExtras,profilePath,type ProfileExtras} from '../../lib/profile-page
 import {VerifiedBadge} from '../verified-badge';
 import AdminBadge from '../admin-badge';
 import GetVerified from './get-verified';
+import {preload} from 'react-dom';
+import {warmProfileShare} from './profile-share-loader';
+import {HUDDLES_SRC,LOGO_SRC} from '../../lib/share-cards';
 import BusinessCard from './business-card';
 import type {BusinessSummary} from './business-client';
 import './profile-page.css';
@@ -53,6 +56,10 @@ type Props={p:ProfileView;own:boolean;busy:boolean;wants:Record<number,Issue>;up
  art:(book:ShowcaseBook)=>ReactNode;collectionTab?:ReactNode;tabRequest?:{tab:ProfileTab;n:number}|null;reviewsTab:ReactNode;ownerExtras?:ReactNode;trophyPreview?:ReactNode};
 
 export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,onPick,onBook,onIssue,onReport,onMessage,onShare,onCollection,onPhoto,onCover,onCopyLink,art,collectionTab,reviewsTab,ownerExtras,trophyPreview,tabRequest}:Props){
+ // Tiny images the share card uses; the browser fetches them once and keeps them (long cache headers).
+ preload(HUDDLES_SRC,{as:'image',fetchPriority:'low'});preload(LOGO_SRC,{as:'image',fetchPriority:'low'});
+ // Warm the share window's code once the page is idle, so the first tap opens it at once.
+ useEffect(()=>{const w=window as Window&{requestIdleCallback?:(cb:()=>void,o?:{timeout:number})=>number;cancelIdleCallback?:(id:number)=>void};if(w.requestIdleCallback){const id=w.requestIdleCallback(warmProfileShare,{timeout:4000});return()=>w.cancelIdleCallback?.(id)}const t=setTimeout(warmProfileShare,2500);return()=>clearTimeout(t)},[]);
  const x=p.extras||emptyExtras,[tab,setTab]=useState<ProfileTab>('overview'),[menu,setMenu]=useState(false),menuRef=useRef<HTMLDivElement>(null),ids=useId();
  // Opening "My collection" from elsewhere selects the Collection tab.
  const [seenRequest,setSeenRequest]=useState(0);
@@ -73,7 +80,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
      {own&&<button type="button" role="menuitem" onClick={()=>{setMenu(false);onEdit()}}><Pencil size={16} aria-hidden="true"/> Edit profile</button>}
      {own&&<button type="button" role="menuitem" onClick={()=>{setMenu(false);onCollection()}}><Plus size={16} aria-hidden="true"/> My collection</button>}
      <button type="button" role="menuitem" onClick={()=>{setMenu(false);onCopyLink()}}><Link2 size={16} aria-hidden="true"/> Copy profile link</button>
-     <button type="button" role="menuitem" onClick={()=>{setMenu(false);onShare()}}><Share2 size={16} aria-hidden="true"/> Share card</button>
+     <button type="button" role="menuitem" onPointerEnter={warmProfileShare} onFocus={warmProfileShare} onClick={()=>{setMenu(false);onShare()}}><Share2 size={16} aria-hidden="true"/> Share card</button>
      {!own&&<button type="button" role="menuitem" onClick={()=>{setMenu(false);onReport()}}><Flag size={16} aria-hidden="true"/> Report this profile</button>}
     </div>}
    </div>
@@ -86,7 +93,7 @@ export default function ProfilePage({p,own,busy,wants,uploading,onBack,onEdit,on
 
   <div className="pp-head">
   <div className="pp-avatar-row">
-   <button type="button" className="pp-round pp-round-share" onClick={onShare}><Share2 size={22} aria-hidden="true"/><span>Share</span></button>
+   <button type="button" className="pp-round pp-round-share" onClick={onShare} onPointerEnter={warmProfileShare} onTouchStart={warmProfileShare} onFocus={warmProfileShare}><Share2 size={22} aria-hidden="true"/><span>Share</span></button>
    <ProfilePhoto url={p.avatarUrl} name={p.name}>
     {own&&fileButton(p.avatarUrl?'Replace profile photo':'Upload a profile photo',onPhoto,'pp-photo-camera',<Camera size={18} aria-hidden="true"/>,busy||!!uploading)}
    </ProfilePhoto>
