@@ -4,6 +4,7 @@ import {test,expect,open,signedInAs} from './fixtures';
 import {ACCOUNTS} from './accounts';
 import {PHOTO,addComicToCollection} from './helpers';
 import type {Page,Locator} from '@playwright/test';
+import {readFileSync} from 'node:fs';
 
 const box=async(locator:Locator)=>{const b=await locator.boundingBox();if(!b)throw Error('not visible');return b};
 /** Mr. Huddles stands at the photo's bottom-right: to the right of the photo's center, overlapping its right edge, bottoms level. */
@@ -85,22 +86,20 @@ test.describe('My profile',()=>{
   await expect(photo.locator('.pp-photo-empty')).toHaveCount(0);
   await expectHuddlesBottomRight(photo,wrap.locator('.pp-huddles'));
  });
- test('share cards keep Mr. Huddles at the photo’s bottom-right; all five buttons work or fall back',async({page,context})=>{
+ test('the share card keeps Mr. Huddles at the photo’s bottom-right; all five buttons work or fall back',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   // Never reach the real Facebook: the popup is a new page, so route on the whole context.
   await context.route(/facebook.com/,route=>route.fulfill({status:200,contentType:'text/html',body:'<title>share</title>'}));
   await open(page,'/@'+ACCOUNTS.seller.handle);
   await page.getByRole('button',{name:'Share',exact:true}).first().click();
   const dialog=page.getByRole('dialog',{name:'Share your profile'});
-  for(const style of ['Slab','Trading card']){
-   await dialog.getByText(style,{exact:true}).click();
-   await expect(dialog.locator('.ps-card')).toHaveAttribute('data-ready','true');
-   const card=dialog.locator('.ps-card svg');
-   await expect(card).toHaveAttribute('data-card',style==='Slab'?'slab':'trading');
-   await expectHuddlesBottomRight(card.locator('[data-role="avatar"]').first(),card.locator('[data-role="huddles"]'));
-  }
-  await expect(dialog.getByRole('img',{name:/QR code for/})).toBeVisible();
-  await expect(dialog.getByText('Scan at the con')).toBeVisible();
+  // One card (no style toggle), drawn as light HTML with the real QR code inside.
+  await expect(dialog.getByText('Trading card',{exact:true})).toHaveCount(0);
+  const card=dialog.getByRole('img',{name:/Share card preview for/});
+  await expect(card).toBeVisible();
+  await expectHuddlesBottomRight(card.locator('.scp-photo'),card.locator('.scp-huddles'));
+  await expect(card.locator('.scp-qr svg')).toBeVisible();
+  await expect(card.getByText('@'+ACCOUNTS.seller.handle,{exact:true})).toBeVisible();
   await dialog.getByRole('button',{name:'Copy'}).click();
   await expect(dialog.getByRole('button',{name:'Copied!'})).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Copy'})).toBeVisible({timeout:4000});
@@ -113,7 +112,8 @@ test.describe('My profile',()=>{
   expect(popup.url()).toContain('facebook.com/sharer/sharer.php?u=');await popup.close();
   if(!hasShare){await buttons.nth(2).click();await expect(page.getByText(/Texting isn’t available on this device, so we copied your link\.|copied your link/)).toBeVisible()}
   const [download]=await Promise.all([page.waitForEvent('download'),buttons.nth(3).click()]);
-  expect(download.suggestedFilename()).toMatch(/^comichuddle-qa_seller-(slab|trading)\.png$/);
+  expect(download.suggestedFilename()).toBe('comichuddle-qa_seller.png');
+  const png=readFileSync(await download.path());expect([png.readUInt32BE(16),png.readUInt32BE(20)],'story size').toEqual([1080,1920]);
   if(!hasShare){await buttons.nth(4).click();await expect(page.getByText('Sharing isn’t available here, so we copied your link.')).toBeVisible()}
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toMatch(/\/@qa_seller$/);
   await expect(dialog.getByRole('switch',{name:/Collection value/})).toBeDisabled();

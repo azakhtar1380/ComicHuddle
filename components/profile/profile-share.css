@@ -1,31 +1,22 @@
 .ps{display:grid;gap:16px;color:var(--ink)}
 .ps-title{margin:0;font-size:38px}
-.ps-styles{display:inline-flex;justify-self:start;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
-.ps-styles label{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;font:800 20px 'Barlow Condensed',sans-serif;cursor:pointer;background:var(--cream)}
-.ps-styles label+label{border-left:3px solid var(--ink)}
-.ps-styles input{position:absolute;opacity:0;pointer-events:none}
-.ps-styles label.is-on{background:var(--ink);color:var(--yellow)}
-.ps-styles label:focus-within{outline:3px solid var(--red);outline-offset:2px}
-.ps-card{width:min(100%,320px);justify-self:center;aspect-ratio:9/16;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);background:var(--paper)}
-.ps-card svg{display:block;width:100%;height:100%}
-.ps-row{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
-@media (max-width:520px){.ps-row{grid-template-columns:1fr;justify-items:center}}
-.ps-qr{margin:0;display:grid;justify-items:center;gap:4px}
-.ps-qr-code{width:132px;height:132px;background:#fff;border:3px solid var(--ink);padding:4px}
-.ps-qr-code svg{width:100%;height:100%;display:block}
-.ps-qr figcaption{font:800 18px 'Barlow Condensed',sans-serif;letter-spacing:.5px}
+.ps-card{width:min(100%,300px);justify-self:center;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px var(--ink)}
 .ps-link{display:grid;gap:6px;width:100%}
 .ps-link label{font-weight:700;font-size:14px}
 .ps-link-field{display:flex;gap:8px}
 .ps-link-field input{flex:1;min-width:0;min-height:44px;padding:0 10px;border:2px solid var(--ink);background:#fff;color:var(--ink);font-size:14px}
 .ps-buttons{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;list-style:none;margin:0;padding:0}
-.ps-btn{display:grid;justify-items:center;gap:6px;width:100%;min-height:44px;padding:4px 0;font-size:12px;font-weight:700;color:var(--ink)}
+.ps-btn{display:grid;justify-items:center;gap:6px;width:100%;min-height:44px;padding:4px 0;font-size:13px;font-weight:700;color:var(--ink)}
 .ps-btn-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:999px;border:2px solid var(--ink);background:var(--cream);color:var(--ink)}
 .ps-ig .ps-btn-icon{background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285aeb 90%);border-color:transparent}
 .ps-fb .ps-btn-icon{background:#1877f2;border-color:#1877f2}
 .ps-sms .ps-btn-icon{background:#34c759;border-color:#34c759;color:#fff}
 .ps-btn:hover .ps-btn-icon{transform:translateY(-1px)}
-.ps-btn[aria-busy="true"] .ps-btn-icon{opacity:.6}
+.ps-btn:disabled{cursor:progress}
+.ps-btn[aria-busy="true"] .ps-btn-icon{opacity:.85}
+.ps-spin{animation:ps-spin .8s linear infinite}
+@keyframes ps-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.ps-spin{animation-duration:2.4s}}
 .ps-chat{background:#e9e6de;border:2px solid var(--ink);padding:12px}
 .ps-chat-label{margin:0 0 6px;font:800 16px 'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--ink)}
 .ps-chat-bubble{max-width:320px;margin-left:auto;background:#1d5fc4;color:#fff;border-radius:18px 18px 4px 18px;padding:8px;overflow:hidden}

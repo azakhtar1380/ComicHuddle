@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {extrasInput} from '../lib/profile-extras';
 import {shortKeyNote} from '../lib/issue-keys';
-import {shareCardSvg,type ShareCardData} from '../lib/share-cards';
+import {L,cardKey,extraLines,nameFontSize,statChips,type ShareCardData} from '../lib/share-cards';
 import {MAX_PROFILE_TAGS} from '../lib/profile-page-types';
 
 test('profile details: tags, references and reward are validated',()=>{
@@ -25,16 +25,14 @@ test('short key notes for small labels',()=>{
  assert.equal(shortKeyNote([],null),'Key issue');
 });
 
-test('share cards: both styles carry the photo, Mr. Huddles, the verified check and no value',()=>{
- const data:ShareCardData={name:'Ava <Reads>',handle:'ava',since:2009,comics:1200,keys:42,verified:'person',favoriteCharacter:'Storm',grail:'Hulk #181',avatar:'data:image/png;base64,AA',cover:null,huddles:'/mascot/huddles-cutout.webp',sky:['#efd369','#f3c94a'],accent:'#c83e30'};
- for(const style of ['slab','trading'] as const){
-  const svg=shareCardSvg(style,data);
-  assert.match(svg,new RegExp(`data-card="${style}"`));
-  assert.match(svg,/data-role="huddles"/);assert.match(svg,/data-role="avatar"/);assert.match(svg,/data-role="verified"/);
-  assert.match(svg,/Ava &lt;Reads&gt;/,'names are escaped');
-  assert.doesNotMatch(svg,/\$|value|price/i,'never a dollar value');
- }
- assert.match(shareCardSvg('slab',data),/9\.8/);assert.match(shareCardSvg('slab',data),/COLLECTOR/);
- assert.match(shareCardSvg('trading',data),/No\. 0001/);assert.match(shareCardSvg('trading',data),/POWER GRID/);
- assert.doesNotMatch(shareCardSvg('slab',{...data,verified:null}),/data-role="verified"/);
+test('share card: one design with stats, only the set extras, readable sizes and never a value',()=>{
+ const data:ShareCardData={name:'Ava Reads',handle:'ava',since:2009,comics:1200,keys:1,rating:'4.8',verified:'person',founder:false,favoriteCharacter:'Storm',grail:null,avatar:'/api/avatar?id=x',cover:null};
+ assert.deepEqual(statChips(data),[{value:'1,200',label:'Comics'},{value:'1',label:'Key'},{value:'★ 4.8',label:'Rating'}]);
+ assert.equal(statChips({...data,rating:null})[2].value,'New');
+ assert.deepEqual(extraLines(data),['Fave: Storm'],'only the extras that are set');
+ assert.deepEqual(extraLines({...data,grail:'Hulk #181',trophy:{name:'Key Hunter',tier:'Gold'}}),['Fave: Storm','Grail: Hulk #181','Trophy: Key Hunter · Gold']);
+ assert.equal(nameFontSize('Al'),108);assert.ok(nameFontSize('A very long collector name here')>=60);
+ for(const size of [L.handle.size,L.since.size,L.stats.label,L.extras.size,L.link.small])assert.ok(size>=28,'no text smaller than 28px at 1080 wide');
+ assert.doesNotMatch([...statChips(data).flatMap(c=>[c.value,c.label]),...extraLines(data)].join(' '),/\$|value|price/i,'never a dollar value');
+ assert.notEqual(cardKey(data),cardKey({...data,comics:1201}),'the PNG cache changes when the profile does');
 });

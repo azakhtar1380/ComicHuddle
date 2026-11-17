@@ -1,71 +1,144 @@
-// Profile share cards as SVG (1080×1920 story size): "slab" (a generic clear graded-slab look, no grading
-// company branding) and "trading card". The same markup is shown inline as the preview and drawn to a canvas
-// for the PNG. Images must be data: URLs for the PNG export. No publisher art: the window shows the member's
-// own cover photo or the world pattern.
-export type ShareCardStyle='slab'|'trading';
-export type ShareCardData={name:string;handle:string;since:number;comics:number;keys:number;verified:'person'|'business'|null;
- favoriteCharacter:string|null;grail:string|null;avatar:string|null;cover:string|null;huddles:string;sky:[string,string];accent:string;trophy?:{name:string;tier:string}|null};
-const esc=(s:string)=>s.replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]!));
+// The profile share card: one design, story size (1080×1920). The layout below is the single source for both the
+// in-app preview (components/profile/share-card-preview.tsx, plain HTML + <img>, scaled with CSS) and the PNG
+// (drawShareCard on a canvas, only when someone taps Instagram, Save card or More). No publisher art: the top is
+// the member's own cover photo, or a plain pattern.
+export type ShareCardData={name:string;handle:string;since:number;comics:number;keys:number;rating:string|null;
+ verified:'person'|'business'|null;founder:boolean;favoriteCharacter:string|null;grail:string|null;
+ avatar:string|null;cover:string|null;trophy?:{name:string;tier:string}|null};
+
+export const INK='#20201f',CREAM='#f9f6ef',PAPER='#f5f1e7',YELLOW='#efd369',RED='#c83e30',BLUE='#345a6a',MUTED='#5c5850',CHECK='#1d5fc4';
+export const HEAD_FONT="'Barlow Condensed','Arial Narrow',Impact,sans-serif",BODY_FONT="'DM Sans',Arial,sans-serif";
+export const HUDDLES_SRC='/mascot/huddles-cutout.webp',LOGO_SRC='/brand/comichuddle-logo-cutout.webp';
+
+/** Layout in 1080×1920 card pixels. */
+export const L={
+ W:1080,H:1920,
+ card:{x:70,y:110,w:940,h:1700,r:44,border:10,shadow:22},
+ cover:{h:500},
+ photo:{cx:540,cy:610,r:150,ring:18},
+ huddles:{h:206,w:144},           // the cutout is 359×512
+ name:{y:930,max:800,size:108,min:60},
+ handle:{y:1004,size:44},
+ since:{y:1060,size:38},
+ stats:{y:1110,h:170,w:262,gap:27,value:76,label:30},
+ extras:{y:1330,h:76,gap:18,size:34,max:820},
+ strip:{y:1600,h:210},
+ logo:{x:110,h:150,w:186},        // the logo is 297×240
+ qr:{size:150,pad:16},
+ link:{size:34,small:30},
+} as const;
+
+export function nameFontSize(name:string){
+ // Barlow Condensed averages about 0.46em per character at weight 800.
+ return Math.max(L.name.min,Math.min(L.name.size,Math.floor(L.name.max/Math.max(1,name.length*.46))));
+}
+export function statChips(d:ShareCardData){
+ return [{value:d.comics.toLocaleString('en-US'),label:d.comics===1?'Comic':'Comics'},{value:d.keys.toLocaleString('en-US'),label:d.keys===1?'Key':'Keys'},{value:d.rating?'★ '+d.rating:'New',label:'Rating'}];
+}
 const clip=(s:string,n:number)=>s.length>n?s.slice(0,n-1)+'…':s;
-const HEAD="font-family=\"'Barlow Condensed','Arial Narrow',Impact,sans-serif\" font-weight=\"800\"",BODY="font-family=\"'DM Sans',Arial,sans-serif\"";
-const rosette=(x:number,y:number,s:number)=>`<g transform="translate(${x} ${y}) scale(${s/24})" data-role="verified"><path fill="#1d5fc4" d="M12 1.5l2.6 1.9 3.2-.2 1 3.1 2.7 1.8-1 3.1 1 3.1-2.7 1.8-1 3.1-3.2-.2L12 22.5l-2.6-1.9-3.2.2-1-3.1-2.7-1.8 1-3.1-1-3.1 2.7-1.8 1-3.1 3.2.2z"/><path fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M7.6 12.3l3 3 5.8-6.3"/></g>`;
-/** Avatar (or the person outline) in a circle with Mr. Huddles at its bottom-right, same proportions as the profile (124px photo, 84px Huddles). */
-function avatarBlock(d:ShareCardData,cx:number,cy:number,r:number){
- const size=r*2,hud=size*84/124,hudW=hud*359/512,hx=cx+r-hudW*.32,hy=cy+r-hud+size*6/124;
- const photo=d.avatar?`<image href="${esc(d.avatar)}" x="${cx-r}" y="${cy-r}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatarClip)" data-role="avatar"/>`
-  :`<g data-role="avatar"><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#dotsLight)"/><circle cx="${cx}" cy="${cy-r*.18}" r="${r*.3}" fill="none" stroke="#20201f" stroke-width="${r*.07}"/><path d="M${cx-r*.55} ${cy+r*.62}c${r*.06}-${r*.36} ${r*.3}-${r*.52} ${r*.55}-${r*.52}s${r*.49} ${r*.16} ${r*.55} ${r*.52}" fill="none" stroke="#20201f" stroke-width="${r*.07}" stroke-linecap="round"/></g>`;
- return `<defs><clipPath id="avatarClip"><circle cx="${cx}" cy="${cy}" r="${r}"/></clipPath></defs>
-  <circle cx="${cx}" cy="${cy}" r="${r+r*.1}" fill="none" stroke="#efd369" stroke-width="${Math.max(4,r*.035)}"/>
-  <circle cx="${cx}" cy="${cy}" r="${r}" fill="#f9f6ef"/>${photo}<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#20201f" stroke-width="${Math.max(6,r*.05)}"/>
-  <image href="${esc(d.huddles)}" x="${hx}" y="${hy}" width="${hudW}" height="${hud}" filter="url(#hudOutline)" data-role="huddles"/>`;
+export function extraLines(d:ShareCardData){
+ return [d.favoriteCharacter?'Fave: '+clip(d.favoriteCharacter,34):null,d.grail?'Grail: '+clip(d.grail,34):null,d.trophy?'Trophy: '+clip(d.trophy.name+' · '+d.trophy.tier,32):null].filter((x):x is string=>!!x);
 }
-const defs=(d:ShareCardData,w:number,h:number)=>`<defs>
- <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${d.sky[0]}"/><stop offset="1" stop-color="${d.sky[1]}"/></linearGradient>
- <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.6" fill="#20201f" opacity=".16"/></pattern>
- <pattern id="dotsLight" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#f9f6ef"/><circle cx="3" cy="3" r="2" fill="#20201f" opacity=".14"/></pattern>
- <filter id="hudOutline" x="-20%" y="-20%" width="140%" height="140%"><feMorphology in="SourceAlpha" operator="dilate" radius="3" result="grow"/><feFlood flood-color="#fff"/><feComposite in2="grow" operator="in" result="white"/><feOffset in="grow" dx="6" dy="6" result="shift"/><feFlood flood-color="#20201f"/><feComposite in2="shift" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="white"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
- <linearGradient id="plastic" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".75"/><stop offset=".5" stop-color="#e9eef2" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity=".7"/></linearGradient>
-</defs><rect width="${w}" height="${h}" fill="url(#sky)"/><rect width="${w}" height="${h}" fill="url(#dots)"/>`;
-const nameLine=(d:ShareCardData,x:number,y:number,size:number,fill:string,max:number)=>{const name=clip(d.name,max),width=name.length*size*.47;
- return `<text x="${x}" y="${y}" ${HEAD} font-size="${size}" fill="${fill}" data-role="name">${esc(name)}</text>${d.verified?rosette(x+width+12,y-size*.72,size*.62):''}`};
+/** Fewer extra lines: move the name, stats and extras down so the block stays centered above the strip. */
+export const blockShift=(d:ShareCardData)=>Math.round((3-extraLines(d).length)*(L.extras.h+L.extras.gap)/2);
+export const cardKey=(d:ShareCardData)=>JSON.stringify(d);
 
-export function slabCardSvg(d:ShareCardData){
- const W=1080,H=1920,x=110,w=860;
- const window=d.cover?`<image href="${esc(d.cover)}" x="${x+50}" y="760" width="${w-100}" height="940" preserveAspectRatio="xMidYMid slice"/>`:`<rect x="${x+50}" y="760" width="${w-100}" height="940" fill="url(#sky)"/><rect x="${x+50}" y="760" width="${w-100}" height="940" fill="url(#dots)"/>`;
- const lines=[`@${d.handle} · Since ${d.since}`,`${d.comics.toLocaleString('en-US')} comics · ${d.keys.toLocaleString('en-US')} keys`,d.favoriteCharacter?`Favorite: ${d.favoriteCharacter}`:null,d.grail?`Grail: ${d.grail}`:null,d.trophy?`Trophy: ${d.trophy.name} · ${d.trophy.tier}`:null].filter(Boolean) as string[];
- return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-card="slab">${defs(d,W,H)}
-  <rect x="${x-14}" y="96" width="${w+28}" height="1700" rx="46" fill="#20201f" opacity=".9" transform="translate(16 16)"/>
-  <rect x="${x-14}" y="96" width="${w+28}" height="1700" rx="46" fill="url(#plastic)" stroke="#20201f" stroke-width="10"/>
-  <rect x="${x+20}" y="130" width="${w-40}" height="560" rx="16" fill="#f9f6ef" stroke="#20201f" stroke-width="8"/>
-  <rect x="${x+44}" y="156" width="210" height="190" fill="#c83e30" stroke="#20201f" stroke-width="6"/>
-  <text x="${x+149}" y="276" text-anchor="middle" ${HEAD} font-size="120" fill="#fff">9.8</text>
-  <text x="${x+149}" y="328" text-anchor="middle" ${HEAD} font-size="38" fill="#fff" letter-spacing="3">COLLECTOR</text>
-  ${nameLine(d,x+280,236,82,'#20201f',14)}
-  <text x="${x+282}" y="300" ${BODY} font-size="34" font-weight="700" fill="#20201f">${esc(d.verified?(d.verified==='business'?'Verified business':'Verified collector'):'ComicHuddle collector')}</text>
-  ${lines.map((line,i)=>`<text x="${x+48}" y="${420+i*58}" ${BODY} font-size="36" fill="#20201f" font-weight="${i<2?700:500}">${esc(clip(line,40))}</text>`).join('')}
-  <rect x="${x+50}" y="760" width="${w-100}" height="940" fill="#20201f"/>${window}
-  <rect x="${x+50}" y="760" width="${w-100}" height="940" fill="none" stroke="#20201f" stroke-width="8"/>
-  ${avatarBlock(d,W/2,1220,190)}
-  <text x="${W/2}" y="1870" text-anchor="middle" ${HEAD} font-size="44" fill="#20201f">COMICHUDDLE.COM/@${esc(d.handle.toUpperCase())}</text>
- </svg>`;
+type Img=CanvasImageSource&{width:number;height:number};
+export type CardImages={avatar:Img|null;cover:Img|null;huddles:Img|null;logo:Img|null};
+export type QrMatrix={count:number;dark:(row:number,col:number)=>boolean};
+
+function rounded(ctx:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,r:number|[number,number,number,number]){
+ const [a,b,c,e]=typeof r==='number'?[r,r,r,r]:r;
+ ctx.beginPath();ctx.moveTo(x+a,y);ctx.lineTo(x+w-b,y);ctx.quadraticCurveTo(x+w,y,x+w,y+b);ctx.lineTo(x+w,y+h-c);ctx.quadraticCurveTo(x+w,y+h,x+w-c,y+h);
+ ctx.lineTo(x+e,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-e);ctx.lineTo(x,y+a);ctx.quadraticCurveTo(x,y,x+a,y);ctx.closePath();
+}
+function cover(ctx:CanvasRenderingContext2D,img:Img,x:number,y:number,w:number,h:number){
+ const s=Math.max(w/img.width,h/img.height),sw=w/s,sh=h/s;ctx.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,x,y,w,h);
+}
+function dots(ctx:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,step:number,r:number,alpha:number){
+ ctx.save();ctx.fillStyle=`rgba(32,32,31,${alpha})`;for(let yy=y+step/2;yy<y+h;yy+=step)for(let xx=x+step/2;xx<x+w;xx+=step){ctx.beginPath();ctx.arc(xx,yy,r,0,Math.PI*2);ctx.fill()}ctx.restore();
+}
+function fitText(ctx:CanvasRenderingContext2D,text:string,weight:number,font:string,size:number,min:number,max:number){
+ let s=size;ctx.font=`${weight} ${s}px ${font}`;while(s>min&&ctx.measureText(text).width>max){s-=2;ctx.font=`${weight} ${s}px ${font}`}return s;
+}
+function silhouette(img:Img,color:string){
+ const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d')!;x.drawImage(img,0,0);x.globalCompositeOperation='source-in';x.fillStyle=color;x.fillRect(0,0,c.width,c.height);return c;
+}
+function verifiedMark(ctx:CanvasRenderingContext2D,x:number,y:number,size:number,founder:boolean){
+ ctx.save();ctx.translate(x,y);
+ if(founder){ctx.fillStyle=YELLOW;ctx.strokeStyle=INK;ctx.lineWidth=size*.09;ctx.beginPath();ctx.arc(size/2,size/2,size/2-ctx.lineWidth/2,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle=INK;ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?size*.15:size*.32;ctx[i?'lineTo':'moveTo'](size/2+Math.cos(a)*r,size/2+Math.sin(a)*r)}ctx.closePath();ctx.fill()}
+ else{ctx.scale(size/24,size/24);ctx.fillStyle=CHECK;ctx.fill(new Path2D('M12 1.5l2.6 1.9 3.2-.2 1 3.1 2.7 1.8-1 3.1 1 3.1-2.7 1.8-1 3.1-3.2-.2L12 22.5l-2.6-1.9-3.2.2-1-3.1-2.7-1.8 1-3.1-1-3.1 2.7-1.8 1-3.1 3.2.2z'));
+  ctx.strokeStyle='#fff';ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke(new Path2D('M7.6 12.3l3 3 5.8-6'))}
+ ctx.restore();
 }
 
-export function tradingCardSvg(d:ShareCardData){
- const W=1080,H=1920,x=90,w=900,power:[string,number][]=[['Collecting',7],['Trading',6],['Bag & board',7],['Self-control',2]];
- const art=d.cover?`<image href="${esc(d.cover)}" x="${x+40}" y="190" width="${w-80}" height="760" preserveAspectRatio="xMidYMid slice"/>`:`<rect x="${x+40}" y="190" width="${w-80}" height="760" fill="url(#sky)"/><rect x="${x+40}" y="190" width="${w-80}" height="760" fill="url(#dots)"/>`;
- return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-card="trading">${defs(d,W,H)}
-  <rect x="${x}" y="110" width="${w}" height="1700" rx="30" fill="#20201f" transform="translate(18 18)"/>
-  <rect x="${x}" y="110" width="${w}" height="1700" rx="30" fill="#efd369" stroke="#20201f" stroke-width="10"/>
-  <rect x="${x+40}" y="190" width="${w-80}" height="760" fill="#20201f"/>${art}<rect x="${x+40}" y="190" width="${w-80}" height="760" fill="none" stroke="#20201f" stroke-width="8"/>
-  <g><rect x="${x+w-250}" y="140" width="200" height="70" fill="#c83e30" stroke="#20201f" stroke-width="6"/><text x="${x+w-150}" y="190" text-anchor="middle" ${HEAD} font-size="44" fill="#fff">No. 0001</text></g>
-  ${avatarBlock(d,W/2,800,170)}
-  <rect x="${x+40}" y="1010" width="${w-80}" height="130" fill="#20201f"/>
-  ${nameLine(d,x+70,1100,80,'#f9f6ef',15)}
-  <text x="${x+70}" y="1200" ${BODY} font-size="36" font-weight="700" fill="#20201f">@${esc(d.handle)} · Since ${d.since} · ${d.comics.toLocaleString('en-US')} comics · ${d.keys.toLocaleString('en-US')} keys</text>
-  <text x="${x+70}" y="1290" ${HEAD} font-size="54" fill="#20201f">POWER GRID</text>
-  ${power.map(([label,score],i)=>{const y=1330+i*96;return `<text x="${x+70}" y="${y+48}" ${BODY} font-size="34" font-weight="700" fill="#20201f">${esc(label)}</text>${Array.from({length:7},(_,n)=>`<rect x="${x+380+n*62}" y="${y+12}" width="54" height="46" fill="${n<score?'#c83e30':'#f9f6ef'}" stroke="#20201f" stroke-width="5"/>`).join('')}<text x="${x+w-60}" y="${y+50}" text-anchor="end" ${HEAD} font-size="44" fill="#20201f">${score}</text>`}).join('')}
-  ${d.trophy?`<text x="${x+70}" y="1760" ${BODY} font-size="32" font-weight="700" fill="#20201f">Trophy: ${esc(d.trophy.name)} · ${esc(d.trophy.tier)}</text>`:''}
-  <text x="${W/2}" y="1880" text-anchor="middle" ${HEAD} font-size="44" fill="#20201f">COMICHUDDLE.COM/@${esc(d.handle.toUpperCase())}</text>
- </svg>`;
+/** Draws the whole card. Fonts must already be loaded (document.fonts.load) and images decoded. */
+export function drawShareCard(ctx:CanvasRenderingContext2D,d:ShareCardData,img:CardImages,qr:QrMatrix){
+ const {W,H,card:c}=L;
+ ctx.fillStyle=PAPER;ctx.fillRect(0,0,W,H);dots(ctx,0,0,W,H,26,3,.13);
+ // Card with a hard offset shadow.
+ ctx.fillStyle=INK;rounded(ctx,c.x+c.shadow,c.y+c.shadow,c.w,c.h,c.r);ctx.fill();
+ ctx.fillStyle=CREAM;rounded(ctx,c.x,c.y,c.w,c.h,c.r);ctx.fill();
+ ctx.save();rounded(ctx,c.x,c.y,c.w,c.h,c.r);ctx.clip();
+ // Cover photo across the top (rounded top corners come from the clip).
+ if(img.cover)cover(ctx,img.cover,c.x,c.y,c.w,L.cover.h);
+ else{ctx.fillStyle=BLUE;ctx.fillRect(c.x,c.y,c.w,L.cover.h);ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=20;for(let i=-L.cover.h;i<c.w;i+=56){ctx.beginPath();ctx.moveTo(c.x+i,c.y+L.cover.h);ctx.lineTo(c.x+i+L.cover.h,c.y);ctx.stroke()}}
+ ctx.fillStyle=INK;ctx.fillRect(c.x,c.y+L.cover.h-4,c.w,8);
+ // Bottom strip.
+ ctx.fillStyle=INK;ctx.fillRect(c.x,L.strip.y,c.w,c.y+c.h-L.strip.y);
+ ctx.restore();
+ ctx.strokeStyle=INK;ctx.lineWidth=c.border;rounded(ctx,c.x,c.y,c.w,c.h,c.r);ctx.stroke();
+
+ // Photo with a white ring, overlapping the cover's bottom edge.
+ const p=L.photo;
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.cx,p.cy,p.r+p.ring,0,Math.PI*2);ctx.fill();ctx.strokeStyle=INK;ctx.lineWidth=6;ctx.stroke();
+ ctx.save();ctx.beginPath();ctx.arc(p.cx,p.cy,p.r,0,Math.PI*2);ctx.clip();
+ if(img.avatar)cover(ctx,img.avatar,p.cx-p.r,p.cy-p.r,p.r*2,p.r*2);
+ else{ctx.fillStyle=CREAM;ctx.fillRect(p.cx-p.r,p.cy-p.r,p.r*2,p.r*2);dots(ctx,p.cx-p.r,p.cy-p.r,p.r*2,p.r*2,18,2.4,.14);ctx.strokeStyle=INK;ctx.lineWidth=11;ctx.beginPath();ctx.arc(p.cx,p.cy-p.r*.18,p.r*.3,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(p.cx,p.cy+p.r*.7,p.r*.55,Math.PI*1.08,Math.PI*1.92);ctx.stroke()}
+ ctx.restore();ctx.strokeStyle=INK;ctx.lineWidth=8;ctx.beginPath();ctx.arc(p.cx,p.cy,p.r,0,Math.PI*2);ctx.stroke();
+ // Mr. Huddles at the photo's bottom-right: white outline, ink shadow.
+ if(img.huddles){
+  const h=L.huddles,hx=p.cx+p.r-h.w*.32,hy=p.cy+p.r-h.h+12,white=silhouette(img.huddles,'#fff'),ink=silhouette(img.huddles,INK);
+  ctx.drawImage(ink,hx+8,hy+8,h.w,h.h);
+  for(let a=0;a<16;a++){const t=a*Math.PI/8;ctx.drawImage(white,hx+Math.cos(t)*4,hy+Math.sin(t)*4,h.w,h.h)}
+  ctx.drawImage(img.huddles,hx,hy,h.w,h.h);
+ }
+
+ // Name (+ blue check, or the Founder badge for the founder). Everything below moves down by `dy`.
+ const dy=blockShift(d);
+ ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle=INK;
+ const mark=d.founder||d.verified?Math.round(nameFontSize(d.name)*.62):0;
+ const size=fitText(ctx,d.name,800,HEAD_FONT,nameFontSize(d.name),L.name.min,L.name.max-(mark?mark+14:0));
+ const nameW=ctx.measureText(d.name).width,startX=L.W/2-(nameW+(mark?mark+14:0))/2;
+ ctx.textAlign='left';ctx.fillText(d.name,startX,L.name.y+dy);
+ if(mark)verifiedMark(ctx,startX+nameW+14,L.name.y+dy-size*.72,mark,d.founder);
+ ctx.textAlign='center';
+ fitText(ctx,'@'+d.handle,700,BODY_FONT,L.handle.size,30,820);ctx.fillText('@'+d.handle,L.W/2,L.handle.y+dy);
+ ctx.fillStyle=MUTED;ctx.font=`500 ${L.since.size}px ${BODY_FONT}`;ctx.fillText('Collecting since '+d.since,L.W/2,L.since.y+dy);
+
+ // Three stat chips.
+ const s={...L.stats,y:L.stats.y+dy},total=s.w*3+s.gap*2,sx=L.W/2-total/2;
+ statChips(d).forEach((chip,i)=>{const x=sx+i*(s.w+s.gap);
+  ctx.fillStyle=INK;rounded(ctx,x+7,s.y+7,s.w,s.h,24);ctx.fill();ctx.fillStyle='#fff';rounded(ctx,x,s.y,s.w,s.h,24);ctx.fill();ctx.strokeStyle=INK;ctx.lineWidth=6;ctx.stroke();
+  ctx.fillStyle=INK;fitText(ctx,chip.value,800,HEAD_FONT,s.value,40,s.w-30);ctx.fillText(chip.value,x+s.w/2,s.y+90);
+  ctx.fillStyle=MUTED;ctx.font=`700 ${s.label}px ${BODY_FONT}`;ctx.fillText(chip.label,x+s.w/2,s.y+140)});
+
+ // Fave / Grail (/ Trophy) pills, only those that are set.
+ const e=L.extras;
+ extraLines(d).forEach((line,i)=>{const y=e.y+dy+i*(e.h+e.gap);ctx.font=`600 ${e.size}px ${BODY_FONT}`;
+  const sz=fitText(ctx,line,600,BODY_FONT,e.size,28,e.max-60),w=Math.min(e.max,ctx.measureText(line).width+60);
+  ctx.fillStyle=YELLOW;rounded(ctx,L.W/2-w/2,y,w,e.h,e.h/2);ctx.fill();ctx.strokeStyle=INK;ctx.lineWidth=5;ctx.stroke();
+  ctx.fillStyle=INK;ctx.font=`600 ${sz}px ${BODY_FONT}`;ctx.fillText(line,L.W/2,y+e.h/2+sz*.36)});
+
+ // Bottom strip: logo left; link and a real QR code right.
+ const st=L.strip,midY=st.y+st.h/2;
+ if(img.logo)ctx.drawImage(img.logo,L.logo.x,midY-L.logo.h/2-6,L.logo.w,L.logo.h);
+ const q=L.qr,qx=c.x+c.w-40-q.size,qy=midY-q.size/2-6;
+ ctx.fillStyle='#fff';ctx.fillRect(qx-q.pad,qy-q.pad,q.size+q.pad*2,q.size+q.pad*2);
+ const cell=q.size/qr.count;ctx.fillStyle=INK;for(let r=0;r<qr.count;r++)for(let col=0;col<qr.count;col++)if(qr.dark(r,col))ctx.fillRect(qx+col*cell,qy+r*cell,Math.ceil(cell),Math.ceil(cell));
+ ctx.textAlign='right';const right=qx-q.pad-26,room=right-(L.logo.x+L.logo.w+24);
+ ctx.fillStyle=CREAM;ctx.font=`600 ${L.link.small}px ${BODY_FONT}`;ctx.fillText('comichuddle.com',right,midY-16);
+ ctx.fillStyle=YELLOW;fitText(ctx,'/@'+d.handle,800,BODY_FONT,L.link.size+6,28,room);ctx.fillText('/@'+d.handle,right,midY+30);
+ ctx.textAlign='start';
 }
-export const shareCardSvg=(style:ShareCardStyle,d:ShareCardData)=>style==='slab'?slabCardSvg(d):tradingCardSvg(d);
