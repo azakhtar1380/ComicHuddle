@@ -20,7 +20,7 @@ import {emptyVault} from '../lib/vault';
 import {previewRulesVersion} from '../lib/community';
 import {createListing} from '../lib/marketplace';
 import {ownerAccountId} from '../lib/owner';
-import {commerceApplyCarrierUpdate,commerceApplyThinAccountEvent,commerceApplyWebhook,commerceCheckout,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceOwnerRelease,commerceOwnerRevenue,commerceRequestRefund,commerceSubmitTracking,createSellerPayout,commerceResumePayment,commerceCancelCheckout,commerceBidCardGate,commerceChargeAuctionWinners} from '../lib/commerce';
+import {commerceInspection,commerceSafePurchaseRefund,commerceApplyCarrierUpdate,commerceApplyThinAccountEvent,commerceApplyWebhook,commerceCheckout,commerceOnboard,commerceOrderDto,commerceOverview,commerceOwnerRefund,commerceOwnerRelease,commerceOwnerRevenue,commerceRequestRefund,commerceSubmitTracking,createSellerPayout,commerceResumePayment,commerceCancelCheckout,commerceBidCardGate,commerceChargeAuctionWinners} from '../lib/commerce';
 import {commerceEvents} from '../db/schema';
 import {stripeSandbox} from '../lib/stripe-sandbox';
 import {orderProgress} from '../lib/marketplace-order-progress';
@@ -145,13 +145,13 @@ async function collector(prefix:string,userId:string=crypto.randomUUID()){
  return (await getDb().insert(profiles).values({id:uuid,userId,handle:prefix+'_'+uuid.slice(0,8),name:prefix,bio:'QA isolated fixture',tagline:'',location:'Minneapolis, MN',favorite:'',since:2026,color:'red',featured:'[]',visible:1,dmOpen:1,createdAt:stamp,rulesVersion:previewRulesVersion,rulesAcceptedAt:stamp}).returning())[0];
 }
 type Profile=Awaited<ReturnType<typeof collector>>;
-async function offer(seller:Profile){
+async function offer(seller:Profile,price=60000){
  const db=getDb(),photo=crypto.randomUUID(),bookId=crypto.randomUUID();
  await db.insert(media).values({id:photo,userId:seller.userId,contentType:'image/jpeg',createdAt:new Date().toISOString()});await getPool().query('INSERT INTO ch_web.photo_bytes(key,body,content_type) VALUES($1,$2,$3)',['photos/'+photo,readFileSync('public/covers/planet-12.jpg'),'image/jpeg']);
  const old=(await db.select().from(collections).where(eq(collections.userId,seller.userId)))[0],vault=old?JSON.parse(old.data):emptyVault(seller.name);
  vault.books.push({id:bookId,title:'Amazing Spider-Man',issue:'#300',grade:'Raw 9.0',price:200,catalogId:0});
  await db.insert(collections).values({userId:seller.userId,data:JSON.stringify(vault),revision:crypto.randomUUID()}).onConflictDoUpdate({target:collections.userId,set:{data:JSON.stringify(vault),revision:crypto.randomUUID()}});
- const result=await createListing(db,seller,{action:'listing',kind:'single',saleType:'fixed',bookIds:[bookId],description:'Isolated QA owned-copy fixture.',price:60000,shipping:1500,photos:[photo],attest:true,usaAttest:true});
+ const result=await createListing(db,seller,{action:'listing',kind:'single',saleType:'fixed',bookIds:[bookId],description:'Isolated QA owned-copy fixture.',price,shipping:1500,photos:[photo],attest:true,usaAttest:true});
  return (await db.select().from(listings).where(eq(listings.id,result.listingId)))[0];
 }
 const onboard=(seller:Profile,env:Obj=testEnv)=>commerceOnboard(getDb(),seller,'seller@example.test',{action:'seller_onboard',sandboxAcknowledged:true},env);
@@ -544,4 +544,45 @@ test('auctions: a winner without a saved card is left to the 48-hour window; not
  assert.equal(stripe.requests.filter(r=>r.route==='/v1/payment_intents').length,before);
  assert.equal((await listingRow(listing.id)).status,'auction_won');
  const manual=await checkout(buyer,listing.id);assert.ok(manual.checkoutUrl);
+});
+
+test('SafePurchase claim after the seller was paid: ComicHuddle refunds the buyer and the seller keeps the payout',async()=>{
+ const db=getDb(),env={...testEnv,COMMERCE_PAYOUTS_ENABLED:'true',SAFEPURCHASE_ENABLED:'true',SAFEPURCHASE_INSPECTION_ADDRESS:'ComicHuddle Inspection Center, 100 Test Ave, Minneapolis, MN 55401'};
+ const seller=await collector('spseller'),buyer=await collector('spbuyer');await onboard(seller,env);const listing=await offer(seller,150000);
+ const started=await commerceCheckout(db,buyer,'buyer@example.test',{action:'checkout',listingId:listing.id,requestId:crypto.randomUUID(),sandboxAcknowledged:true,shippingAddress:address,safePurchaseOptIn:true},env),orderId=started.order.id,{session}=pay(await sessionOf(orderId));
+ await deliver('checkout.session.completed',session,env);
+ await commerceSubmitTracking(db,seller.userId,{action:'submit_tracking',orderId,carrier:'UPS',trackingNumber:'1Z999AA10123456784'},env);
+ await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'receive'},env);
+ await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'decide',result:'passed',requestId:crypto.randomUUID()},env);
+ await commerceInspection(db,ownerAccountId,{action:'inspection',orderId,step:'ship',carrier:'UPS',trackingNumber:'1Z999AA10123456799'},env);
+ const released=await commerceOwnerRelease(db,ownerAccountId,{action:'owner_release',orderId,requestId:crypto.randomUUID()},env);
+ assert.equal(released.order.status,'transferred','Checked and shipped: the seller is paid');
+ const spRefund=(requestId=crypto.randomUUID(),extra:Obj={})=>commerceSafePurchaseRefund(db,ownerAccountId,{action:'safepurchase_refund',orderId,requestId,...extra},env);
+ await assert.rejects(spRefund(),(e:{status?:number})=>e.status===409,'No refund without a buyer claim');
+ const claim=await commerceRequestRefund(db,buyer.userId,{action:'request_refund',orderId,requestId:crypto.randomUUID(),reason:'Spine split after delivery'});
+ assert.match(String(claim.note),/ComicHuddle reviews SafePurchase problems/);
+ await assert.rejects(commerceSafePurchaseRefund(db,buyer.userId,{action:'safepurchase_refund',orderId,requestId:crypto.randomUUID()},env),(e:{status?:number})=>e.status===403,'Buyers cannot approve their own claim');
+ const total=JSON.parse((await orderRow(orderId)).state).order.totalCents as number;
+ await assert.rejects(spRefund(crypto.randomUUID(),{amountCents:total+1}),(e:{status?:number})=>e.status===400,'Never more than the buyer paid');
+ // The normal "approve refund" on a paid-out SafePurchase order takes the ComicHuddle path (no transfer reversal).
+ const refunded=await commerceOwnerRefund(db,ownerAccountId,{action:'owner_refund',orderId,requestId:crypto.randomUUID(),approveIssue:true},env) as {order:Obj};
+ assert.deepEqual(refunded.order.platformRefund,{amountCents:total,status:'succeeded',refundedAt:(refunded.order.platformRefund as Obj).refundedAt});
+ assert.equal(refunded.order.status,'transferred','The seller transfer stays in place');
+ const state=JSON.parse((await orderRow(orderId)).state);
+ assert.deepEqual([state.financial.kind,!!state.financial.confirmedAt,state.issue.open,state.holdReason],['transfer',true,false,null]);
+ assert.equal([...stripe.transfers.values()].filter(t=>(t.metadata as Obj).order_id===orderId&&t.reversed).length,0,'No transfer reversal');
+ const refunds=[...stripe.refunds.values()].filter(r=>r.payment_intent===state.order.paymentIntentId);
+ assert.deepEqual(refunds.map(r=>r.amount),[total],'One refund for the full amount');
+ // Repeat approval and Stripe's own webhooks don't refund twice or put the order on hold.
+ assert.equal(((await spRefund()) as {duplicate?:boolean}).duplicate,true);
+ await deliver('refund.updated',refunds[0],env);
+ await deliver('charge.refunded',stripe.charges.get(state.order.chargeId)!,env);
+ const after=JSON.parse((await orderRow(orderId)).state);
+ assert.deepEqual([after.holdReason,after.platformRefund.status,(await orderRow(orderId)).status],[null,'succeeded','transferred']);
+ assert.equal([...stripe.refunds.values()].filter(r=>r.payment_intent===state.order.paymentIntentId).length,1);
+ await assert.rejects(commerceRequestRefund(db,buyer.userId,{action:'request_refund',orderId,requestId:crypto.randomUUID(),reason:'Again'}),(e:{status?:number})=>e.status===409,'One ComicHuddle refund per order');
+ const sellerView=commerceOrderDto(await orderRow(orderId),seller.userId) as Obj;
+ assert.equal((sellerView.platformRefund as Obj).amountCents,total,'The seller sees ComicHuddle covered it');
+ const revenue=await commerceOwnerRevenue(db,ownerAccountId,env);
+ assert.ok(revenue.safePurchaseRefundsCents>=total,'Counted as a ComicHuddle cost');
 });

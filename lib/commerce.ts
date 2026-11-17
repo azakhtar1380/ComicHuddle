@@ -38,7 +38,9 @@ type TrackingSubmission={carrier:string;number:string;submittedAt:string;verifie
 /** A bought label lowers the seller payout by exactly its cost (commerceBuyLabel); nothing else may change it. */
 const labelCost=(value:{label?:{costCents?:unknown}}|null|undefined)=>{const c=value?.label?.costCents;return typeof c==='number'&&Number.isSafeInteger(c)&&c>0?c:0};
 /** Server-only order fields: the pickup code is stored only as a hash; the carrier tracker id binds webhooks. */
-type State=CommerceState&{tracking?:TrackingProgress;label?:PurchasedLabel;trackingSubmission?:TrackingSubmission;paymentTimingVerified?:boolean;pickupCodeHash?:string;carrierTrackerId?:string;inboundTrackerId?:string;carrierStatus?:CarrierSummary};
+/** A SafePurchase refund ComicHuddle pays from its own Stripe balance after the seller was paid (the seller keeps the payout). */
+type PlatformRefund={requestId:string;amountCents:number;processorId:string|null;status:'pending'|'succeeded'|'failed';requestedAt:string;confirmedAt:string|null;approvedBy:string};
+type State=CommerceState&{platformRefund?:PlatformRefund;tracking?:TrackingProgress;label?:PurchasedLabel;trackingSubmission?:TrackingSubmission;paymentTimingVerified?:boolean;pickupCodeHash?:string;carrierTrackerId?:string;inboundTrackerId?:string;carrierStatus?:CarrierSummary};
 const now=()=>new Date().toISOString();
 const id=z.string().trim().min(1).max(100);
 const uuid=z.string().uuid();
@@ -128,7 +130,7 @@ export function commerceOrderDto(row:Row,userId:string){
  return {id:row.id,listingId:row.listingId,title:snapshot.title,kind:snapshot.kind,fulfillment:snapshot.fulfillment,itemCount:snapshot.itemCount,role,status,sandbox:row.sandbox===1,
   // Marketplace fee: shown to the seller and the operator only. Buyers see one all-in price.
   ...(row.status==='awaiting_payment'?{reservedUntil:reservationEndsAt(row)}:{}),
-  ...(role!=='buyer'?{saleCents:snapshot.itemAmountCents+snapshot.shippingCents,platformFeeCents:snapshot.platformFeeCents,platformFeeBps:snapshot.platformFeeBps??0,sellerNetCents:state.order.sellerTransferCents,labelCostCents:state.label?.costCents??0,label:state.label?{carrier:state.label.carrier,service:state.label.service,trackingCode:state.label.trackingCode,url:state.label.labelUrl,costCents:state.label.costCents,createdAt:state.label.createdAt}:null,canBuyLabel:role==='seller'&&snapshot.fulfillment==='shipping'&&!!state.order.paidAt&&!state.label&&!shipment.trackingNumber&&!state.financial&&state.policy.tier!=='safepurchase'&&!['refunded','refund_pending','cancelled'].includes(row.status)}:{}),storeCreditCents:snapshot.storeCreditCents||0,itemAmountCents:snapshot.itemAmountCents,shippingCents:snapshot.shippingCents,inspectionFeeCents:snapshot.inspectionFeeCents||0,taxCents:0,totalCents:snapshot.totalCents,currency:'USD',createdAt:row.createdAt,updatedAt:row.updatedAt,paidAt:timingUnknown?null:state.order.paidAt,paymentConfirmed:!!state.order.paidAt,paymentTimingVerified:!timingUnknown,trackingDeadlineAt:timingUnknown?null:decision.trackingDeadlineAt,carrierDeadlineAt:timingUnknown?null:decision.carrierDeadlineAt,reviewUntil:timingUnknown?null:decision.releaseAt,tracking,issue:state.issue,refundRequested:!!state.issue||!!state.refundReason,refundStatus:state.financial?.kind==='refund'?(state.financial.confirmedAt?'refunded':'pending'):null,protectionReason:decision.reason,
+  ...(role!=='buyer'?{saleCents:snapshot.itemAmountCents+snapshot.shippingCents,platformFeeCents:snapshot.platformFeeCents,platformFeeBps:snapshot.platformFeeBps??0,sellerNetCents:state.order.sellerTransferCents,labelCostCents:state.label?.costCents??0,label:state.label?{carrier:state.label.carrier,service:state.label.service,trackingCode:state.label.trackingCode,url:state.label.labelUrl,costCents:state.label.costCents,createdAt:state.label.createdAt}:null,canBuyLabel:role==='seller'&&snapshot.fulfillment==='shipping'&&!!state.order.paidAt&&!state.label&&!shipment.trackingNumber&&!state.financial&&state.policy.tier!=='safepurchase'&&!['refunded','refund_pending','cancelled'].includes(row.status)}:{}),storeCreditCents:snapshot.storeCreditCents||0,itemAmountCents:snapshot.itemAmountCents,shippingCents:snapshot.shippingCents,inspectionFeeCents:snapshot.inspectionFeeCents||0,taxCents:0,totalCents:snapshot.totalCents,currency:'USD',createdAt:row.createdAt,updatedAt:row.updatedAt,paidAt:timingUnknown?null:state.order.paidAt,paymentConfirmed:!!state.order.paidAt,paymentTimingVerified:!timingUnknown,trackingDeadlineAt:timingUnknown?null:decision.trackingDeadlineAt,carrierDeadlineAt:timingUnknown?null:decision.carrierDeadlineAt,reviewUntil:timingUnknown?null:decision.releaseAt,tracking,issue:state.issue,refundRequested:!!state.issue||!!state.refundReason,refundStatus:state.financial?.kind==='refund'?(state.financial.confirmedAt?'refunded':'pending'):null,platformRefund:state.platformRefund?{amountCents:state.platformRefund.amountCents,status:state.platformRefund.status,refundedAt:state.platformRefund.confirmedAt}:null,protectionReason:decision.reason,
   protection,pickup:state.pickup||null,inspection:inspection?{received:!!inspection.receivedAt,result:inspection.result,reasons:inspection.reasons,failedItems:inspection.failedItems,totalItems:inspection.totalItems,buyerChoice:inspection.buyerChoice,partialRefundCents:inspection.partialRefundCents,inboundTracking:inspection.inbound?{carrier:inspection.inbound.carrier,number:inspection.inbound.trackingNumber}:null}:null,
   timeline:{paidAt:state.order.paidAt,labelCreatedAt:state.tracking?.labelCreatedAt||state.label?.createdAt||null,shippedAt:state.tracking?.shippedAt||shipment.acceptedAt||null,outForDeliveryAt:state.tracking?.outForDeliveryAt||null,deliveredAt:shipment.deliveredAt||state.tracking?.deliveredAt||null,readyForPickupAt:snapshot.fulfillment==='pickup'?state.order.paidAt:null,pickedUpAt:state.pickup?.confirmedAt||null,estDeliveryDate:shipment.deliveredAt?null:state.tracking?.estDeliveryDate||state.carrierStatus?.estDeliveryAt||null,exception:shipment.deliveredAt?null:state.tracking?.exception||null,checkpoints:(state.tracking?.checkpoints||[]).slice(-30).reverse()},
   carrierConfirmed:!!shipment.acceptedAt&&!state.pickup,deliveredAt:shipment.deliveredAt,signatureVerified:shipment.signatureVerified,
@@ -378,6 +380,7 @@ export async function commerceRequestRefund(db:Db,userId:string,raw:Record<strin
  const input=commerceRefundSchema.parse(raw),row=await commerceOwnedOrder(db,userId,input.orderId),state=stateOf(row);
  if(row.buyerUserId!==userId)throw new ApiRequestError('Only this order’s buyer can request a refund.',403);
  if(!state.order.paidAt||row.status==='refunded')throw new ApiRequestError('No refundable confirmed payment is available.',409);
+ if(state.platformRefund&&state.platformRefund.status!=='failed')throw new ApiRequestError('ComicHuddle already refunded this order. Contact support if something else is wrong.',409);
  const reason=input.claimType==='other'?input.reason:(input.claimType==='not_received'?'Not received: ':'Not as described: ')+input.reason;
  const event:CommerceEvent={...eventBase(row,'buyer_refund_'+input.requestId,'buyer'),type:'buyer_return_requested',actorId:row.buyerId,reason:reason.slice(0,200)};
  const existing=state.recentEvents.find(entry=>entry.id===event.eventId);
@@ -385,7 +388,8 @@ export async function commerceRequestRefund(db:Db,userId:string,raw:Record<strin
  if(state.policy.tier!==undefined)await claimAllowed(db,userId,state,input);
  const next=transition(state,event);if(next.issue)next.issue.kind=input.claimType;
  const updated=await persist(db,row,next,'buyer_refund_requested',{note:event.reason,claimType:input.claimType,...(input.photoIds.length?{photoIds:input.photoIds}:{})});
- return {sandbox:row.sandbox===1,order:commerceOrderDto(updated,userId),note:state.financial?.kind==='transfer'?'Support must reconcile the seller transfer and buyer issue.':'Seller release is frozen while support reviews this request.'};
+ const paidOut=state.financial?.kind==='transfer';
+ return {sandbox:row.sandbox===1,order:commerceOrderDto(updated,userId),note:paidOut&&state.policy.tier==='safepurchase'?'ComicHuddle reviews SafePurchase problems and refunds you directly if your claim is approved.':paidOut?'Support must reconcile the seller transfer and buyer issue.':'Seller release is frozen while support reviews this request.'};
 }
 const day=24*hour;
 /** Claim rules for tiered orders (docs/BUYER-PROTECTION-POLICY.md §2.4, §4). */
@@ -696,7 +700,7 @@ async function reverseReleasedTransfers(db:Db,row:Row,state:State,processor:Proc
 export async function commerceOwnerRevenue(db:Db,userId:string,environment:StripeSandboxEnv){
  if(userId!==ownerAccountId)throw new ApiRequestError('Owner access required.',403);
  const rows=await db.select().from(commerceOrders).where(eq(commerceOrders.sandbox,modeFlag(environment)));
- const totals={paidOrders:0,grossMerchandiseCents:0,buyerChargesCents:0,platformFeesCents:0,safePurchaseFeesCents:0,storeCreditSubsidyCents:0,refundedOrders:0,refundedCents:0,feesRefundedCents:0,estimatedStripeFeesCents:0,ownerNetCents:0};
+ const totals={paidOrders:0,grossMerchandiseCents:0,buyerChargesCents:0,platformFeesCents:0,safePurchaseFeesCents:0,storeCreditSubsidyCents:0,refundedOrders:0,refundedCents:0,feesRefundedCents:0,safePurchaseRefundsCents:0,estimatedStripeFeesCents:0,ownerNetCents:0};
  for(const row of rows){
   let state:State,snapshot:Snapshot;try{state=stateOf(row);snapshot=snapshotOf(row)}catch{continue}
   if(!state.order.paidAt)continue;
@@ -705,8 +709,9 @@ export async function commerceOwnerRevenue(db:Db,userId:string,environment:Strip
   totals.platformFeesCents+=snapshot.platformFeeCents;totals.safePurchaseFeesCents+=snapshot.inspectionFeeCents??0;totals.estimatedStripeFeesCents+=estimatedStripeFeeCents(snapshot.totalCents);
   if(refunded){totals.refundedOrders++;totals.refundedCents+=snapshot.totalCents;totals.feesRefundedCents+=snapshot.platformFeeCents+(snapshot.inspectionFeeCents??0)}
   else totals.storeCreditSubsidyCents+=snapshot.storeCreditCents??0;
+  if(state.platformRefund?.status==='succeeded')totals.safePurchaseRefundsCents+=state.platformRefund.amountCents;
  }
- totals.ownerNetCents=totals.platformFeesCents+totals.safePurchaseFeesCents-totals.feesRefundedCents-totals.storeCreditSubsidyCents-totals.estimatedStripeFeesCents;
+ totals.ownerNetCents=totals.platformFeesCents+totals.safePurchaseFeesCents-totals.feesRefundedCents-totals.storeCreditSubsidyCents-totals.safePurchaseRefundsCents-totals.estimatedStripeFeesCents;
  return {mode:modeOf(environment),...totals,note:'Stripe processing fees are an estimate (2.9% + 30¢ per charge; not returned on refunds). Exact fees are on each Stripe balance transaction.'};
 }
 // --- end marketplace fee ---
@@ -717,6 +722,8 @@ async function refundOrder(db:Db,userId:string,orderId:string,requestId:string,a
  // Post-release refunds are owner-only and need an approved issue; reverse the seller's transfer first.
  if(state.financial?.kind==='transfer'&&state.financial.confirmedAt){
   if(!allowOperator||!approveIssue)throw new ApiRequestError('This order was paid out to the seller. Support must approve the refund.',409);
+  // SafePurchase: we checked the comic, so ComicHuddle refunds the buyer and the seller keeps the payout.
+  if(state.policy.tier==='safepurchase')return safePurchaseRefund(db,userId,row,requestId,undefined,undefined,environment);
   // A reversal the processor refuses (seller balance gone, account closed…) never leaves money half-moved:
   // the order is held for manual review and nothing is refunded until support settles it.
   try{row=await reverseReleasedTransfers(db,row,state,processor);state=stateOf(row)}
@@ -749,6 +756,48 @@ async function refundOrder(db:Db,userId:string,orderId:string,requestId:string,a
  const refund=reserved.ledger.providerId?await processor.retrieveRefund(reserved.ledger.providerId,{orderId:row.id,paymentIntentId:state.order.paymentIntentId!,amountCents:reserved.ledger.amountCents},{requireSucceeded:false}):await processor.createRefund({orderId:row.id,paymentIntentId:state.order.paymentIntentId!,amountCents:reserved.ledger.amountCents,orderAmountCents:state.order.totalCents,remainingAmountCents:state.order.totalCents},'comichuddle_refund_'+reserved.ledger.id);
  row=await finishRefund(db,row,reserved.ledger,refund);
  return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),note:refund.status==='succeeded'?'Refund confirmed.':'Refund is pending processor confirmation. The seller transfer remains frozen.'};
+}
+// --- SafePurchase claims after payout: refunded by ComicHuddle ---
+export const commerceSafePurchaseRefundSchema=z.object({action:z.literal('safepurchase_refund'),orderId:id,requestId:uuid,amountCents:z.number().int().positive().max(100_000_000).optional(),note:line(200).optional()}).strict();
+/** Admin approves a buyer's SafePurchase claim after the seller was paid: the buyer is refunded from ComicHuddle's
+ * Stripe balance (no transfer reversal, the seller keeps the payout). Full amount by default; a smaller amount is a partial refund. */
+export async function commerceSafePurchaseRefund(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
+ if(!await commerceOperatorAllowed(userId,raw.orderId))throw new ApiRequestError('Admin access required.',403);
+ const input=commerceSafePurchaseRefundSchema.parse(raw);needReady(environment);
+ const row=await commerceOwnedOrder(db,userId,input.orderId,true);needMode(row,environment);
+ return safePurchaseRefund(db,userId,row,input.requestId,input.amountCents,input.note,environment);
+}
+async function safePurchaseRefund(db:Db,userId:string,row:Row,requestId:string,amountCents:number|undefined,note:string|undefined,environment:StripeSandboxEnv){
+ let state=stateOf(row);const processor=stripeSandbox(environment);
+ if(state.policy.tier!=='safepurchase')throw new ApiRequestError('Only SafePurchase orders are refunded by ComicHuddle.',409);
+ if(state.financial?.kind!=='transfer'||!state.financial.confirmedAt)throw new ApiRequestError('The seller hasn’t been paid for this order yet. Use the normal refund, which comes from the payment.',409);
+ if(state.platformRefund?.status==='succeeded')return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),duplicate:true};
+ if(!state.platformRefund||state.platformRefund.status==='failed'){
+  if(!state.issue?.open)throw new ApiRequestError('The buyer hasn’t reported a problem on this order.',409);
+  if(state.dispute==='open'||state.dispute==='lost')throw new ApiRequestError('This payment has a card dispute. Settle it in Stripe instead.',409);
+  if(state.platformRefund?.status==='failed'&&state.platformRefund.requestId===requestId)throw new ApiRequestError('That refund failed. Try again with a new request.',409);
+  const amount=amountCents??state.order.totalCents;
+  if(amount>state.order.totalCents)throw new ApiRequestError('The refund can’t be more than the buyer paid ($'+(state.order.totalCents/100).toFixed(2)+').',400);
+  const next={...state,platformRefund:{requestId,amountCents:amount,processorId:null,status:'pending',requestedAt:now(),confirmedAt:null,approvedBy:userId}} as State;
+  row=await persist(db,row,next,'safepurchase_refund_reserved',{note:'ComicHuddle is refunding the buyer for a SafePurchase claim. The seller keeps their payout.',amountCents:amount,...(note?{reason:note}:{})});state=stateOf(row);
+ }
+ const reserved=state.platformRefund!;
+ const refund=reserved.processorId?await processor.retrieveRefund(reserved.processorId,{orderId:row.id,paymentIntentId:state.order.paymentIntentId!,amountCents:reserved.amountCents},{requireSucceeded:false})
+  :await processor.createRefund({orderId:row.id,paymentIntentId:state.order.paymentIntentId!,amountCents:reserved.amountCents,orderAmountCents:state.order.totalCents,remainingAmountCents:state.order.totalCents},'comichuddle_sp_refund_'+reserved.requestId);
+ row=await finishPlatformRefund(db,row,refund);
+ const done=stateOf(row).platformRefund!;
+ return {sandbox:row.sandbox===1,order:commerceOrderDto(row,userId),note:done.status==='succeeded'?'Refund confirmed. ComicHuddle paid it; the seller keeps their payout.':done.status==='failed'?'Stripe didn’t complete the refund. The claim stays open.':'Refund is pending at Stripe.'};
+}
+async function finishPlatformRefund(db:Db,row:Row,refund:ObjectRecord,providerEventId:string|null=null,fingerprint?:string){
+ const state=stateOf(row),current=state.platformRefund,refundId=providerId(refund);
+ if(!current||!refundId)throw new ApiRequestError('The ComicHuddle refund isn’t recorded on this order.',409);
+ if(current.processorId&&current.processorId!==refundId)throw new ApiRequestError('A different refund is already recorded for this order.',409);
+ const status=String(refund.status),outcome:PlatformRefund['status']=status==='succeeded'?'succeeded':['failed','canceled'].includes(status)?'failed':'pending';
+ if(!providerEventId&&current.processorId===refundId&&current.status===outcome)return row;
+ const confirmedAt=outcome==='succeeded'?current.confirmedAt||now():null;
+ const next={...state,platformRefund:{...current,processorId:refundId,status:outcome,confirmedAt},issue:state.issue&&outcome!=='failed'?{...state.issue,open:false}:state.issue} as State;
+ const type=outcome==='succeeded'?'safepurchase_refund_confirmed':outcome==='failed'?'safepurchase_refund_failed':'safepurchase_refund_pending';
+ return persist(db,row,next,type,{note:outcome==='succeeded'?'ComicHuddle refunded the buyer. The seller keeps their payout.':outcome==='failed'?'Stripe didn’t complete the ComicHuddle refund. The claim stays open.':'ComicHuddle refund is pending at Stripe.',amountCents:current.amountCents,refundId,...(fingerprint?{fingerprint}:{})},providerEventId);
 }
 export async function commerceOwnerReconcile(db:Db,userId:string,raw:Record<string,unknown>,environment:StripeSandboxEnv){
  if(!await commerceOperatorAllowed(userId,raw.orderId))throw new ApiRequestError('Admin access required.',403);const input=commerceReconcileSchema.parse(raw);needReady(environment);
@@ -922,6 +971,16 @@ export async function commerceApplyWebhook(db:Db,event:StripeVerifiedEvent,rawBo
    if(event.type==='checkout.session.expired')return await expireCheckout(db,row,event,processor,fingerprint);
    if(event.type==='checkout.session.async_payment_failed')return await failAsyncCheckout(db,row,event,processor,fingerprint);
    const [ledger]=await db.select().from(commerceMoneyRequests).where(and(eq(commerceMoneyRequests.orderId,row.id),eq(commerceMoneyRequests.kind,'refund')));
+   // ComicHuddle-funded SafePurchase refund (no refund ledger: the seller transfer stays in place).
+   const platform=stateOf(row).platformRefund,eventObject=event.data.object;
+   if(platform&&!ledger&&platform.status!=='failed'){
+    if(event.type==='charge.refunded'&&providerId(eventObject)===row.chargeId&&Number(eventObject.amount_refunded)===platform.amountCents)return {received:true,sandbox,ignored:true};
+    const refundId=event.type.startsWith('refund.')?providerId(eventObject):undefined;
+    if(refundId&&row.paymentIntentId&&(platform.processorId===refundId||!platform.processorId&&Number(eventObject.amount)===platform.amountCents)){
+     const refund=await processor.retrieveRefund(refundId,{orderId:row.id,paymentIntentId:row.paymentIntentId,amountCents:platform.amountCents},{requireSucceeded:false});
+     await finishPlatformRefund(db,row,refund,event.id,fingerprint);return {received:true,sandbox};
+    }
+   }
    // App-initiated refunds are tracked by their ledger through refund.* events; charge.refunded is redundant.
    if(event.type==='charge.refunded'&&ledger)return {received:true,sandbox,ignored:true};
    if(event.type.startsWith('refund.')){

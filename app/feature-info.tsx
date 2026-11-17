@@ -70,7 +70,7 @@ export default function FeatureInfo({kind}:{kind:'wallet'|'safepurchase'}){
      </HowItWorks>
      <HowItWorks title="What if something’s wrong?">
       <p>If the check fails, the comic goes back to the seller and you get a full refund, including the SafePurchase extra.</p>
-      <p>A problem after delivery? Report it in Orders within 30 days, like any order. Take photos and keep the packaging.</p>
+      <p>A problem after delivery? Report it in Orders within 30 days. Take photos and keep the packaging. If we approve your claim, ComicHuddle refunds you directly, since we checked the comic.</p>
       <p>If only part of a collection fails, you pick a partial or full refund. Refunds go back to how you paid.</p>
      </HowItWorks>
      <HowItWorks title="I’m the seller. Where do I ship?">

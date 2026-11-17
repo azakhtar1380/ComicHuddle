@@ -40,7 +40,7 @@ Smooth scrolling, custom comics, optional SafePurchase, a notifications dropdown
    - Optional, and offered only at $1,000+ for shipped orders. The buyer chooses Standard (the default) or SafePurchase on the listing and in the cart.
    - The extra is the EasyPost rate from the seller's ZIP to the inspection address (or the fallback, marked estimated) plus the $25 check fee. It appears as its own line and goes to ComicHuddle; the seller's payout is unchanged.
    - The seller is paid once the comic is checked and shipped to the buyer (no wait after delivery). A failed check uses the existing refund flow, which includes the extra.
-   - Problems after delivery use the normal 30-day claim. A ComicHuddle-funded refund for that case is **not built yet** (waiting on a decision).
+   - Problems after delivery use the normal 30-day claim. Once the seller has been paid, an approved claim is refunded by ComicHuddle from its Stripe balance: Admin → order → "Refund buyer from ComicHuddle" (full by default, or a smaller amount), or the usual "approve refund" on that order. No transfer reversal; the seller keeps the payout. One per order; Stripe’s webhooks for it don’t put the order on hold; it counts as a cost in Owner revenue (`safePurchaseRefundsCents`).
 3. **Notifications:** the dropdown hangs from the bell on every screen size.
    - Its pointer sits under the bell, and the panel stays at least 12px from the screen edges, `min(520px,75vh)` tall.
    - It opens with a 160ms fade plus a 6px slide (fade only with reduced motion).
@@ -70,4 +70,4 @@ Smooth scrolling, custom comics, optional SafePurchase, a notifications dropdown
 ## Not done / limits
 - Wallets don't collect or change the address inside the Apple Pay / Google Pay sheet, and there's no recalculation on `shippingaddresschange`. Shipping and tax are set when the order is created from the confirmed address, and fulfilment relies on that address. Changing it in the sheet would need the order re-priced first.
 - Apple Pay in Chrome, Edge and Firefox works only where Stripe supports it (desktop, plus Chrome on iOS 16+). Elsewhere the button doesn't show. Check on real devices.
-- The ComicHuddle-funded refund for SafePurchase problems after delivery (see section 2).
+- SafePurchase post-delivery refunds don't ask the buyer to return the comic. If you want returns first, that's a follow-up.

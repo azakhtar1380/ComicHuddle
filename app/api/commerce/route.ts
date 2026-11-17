@@ -2,7 +2,7 @@ import {env} from '../../../lib/runtime-env';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {getDb} from '../../../db';
 import {ApiRequestError,enforceWriteLimits,privateJson,readObject} from '../../../lib/api-security';
-import {commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceBuyLabel,commerceError,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOverview,commerceOwnerRefund,commerceOwnerReconcile,commerceOwnerRelease,commerceOwnerRevenue,commerceOwnerSweep,commerceParticipant,commerceResumePayment,commerceCancelCheckout,commerceRequestRefund,commerceSetup,commerceSubmitTracking,type StripeSandboxEnv} from '../../../lib/commerce';
+import {commerceCancelOrder,commerceCheckout,commerceConfirmPickup,commerceConfirmPickupCode,commerceBuyLabel,commerceError,commerceInspection,commerceInspectionChoice,commerceOnboard,commerceOverview,commerceOwnerRefund,commerceSafePurchaseRefund,commerceOwnerReconcile,commerceOwnerRelease,commerceOwnerRevenue,commerceOwnerSweep,commerceParticipant,commerceResumePayment,commerceCancelCheckout,commerceRequestRefund,commerceSetup,commerceSubmitTracking,type StripeSandboxEnv} from '../../../lib/commerce';
 import {ownerAccountId} from '../../../lib/owner';
 import {createPaymentHandoff,redeemPaymentHandoff,saveBuyerAddress,savedBuyerAddress} from '../../../lib/payment-handoff';
 // --- offers (round 4) ---
@@ -24,7 +24,7 @@ export async function POST(req:Request){try{
  const user=await getChatGPTUser();if(!user)return privateJson({error:'Sign in to ComicHuddle to continue.'},401);
  if(req.headers.get('origin')!==new URL(req.url).origin)return privateJson({error:'Request origin rejected.'},403);
  const raw=await readObject(req,25000),action=typeof raw.action==='string'?raw.action:'unknown';
- const budgets:Record<string,number>={buy_label:5,checkout:10,seller_onboard:5,submit_tracking:10,request_refund:5,owner_refund:10,owner_reconcile:10,owner_sweep:3,owner_release:10,resume_payment:20,payment_handoff:10,redeem_handoff:10,save_buyer_address:10,cancel_checkout:5,confirm_pickup:10,confirm_pickup_code:5,cancel_order:5,inspection:30,inspection_choice:5};
+ const budgets:Record<string,number>={buy_label:5,checkout:10,seller_onboard:5,submit_tracking:10,request_refund:5,owner_refund:10,safepurchase_refund:10,owner_reconcile:10,owner_sweep:3,owner_release:10,resume_payment:20,payment_handoff:10,redeem_handoff:10,save_buyer_address:10,cancel_checkout:5,confirm_pickup:10,confirm_pickup_code:5,cancel_order:5,inspection:30,inspection_choice:5};
  // --- offers (round 4): owner sweep for unused pickup codes (7 days → full refund) ---
  if(action==='pickup_expiry_sweep'){const db=getDb(),limited=await enforceWriteLimits(db,user.userId,'commerce:pickup_expiry_sweep',3);if(limited)return limited;return privateJson(await commercePickupExpirySweep(db,user.userId,raw,environment()))}
  // --- end offers (round 4) ---
@@ -46,6 +46,8 @@ export async function POST(req:Request){try{
  // --- end offers (round 4) ---
  if(action==='request_refund')return privateJson(await commerceRequestRefund(db,user.userId,raw));
  if(action==='owner_refund')return privateJson(await commerceOwnerRefund(db,user.userId,raw,environment()));
+ // SafePurchase claim after the seller was paid: ComicHuddle refunds the buyer; the seller keeps the payout.
+ if(action==='safepurchase_refund')return privateJson(await commerceSafePurchaseRefund(db,user.userId,raw,environment()));
  if(action==='owner_reconcile')return privateJson(await commerceOwnerReconcile(db,user.userId,raw,environment()));
  // Seller release: owner-only, and still refused unless COMMERCE_PAYOUTS_ENABLED=true.
  if(action==='owner_release')return privateJson(await commerceOwnerRelease(db,user.userId,raw,environment()));

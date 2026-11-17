@@ -23,7 +23,8 @@ Cash, off-platform payments and trades are **not** protected. The UI must say so
 5. **Seller response:** 3 business days to resolve (refund, replacement or return). Unresolved → buyer may escalate; ComicHuddle support decides within 48 hours.
 6. **Not as described** (wrong issue/variant/printing, undisclosed restoration or pressing, grade materially worse than listed, counterfeit): full refund including original shipping; the buyer returns the item with a prepaid label at the seller's cost. The refund is issued when return tracking shows *Delivered* to the seller.
 7. **Buyer remorse** returns are at the seller's discretion (listing states "No returns" or "30-day returns").
-8. A card chargeback opened while a claim is in progress is handled by ComicHuddle; a buyer may not receive both a claim refund and a chargeback refund.
+8. **SafePurchase after the seller is paid:** a claim within the same 30 days is reviewed by ComicHuddle. If approved, ComicHuddle refunds the buyer from its own balance (full, or a smaller amount support sets). The seller keeps their payout and no transfer is reversed. One ComicHuddle refund per order.
+9. A card chargeback opened while a claim is in progress is handled by ComicHuddle; a buyer may not receive both a claim refund and a chargeback refund.
 
 ## 3. SafePurchase (flagship) rules
 
