@@ -1,4 +1,4 @@
-.character-page{background:#f6f7f9;min-height:100vh}
+.character-page{background:#f6f7f9;min-height:100vh;min-height:100dvh}
 .cp-main{--cp-ink:#141821;--cp-muted:#6b7280;--cp-red:#c62828;--cp-line:#e5e7eb;max-width:1160px;margin:0 auto;padding:28px 20px 60px;font-family:'DM Sans',Arial,sans-serif;color:var(--cp-ink)}
 .cp-main *{box-sizing:border-box}
 .cp-crumbs{font-size:13px;color:var(--cp-muted);margin-bottom:18px}.cp-crumbs a{color:var(--cp-red);text-decoration:none}.cp-crumbs a:hover{text-decoration:underline}

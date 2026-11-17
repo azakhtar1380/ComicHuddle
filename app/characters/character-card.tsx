@@ -8,6 +8,6 @@ export default function CharacterCard({hit}:{hit:CharacterHit}){
  return <a href={'/characters/'+hit.characterId} className="cp-person">
   <Portrait name={hit.name} src={hit.portraitUrl} size="lg"/>
   <strong>{hit.name}</strong>
-  {hit.firstAppearance?<small><Star size={12} fill="currentColor"/> {hit.firstAppearance.title} #{hit.firstAppearance.number}{hit.firstAppearance.year?' ('+hit.firstAppearance.year+')':''}</small>:hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')} comics</small>:<small className="cp-faint">Details on the way</small>}
+  {hit.firstAppearance?<small><Star size={12} fill="currentColor"/> {hit.firstAppearance.title} #{hit.firstAppearance.number}{hit.firstAppearance.year?' ('+hit.firstAppearance.year+')':''}</small>:hit.issueCount?<small>{hit.issueCount.toLocaleString('en-US')} {hit.issueCount===1?'comic':'comics'}</small>:<small className="cp-faint">Details on the way</small>}
  </a>;
 }

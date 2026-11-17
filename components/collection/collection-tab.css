@@ -24,7 +24,7 @@
 .ct-danger{color:var(--red)}
 .ct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;list-style:none;margin:0;padding:0}
 @media (min-width:720px){.ct-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.ct-card{position:relative;content-visibility:auto;contain-intrinsic-size:auto 320px;border:2px solid var(--ink);background:#fff;box-shadow:3px 3px 0 var(--ink)}
+.ct-card{position:relative;border:2px solid var(--ink);background:#fff;box-shadow:3px 3px 0 var(--ink)}
 .ct-card.is-selected{outline:3px solid var(--red);outline-offset:-3px}
 .ct-open{display:grid;gap:4px;width:100%;padding:8px;text-align:left;color:var(--ink)}
 .ct-cover{position:relative;display:grid;place-items:center;aspect-ratio:2/3;width:100%;overflow:hidden;background:var(--paper);border:1px solid var(--ink)}

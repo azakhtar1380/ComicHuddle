@@ -54,3 +54,6 @@
 .ch-collection-dialog .ch-save-copy{min-height:48px;background:var(--red);border:0;border-radius:var(--radius-sm);color:#fff;padding:12px;font-size:13px;font-weight:700}
 @media(min-width:700px){.issue-full-card>.ch-product-card{display:grid;grid-template-columns:minmax(200px,34%) minmax(0,1fr);gap:26px;align-items:start}.issue-full-card .ch-cover-column{grid-column:1;position:sticky;top:0}.issue-full-card .ch-card-details{grid-column:2;padding:0}.issue-full-card .ch-card-cover{height:340px;min-height:340px}}
 @media(max-width:480px){.ch-card-cover{height:245px;min-height:245px}.ch-collection-dialog{padding:18px}.ch-card-details h3{font-size:28px}.issue-extra-details dl{grid-template-columns:95px minmax(0,1fr)}}
+
+/* Cleanup round: the cover column scrolls with the dialog (sticky inside a scrolling dialog fought the scroll). */
+.issue-full-card .ch-cover-column{position:static}

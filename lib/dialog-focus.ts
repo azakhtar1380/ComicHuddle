@@ -16,6 +16,14 @@ function focusControl(element:HTMLElement,dialog:HTMLElement){
  else if(target.bottom>bottom)dialog.scrollTop+=target.bottom-bottom;
 }
 
+/** How many dialogs hold the page scroll lock right now. */
+export const lockedDialogs=()=>dialogs.length;
+// Dev only: something set body overflow outside this module and left the page stuck.
+function warnIfLeaked(){
+ if(process.env.NODE_ENV==='production'||typeof window==='undefined')return;
+ setTimeout(()=>{if(!dialogs.length&&document.body.style.overflow==='hidden')console.warn('[scroll lock] The page is still locked with no dialog open. Use activateDialog (lib/dialog-focus.ts) instead of setting body overflow directly.')},400);
+}
+
 export function activateDialog(element:HTMLElement|null,onClose:()=>void){
  if(!element)return;
  const entry:DialogEntry={element,previous:document.activeElement as HTMLElement|null};
@@ -50,7 +58,7 @@ export function activateDialog(element:HTMLElement|null,onClose:()=>void){
   const wasTop=dialogs.at(-1)===entry;
   dialogs.splice(dialogs.indexOf(entry),1);
   document.removeEventListener('keydown',key);
-  if(!dialogs.length){document.body.style.overflow=previousOverflow;document.body.style.paddingRight=previousPadding}
+  if(!dialogs.length){document.body.style.overflow=previousOverflow;document.body.style.paddingRight=previousPadding;warnIfLeaked()}
   if(wasTop){
    const parent=dialogs.at(-1)?.element;
    const previous=entry.previous?.isConnected&&(!parent||parent.contains(entry.previous))?entry.previous:parent;

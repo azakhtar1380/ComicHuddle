@@ -1,4 +1,4 @@
-.vf-page{background:var(--paper,#f5f1e7);min-height:100vh}
+.vf-page{background:var(--paper,#f5f1e7);min-height:100vh;min-height:100dvh}
 .vf-main{max-width:880px;margin:0 auto;padding:28px 16px 60px;font-family:var(--font-body,'DM Sans',Arial,sans-serif);color:var(--ink,#20201f);display:grid;gap:18px}
 .vf-main *{box-sizing:border-box}
 .vf-hero{display:flex;gap:24px;align-items:center;background:var(--cream,#f9f6ef);border:2px solid var(--ink,#20201f);border-radius:22px;padding:28px;box-shadow:var(--shadow-pop,4px 4px 0 #20201f)}

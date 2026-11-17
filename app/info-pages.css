@@ -1,5 +1,5 @@
 /* /about and /contact: simple information pages in the site's comic style. */
-.info-page{background:var(--paper);min-height:100vh;overflow-x:clip}
+.info-page{background:var(--paper);min-height:100vh;min-height:100dvh;overflow-x:clip}
 .info-main{max-width:1180px;margin:0 auto;padding:32px 24px 72px;color:var(--ink);font-family:var(--font-body,'DM Sans',Arial,sans-serif)}
 .info-main *{box-sizing:border-box}
 .info-main p{font-size:17px;line-height:1.6;color:var(--ink-2,var(--muted));margin:0 0 14px;max-width:640px}

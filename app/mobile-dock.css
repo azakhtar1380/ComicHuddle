@@ -147,3 +147,6 @@
 @media (prefers-reduced-motion:reduce){.drawer-overlay .account-drawer,.drawer-overlay .account-drawer.am-drawer{animation:ap-fade .18s ease-out;will-change:auto}}
 .ap-wallet small{min-height:1.3em}
 .ap-wallet-loading{color:var(--muted)}
+
+/* Every page leaves room for the dock (66px + its 10px gap) and the Scan button, plus the safe area. */
+@media (max-width:760px){body:has(.dock3){padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}}

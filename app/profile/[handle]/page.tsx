@@ -18,7 +18,7 @@ const clean=(raw:string)=>decodeURIComponent(raw).replace(/^@/,'').toLowerCase()
 export async function generateMetadata({params}:Params):Promise<Metadata>{
  const handle=clean((await params).handle),p=await publicProfileSummary(handle);
  if(!p)return {title:'Profile not found · ComicHuddle',robots:{index:false}};
- const title=`${p.name} (@${p.handle}) on ComicHuddle`,description=[`${p.comics.toLocaleString('en-US')} comics`,`${p.keys.toLocaleString('en-US')} keys`,p.rating?(p.rating.stars!==null?`${p.rating.stars.toFixed(1)}★`:`${p.rating.percent}% positive`)+` from ${p.rating.count} reviews`:null,p.verified?(p.verified==='business'?'Verified business':'Verified collector'):null].filter(Boolean).join(' · ');
+ const title=`${p.name} (@${p.handle}) on ComicHuddle`,description=[`${p.comics.toLocaleString('en-US')} ${p.comics===1?'comic':'comics'}`,`${p.keys.toLocaleString('en-US')} ${p.keys===1?'key':'keys'}`,p.rating?(p.rating.stars!==null?`${p.rating.stars.toFixed(1)}★`:`${p.rating.percent}% positive`)+` from ${p.rating.count} reviews`:null,p.verified?(p.verified==='business'?'Verified business':'Verified collector'):null].filter(Boolean).join(' · ');
  const image={url:'/api/og/profile?handle='+encodeURIComponent(p.handle),width:1200,height:630,alt:title};
  const h=await headers(),host=h.get('x-forwarded-host')||h.get('host')||'localhost:3000',proto=h.get('x-forwarded-proto')||(host.startsWith('localhost')||host.startsWith('127.')?'http':'https');
  return {metadataBase:new URL(proto+'://'+host),title,description,alternates:{canonical:'/@'+p.handle},openGraph:{type:'profile',title,description,url:'/@'+p.handle,images:[image],siteName:'ComicHuddle'},twitter:{card:'summary_large_image',title,description,images:[image.url]}};

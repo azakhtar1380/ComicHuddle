@@ -1,5 +1,5 @@
 /* /about-huddles: the one page where Huddles gets to be big and everywhere. Rounded tokens only. */
-.ah-page{background:var(--paper);min-height:100vh;overflow-x:clip}
+.ah-page{background:var(--paper);min-height:100vh;min-height:100dvh;overflow-x:clip}
 .ah-main{max-width:1180px;margin:0 auto;padding:var(--s4) 24px var(--s8);color:var(--ink);font-family:var(--font-body)}
 .ah-main *{box-sizing:border-box}
 .ah-main p{font-size:17px;line-height:1.6;color:var(--ink-2);margin:0 0 var(--s2);max-width:600px}

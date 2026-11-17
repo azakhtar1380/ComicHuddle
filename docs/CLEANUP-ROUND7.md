@@ -72,3 +72,41 @@ Most of the remaining task is React development-mode work in the panel's first r
 - Listings, messages, reviews, the share card and OG read names from the profile at request time, so they show the current values. Notifications keep the text they were sent with.
 
 Tests: `checks/founder-names.test.ts`, `e2e/16-names.spec.ts`, `e2e/17-founder.spec.ts` (the test server sets `COMICHUDDLE_FOUNDER_EMAIL` to the admin test account).
+
+## 10. Seller card and smooth scrolling
+**Seller card** (listing detail): one card in the profile style — 48px avatar, name with the check or Founder/Admin badge, @handle (long names and handles end in "…"), stars and reviews, pickup / ships-from city, Member since; buttons View profile, Message and Make an offer (fixed-price listings), all at least 44px and wrapping on small phones; the SafePurchase badge under it. The separate "Message seller" link and the duplicate "Make an offer" button are gone. The seller sees "Your copy". The gallery and the issue cover column are no longer sticky inside the scrolling dialog.
+
+**Scrolling — what was found and fixed:**
+- One shared lock for every dialog/sheet/panel (`lib/dialog-focus.ts`): a stack counter, padding for the scroll bar, restored on close, unmount and Escape; `lockedDialogs()` for tests; a development-only console warning if the page is left locked with no dialog open. The phone notifications sheet and every Sheet use it. Unit test: `checks/scroll-lock.test.ts` (nested dialogs closed in any order).
+- `100vh` → also `100dvh` in 8 stylesheets, so the phone address bar no longer makes those pages jump.
+- `touch-action: pan-y` removed from the Directory picker options (not a carousel). The swipe cards keep theirs (they are a real swipe gesture).
+- No sticky columns inside scrolling dialogs (issue cover column, listing gallery).
+- Scroll listeners were already passive; nothing calls preventDefault on touchmove outside the photo crop tool.
+- `content-visibility` was tried on marketplace and collection cards and taken off again: it made cards jump (layout shift) as they scrolled in.
+- Phones: every page has bottom padding for the dock and Scan button (`body:has(.dock3)`).
+
+Measured on the local dev server, phone size, CPU slowed 4×, scrolling each page top to bottom (test data, so pages are short):
+
+| Page | Before (longest task / CLS / fps) | After |
+|---|---|---|
+| Home | 196 ms / 0 / 52 | 0 / 0 / 61 |
+| Directory | 0 / 0 / 60 | 0 / 0 / 60 |
+| Marketplace | 0 / 0 / 62 | 52 ms / 0 / 59 |
+| My Profile | 0 / 0 / 61 | 0 / 0 / 60 |
+| Collection tab | 0 / 0 / 61 | 0 / 0 / 59 |
+| Issue detail | 0 / 0 / 61 | 0 / 0 / 61 |
+
+Test: `e2e/18-scroll.spec.ts` (open and close each dialog and sheet, then scroll each main page to the bottom).
+
+## 11. Styling pass
+Plurals fixed where a count was printed with a fixed word (Directory results, character cards, set badges, profile link previews, the share screen's chat preview). Bottom padding for the dock. Seller card and header buttons at 44px. No sideways overflow at 360px on the profile header (tested), notifications (tested), share and account screens.
+
+## Payments: Apple Pay, Google Pay or card on the page
+- **Saving a card to bid** (bid form and Wallet): step 1 shipping address, step 2 Stripe's own in-page form — Apple Pay and Google Pay buttons (Stripe's Express Checkout, official buttons) and the card form. Nothing is charged. Falls back to Stripe's page if the publishable key isn't set.
+- **Fixed:** saving a card failed with this Stripe API version, which no longer accepts `payment_method_types` (payment methods now come from the Stripe Dashboard settings).
+- **Wallet:** shows a short "No payment method saved yet" row with one button, instead of the whole address form.
+- **Buy** already used the in-page form. **Cart:** each held comic is now paid on the cart page with the same form (Apple Pay, Google Pay or card), instead of going to Stripe's page.
+- Apple Pay and Google Pay only show on devices and browsers that support them, and only after the site's domain is registered in Stripe (Dashboard → Settings → Payment method domains: add the QA and production domains). Claude didn't change Stripe settings.
+
+## Listing photos
+A listing with seller photos shows the real photo on its card (a set gets a "Set of N" badge and a photo count) instead of pasting the photo onto a fake stack of covers; the detail shows every photo with thumbnails, then the comics in the set. Listings already take up to 6 photos at once; the upload box now says so.

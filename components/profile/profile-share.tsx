@@ -100,7 +100,7 @@ export default function ProfileShare({p,own,notice,trophy,onSettingsSaved}:{p:Pr
     <div className="ps-chat-card">
      {/* eslint-disable-next-line @next/next/no-img-element */}
      <img src={'/api/og/profile?handle='+encodeURIComponent(p.handle)} alt="" width={240} height={126} loading="lazy" decoding="async"/>
-     <div><strong>{p.name} (@{p.handle}) on ComicHuddle</strong><small>{p.stats.comics.toLocaleString('en-US')} comics · {x.keys.toLocaleString('en-US')} keys{x.rating?' · '+(x.rating.stars!==null?x.rating.stars.toFixed(1)+'★':x.rating.percent+'% positive'):''}</small></div>
+     <div><strong>{p.name} (@{p.handle}) on ComicHuddle</strong><small>{p.stats.comics.toLocaleString('en-US')} {p.stats.comics===1?'comic':'comics'} · {x.keys.toLocaleString('en-US')} {x.keys===1?'key':'keys'}{x.rating?' · '+(x.rating.stars!==null?x.rating.stars.toFixed(1)+'★':x.rating.percent+'% positive'):''}</small></div>
     </div>
    </div>
   </section>

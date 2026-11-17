@@ -1,5 +1,5 @@
 /* Offers & trades page (round 4). */
-.offers-page{background:#f6f7f9;min-height:100vh}
+.offers-page{background:#f6f7f9;min-height:100vh;min-height:100dvh}
 .of-main{max-width:960px;margin:0 auto;padding:28px 16px 60px;color:var(--ink,#141821)}
 .of-main *{box-sizing:border-box}
 .of-hero{margin-bottom:20px}

@@ -260,7 +260,7 @@ dialog,[role=dialog]{font-family:var(--font-body)}
 body:has([role=dialog]) nav.mobile-bottom.mobile-scan-dock,body:has(dialog[open]) nav.mobile-bottom.mobile-scan-dock{display:none!important}
 
 /* Sign-out page */
-.ch-signout{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px 16px}
+.ch-signout{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px 16px}
 .ch-signout-brand img{height:84px;width:auto}
 .ch-signout .auth-card{max-width:440px;width:100%}
 .ch-signout-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}.ch-signout-actions .ch-btn{flex:1 1 160px}
